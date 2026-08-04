@@ -418,6 +418,7 @@ export function createSessionRouter() {
             stepType: steps.stepType,
             stepInstanceId: stepInstances.id,
             stepMetadata: stepInstances.metadata,
+            workflowInstanceId: instances.id,
           })
           .from(orderOfBusinessItems)
           .innerJoin(documents, eq(orderOfBusinessItems.documentId, documents.id))
@@ -480,6 +481,7 @@ export function createSessionRouter() {
             committeeReportStatus,
             assignedCommittees,
             stepInstanceId: item.stepInstanceId,
+            workflowInstanceId: item.workflowInstanceId,
           };
         });
 

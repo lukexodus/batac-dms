@@ -23,6 +23,7 @@ import {
   ArrowRightCircle,
 } from 'lucide-react';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
@@ -444,6 +445,7 @@ function SecretaryItemActions({
         documentId={item.documentId}
         documentTitle={item.title}
         sessionDate={sessionDate}
+        workflowInstanceId={item.workflowInstanceId}
         onSuccess={onSuccess}
       />
     </div>
@@ -577,6 +579,7 @@ interface RemoveFromAgendaDialogProps {
   documentId: string;
   documentTitle: string;
   sessionDate: Date | string;
+  workflowInstanceId: string | null;
   onSuccess: () => void;
 }
 
@@ -586,11 +589,20 @@ function RemoveFromAgendaDialog({
   documentId,
   documentTitle,
   sessionDate,
+  workflowInstanceId,
   onSuccess,
 }: RemoveFromAgendaDialogProps) {
+  const navigate = useNavigate();
   const mutation = trpc.session.removeFromOrderOfBusiness.useMutation({
     onSuccess() {
-      toast.success('Item removed from the agenda.');
+      toast.success('Item removed from the agenda.', {
+        action: workflowInstanceId
+          ? {
+              label: 'View in My Tasks',
+              onClick: () => navigate(`/workflow/steps/${workflowInstanceId}`),
+            }
+          : undefined,
+      });
       onClose();
       onSuccess();
     },

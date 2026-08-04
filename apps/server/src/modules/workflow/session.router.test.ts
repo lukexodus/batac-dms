@@ -689,6 +689,8 @@ describe('Session Router tRPC Procedures', () => {
           preliminaryNumber: 'PRE-1',
           isRedFlagged: false,
           stepType: 'multi_referral',
+          stepInstanceId: 'step-inst-id',
+          workflowInstanceId: 'instance-id-1',
           stepMetadata: {
             assigned_committees: [{ committee_id: 'comm-1' }],
             submissions: [], // missing submission
@@ -708,8 +710,37 @@ describe('Session Router tRPC Procedures', () => {
       expect(result.items[0]?.title).toBe('Document Title 1');
       expect(result.items[0]?.committeeReportStatus).toBe('red_flagged');
       expect(result.items[0]?.assignedCommittees).toEqual(['Committee on Laws']);
+      expect(result.items[0]?.workflowInstanceId).toBe('instance-id-1');
 
       vi.useRealTimers();
+    });
+
+    it('returns workflowInstanceId if the document has an active workflow step', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ id: 'session-id' }]); // session exists
+      mockDb.mockResponse([{ id: 'oob-id', cutoffDate: '2026-07-09' }]); // OOB exists
+      mockDb.mockResponse([
+        {
+          documentId: VALID_UUID,
+          title: 'Document Title 2',
+          preliminaryNumber: 'PRE-2',
+          isRedFlagged: false,
+          stepType: 'first_reading',
+          stepInstanceId: 'step-inst-2',
+          workflowInstanceId: 'instance-id-2',
+          stepMetadata: {},
+        },
+      ]); // items inside OOB
+      mockDb.mockResponse([]); // committees table
+
+      const result = await caller.getOrderOfBusiness({
+        sessionDate: new Date('2026-07-14'),
+      });
+
+      expect(result.items.length).toBe(1);
+      expect(result.items[0]?.workflowInstanceId).toBe('instance-id-2');
     });
   });
 
