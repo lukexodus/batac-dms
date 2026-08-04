@@ -12,6 +12,7 @@ Labels used throughout, per this project's convention: `[Confirmed]` = checked d
 
 1. **Run the seeds, in this order** (confirmed exact commands from `package.json` and the seed script's own header):
    ```
+   
    pnpm --filter database db:migrate
    pnpm db:seed
    pnpm --filter server exec tsx src/database/seeds/demo-credentials.seed.ts

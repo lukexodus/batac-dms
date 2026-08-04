@@ -6823,3 +6823,170 @@ WinAnsi (e.g. some Unicode dashes/non-Latin script); such characters may drop or
 incorrectly in the text pages. If non-WinAnsi committee-report text must be supported, a
 Unicode-embedded font (like the ones used elsewhere for scanned/OCR content) would be
 required.
+
+### [LOG-0222] ADR-014 workflow.instance.repassed → document-supersession subscriber implemented
+
+- date: 2026-08-04
+- task_id: ADR-014 (workflow.instance.repassed subscriber)
+- status: proposed
+- affects: documents.types.ts (DocumentsPublicAPI), documents.repository.ts, documents.service.ts, documents.plugin.ts
+
+**What was found / decided:**
+
+Three design decisions that the ADR-014 prompt flagged as open were resolved with explicit human
+sign-off before implementation. All three are recorded here as the durable decision record.
+
+**Decision 1 — How the new document is created via DocumentsPublicAPI (resolved: Option A)**
+
+A narrowly-scoped method `createSupersedingDocument(input: SupersedingDocumentInput)` was added
+to `DocumentsPublicAPI` (documents.types.ts) and implemented in `documents.service.ts`. This
+mirrors the precedent set when `transitionState` and `setWorkflowInstance` were added to the
+interface for cross-module needs. The method is the only new public surface; the generic
+`insertDocument` on `DocumentsRepository` remains unexposed on the public API.
+
+**Decision 2 — Event used to trigger new workflow instance (resolved: reuse `document.created`)**
+
+The `workflow.instance.repassed` subscriber (in documents.plugin.ts) calls
+`createSupersedingDocument`, then emits `document.created` for the new document. The workflow
+module's existing `document.created` subscriber (workflow.plugin.ts lines 86–126) picks this up
+verbatim and calls `createInstance` — zero new workflow-side code was required. The `actorId`
+in the emitted `document.created` payload is set to the old document's `createdBy` (see
+Decision 3), which becomes the `actorId` passed to `createInstance`.
+
+**Decision 3 — New document field sourcing (resolved: copy-from-old with specific overrides)**
+
+Confirmed by human sign-off:
+- `title`: `${oldDoc.title} v2`
+- `qrTrackingNumber`: fresh `crypto.randomUUID()` (each physical document gets its own QR)
+- `createdBy`: `oldDoc.createdBy` (the original submitter, not the system actor)
+- `preliminaryNumber`: carried forward from old document
+- `finalNumber`: carried forward from old document
+- `lifecycleState`: `'submitted'` (workflow engine transitions it to `in_workflow` after
+  the emitted `document.created` triggers `createInstance`)
+- All other fields (`documentTypeId`, `classificationLevel`, `originatingOfficeId`,
+  `ownedByOfficeId`, `retentionScheduleId`, `numberSeriesId`): copied from old document
+
+**What was implemented:**
+
+1. `documents.repository.ts`: Added `setDocumentSupersession(id, supersededByDocumentId,
+   closureReason)` — a single UPDATE that writes `superseded_by`, `superseded_at`,
+   `closure_reason`, and `updated_at` on the old document row.
+
+2. `documents.types.ts`: Added `SupersedingDocumentInput`, `SupersedingDocumentResult`
+   interfaces and extended `DocumentsPublicAPI` with `createSupersedingDocument`.
+
+3. `documents.service.ts`: Implemented `createSupersedingDocument`. All three writes (new
+   document INSERT, old document lifecycleState UPDATE via `updateDocumentLifecycleState`,
+   supersession-columns UPDATE via `setDocumentSupersession`) run inside a single
+   `deps.db.transaction(...)` so they are atomic. The `document.state_changed` event for the
+   old document is emitted after the transaction commits, fire-and-forget — same pattern as
+   `transitionState`. The implementation calls `VALID_TRANSITIONS` guard directly (copied from
+   module scope) rather than calling `this.transitionState(...)` to avoid the self-referential
+   call complexity of a plain object literal factory.
+
+4. `documents.plugin.ts`: Added `workflow.instance.repassed` subscriber immediately after the
+   `workflow.step.completed` handler. Pattern mirrors that handler exactly: inner `run()` async
+   closure, `.catch()` with `fastify.log.error(...)`, uses `eventService` (the
+   event-connection-backed service, not `fastify.db`), does NOT reference
+   `fastify.workflowService`, does NOT add `'workflow'` to the plugin's `dependencies` array
+   (workflow already depends on documents; the reverse would be circular).
+
+**Known fragility noted but not fixed (per task scope):**
+
+`termination.handler.ts` lines 70 and 85 use the raw `trx` parameter instead of the resolved
+`tx` (`trx || deps.db`, line 21). If this function is ever called without an explicit `trx`,
+those two calls would receive `undefined`. Currently dormant — every production call site passes
+`trx`. Fixing it would require updating test `INV9-01` in
+`workflow/__tests__/invariants.test.ts` (line 385), which currently asserts `createWorkflowEvent`
+is called with `undefined` as the second arg. Not touched here; flagged for a follow-up.
+
+[Inference]: The atomicity claim above is a structural observation (all three DML statements
+are inside one `db.transaction(...)` callback). It has not been tested against a real database
+in this task. The pattern matches `setWorkflowInstance` and `transitionState`'s own transaction
+handling, which the codebase already uses.
+
+[Tested]: `tsc --noEmit` on `apps/server` passes with zero errors after all four file edits.
+
+---
+
+### [LOG-0223] LOG-0178 (second instance) contradicted by current code — ValidInPartDecisionPanel.tsx confirmed calling the correct procedure with committee-chair resolution intact
+
+- date: 2026-08-04
+- task_id: (verification pass, no task — surfaced during SP Resolution post-transmittal handoff review)
+- status: proposed
+- affects: apps/web/src/pages/workflow/panels/ValidInPartDecisionPanel.tsx, apps/server/src/modules/workflow/workflow.router.ts
+
+**What was found:**
+
+The second LOG-0178 entry (`docs/development-findings-log.md:5062-5175`, title referencing
+`ValidInPartDecisionPanel.tsx` calling the wrong procedure) does not match this snapshot.
+Direct verification:
+
+- `ValidInPartDecisionPanel.tsx:18` — `trpc.workflow.resolveValidInPart.useMutation`. Not
+  `submitApprovalOutcome`.
+- `workflow.router.ts:3215-3357` (`resolveValidInPart` procedure) — `resolutionPath` →
+  outcome mapping at lines 3279-3283 is exact: `resolve_as_is` → `RESOLVED_IN_PLACE`,
+  `route_to_legal` → `ROUTED_TO_LEGAL`, `route_to_committee` → `ROUTED_TO_COMMITTEE`,
+  `implement_directly` → `REVISED_DIRECTLY`.
+- The specific side effect LOG-0178 described as silently dropped — committee-chair
+  resolution on the `ROUTED_TO_COMMITTEE` outcome — is present and correct: lines
+  3291-3337 look up the originating `committee_referral` step instance's
+  `assigned_committees` metadata, resolve the chair via `orgService.getCommitteeChair`,
+  and write `referred_committee_chair_id` into `instance.context` via
+  `updateInstanceContext`, all inside the same `ctx.db.transaction(...)` block that then
+  calls `submitStepApproval` (line 3347) with the correctly-mapped outcome.
+
+**Why this is being logged rather than silently dropped:** LOG-0178 was `status: proposed`,
+dated before this snapshot. This entry does not claim LOG-0178 was wrong when written — only
+that the code it describes does not match the current repo. Either the underlying issue was
+fixed between LOG-0178's authoring and this snapshot, or LOG-0178's original read was
+mistaken. Which of those it was has not been determined and does not need to be — the
+current-state confirmation is what matters going forward. A human should mark LOG-0178
+resolved (or superseded by this entry) so it stops appearing as an open item in future
+reconnaissance passes over this log.
+
+**Not in scope for this entry:** no code changes were made. This is a verification-only
+finding.
+
+---
+
+### [LOG-0224] computePanelHint's confirmed office_id gap (LOG-0177) does not extend into any post-transmittal panelHint branch
+
+- date: 2026-08-04
+- task_id: (verification pass, no task — surfaced during SP Resolution post-transmittal handoff review)
+- status: proposed
+- affects: apps/server/src/modules/workflow/workflow.router.ts
+
+**What was found:**
+
+The second LOG-0177 entry (`docs/development-findings-log.md:4980-5058`, `status: confirmed`)
+establishes that `step_instances.assigned_to` never carries `office_id`, making the
+`office_id`-comparison branch of `computePanelHint` structurally dead for the steps that
+branch was scoped to (`second_reading_vote`, `second_reading_amended_vote`, both routing to
+`secretariat_decision`). That entry's own scope note flags this as upstream of, but
+potentially relevant to, panelHint correctness generally.
+
+Full-function read of `computePanelHint` (`workflow.router.ts:389-459`) confirms the
+`office_id` comparison appears in exactly one place — the `else if` at lines 446-451
+(`secretariat_decision`) — and it is only reachable when none of nine earlier, unconditional
+`stepKey ===` checks (lines 421-445) match first. Every step key covered by the SP Resolution
+post-transmittal handoff document has one of those earlier explicit branches:
+`mayor_review`/`mayor_signature` (425), `veto_override_vote` (430), `docketing` (432),
+`panlalawigan_review` (434), `returned_review` (438), `legal_office_review` (440),
+`committee_revisions_review` (442), `valid_in_part_decision` (444). None of these can reach
+the broken `office_id` comparison. `second_reading_vote`/`second_reading_amended_vote` — the
+two steps LOG-0177 actually concerns — have no explicit branch of their own, which is
+precisely why they're the ones that fall through to the broken check.
+
+**Conclusion:** LOG-0177's confirmed gap is real but genuinely contained to its originally
+scoped steps. No panelHint branch relevant to `transmittal_letter_to_mayor` onward is
+affected. No code change is implied by this entry.
+
+**Secondary confirmation (same read, not a new finding):** `computePanelHint` has no branch
+for `stepKey === 'portal_publication'` or `stepKey === 'archive'` — both fall through to the
+generic `currentStepType === 'action'` check at line 452. This matches the "shared,
+undisputed facts" both investigation passes already agreed on in the portal_publication/
+archive dispute; recorded here as a first-hand confirmation, not a new claim.
+
+---
+

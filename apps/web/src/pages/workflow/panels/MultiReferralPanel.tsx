@@ -483,9 +483,9 @@ export function MultiReferralPanel({
             <h3 className="text-sm font-medium">Consolidate &amp; Accept Unified Committee Report</h3>
             <p className="text-muted-foreground text-xs">
               Consolidate the submitted committee reports into a single document: a title page
-              followed by each committee&apos;s uploaded PDF. Text-only and non-PDF submissions are
-              listed on the title page. Review the result, then accept it to complete this step.
-              All assigned committees must have submitted first.
+              followed by each committee&apos;s uploaded PDF and any text-only submissions. Review
+              the result, then accept it to complete this step. All assigned committees must
+              have submitted first.
             </p>
             <Button
               onClick={handleConsolidateReports}

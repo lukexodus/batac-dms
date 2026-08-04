@@ -32476,3 +32476,50 @@ Separately — and this is the same limitation already accepted by TASK-WF-BE-00
 ## Report back
 
 Include the exact diffs applied to both files, `pnpm typecheck` results, test results, and explicit confirmation of what `sonner`'s installed version and `Action` type actually look like (this was flagged above as verified against version `^2.0.7` at prompt-writing time — confirm this is still the pinned version, since a major-version bump could change the action prop's shape).
+
+---
+
+# Implement `workflow.instance.repassed` → document-supersession subscriber (ADR-014)**
+
+You are operating as the LOCAL AGENT with live, direct access to the `batac-dms` repository. This prompt gives you confirmed, first-hand facts and the design decisions still open. Where a decision is open, resolve it with the human before writing code — do not silently pick an option.
+
+**Context**
+
+`termination.handler.ts`'s `REPASSED` branch (lines 64–86) already works correctly: it completes the step instance and emits `workflow.instance.repassed` with payload `{ instanceId, documentId }`. No subscriber to this event exists anywhere in source — confirmed by direct grep across `apps/server/src` and `apps/web/src`. This is the entire remaining gap. Everything else in the SP Resolution repass/supersession flow (`returned_review`'s frontend panel, the generic `submitApprovalOutcome` procedure, `panelHint` routing) is already fully wired and correct — do not touch those.
+
+**What the new subscriber must do, per ADR-014**
+
+On `workflow.instance.repassed`:
+1. Create a new document row.
+2. Set `supersededBy`, `supersededAt`, `closureReason` on the *old* document (the one referenced by the event's `documentId`).
+3. Start a new workflow instance for the new document.
+
+**Confirmed facts you must respect**
+
+- **Schema** (`packages/database/schema/documents.schema.ts` lines 239–242): `documents` has `supersededBy` (uuid, self-referencing FK to `documents.id`), `supersededAt` (timestamp), `closureReason` (text). There is **no** `previousDocumentId` column. The FK is one-directional: it lives on the *old* row and points to the new one. There is no column on the new row pointing back. If earlier notes said `previousDocumentId` exists, that was imprecise — treat `supersededBy` as the only mechanism.
+
+- **`transitionState(documentId, toState, actorId, reason?, trx?)`** in `documents.service.ts` (line 118) only writes `lifecycleState` (via `updateDocumentLifecycleState`) and emits `document.state_changed`. It does **not** write `supersededBy`/`supersededAt`/`closureReason`. `superseded` is a valid terminal target from `pending_panlalawigan_review` (`VALID_TRANSITIONS`, line 35), and `superseded: []` confirms it's terminal. You will need transitionState for the state change, plus a **separate write** for the three supersession columns — no existing method sets them together.
+
+- **`insertDocument(input: InsertDocument)`** exists on `DocumentsRepository` (line 105) but is **not exposed on `DocumentsPublicAPI`**. This is the actual blocker: the fire-and-forget event pattern requires using `documentsEventService` (which implements `DocumentsPublicAPI`), and that interface currently cannot create a document. **Open decision #1 below.**
+
+- **Cross-module instance creation is not blocked.** `WorkflowPublicAPI` has no `createInstance` method, but this doesn't matter — `createInstance` (`workflow/engine/create-instance.ts`) has exactly one call site, and it's `workflow.plugin.ts`'s own `document.created` subscriber (lines 86–126), fully internal to the workflow module. The event bus is the cross-module bridge here, not the public API. The correct architecture, matching this existing precedent exactly: your new document-side subscriber creates the document and stops — it does **not** call into the workflow module. It emits an event (see decision #2) that the workflow module already listens to or is extended to listen to, and the workflow module's own existing `createInstance` call path handles instance creation, exactly as it already does for `document.created`.
+
+- **Subscriber pattern precedent** — mirror this exactly, from `documents.plugin.ts`'s `workflow.step.completed` handler (lines 218–246):
+  - `fastify.eventBus.on('workflow.instance.repassed', handler, 'documents')`
+  - Inner `async run()` closure, called and `.catch()`-handled with `fastify.log.error({ err, eventId, documentId }, '...')` — fire-and-forget, never throws back into the emitter.
+  - Use `eventService` (the `documentsEventDb`-backed service), **never** `service`/`fastify.db` — nested transactions on the emitter's connection are silently lost (see the comment at `documents.plugin.ts` lines 135–140, LOG-0207/LOG-0210).
+  - Reference `fastify.workflowService` lazily if needed, never add `'workflow'` to this plugin's `dependencies` array (currently `['database', 'event-bus', 'audit', 'organization']`) — `workflow` already depends on `documents`, so the reverse would create a circular dependency.
+
+- **Known fragility, not a blocker:** `termination.handler.ts` lines 70 and 85 use the raw `trx` parameter instead of the resolved `tx` (`trx || deps.db`, line 21). If this function is ever called without an explicit `trx`, those two calls would receive `undefined` instead of falling back to `deps.db`. Currently dormant — every production call site passes `trx`. Not in scope to fix here, but note it in your PR description. If you do touch it, update test `INV9-01` in `workflow/__tests__/invariants.test.ts` (line 385) — it currently asserts `createWorkflowEvent` is called with `undefined` as the second arg, which would need to change if `trx` were swapped for `tx`.
+
+**Open decisions — resolve with the human before implementing**
+
+1. **How does the new document get created via `DocumentsPublicAPI`?** Two options: (a) add `insertDocument` (or a narrower purpose-built method, e.g. `createSupersedingDocument`) to the `DocumentsPublicAPI` interface and implement it in `documents.service.ts`, following the same pattern `transitionState` itself used when it was added (see its docstring, lines 98–117, for the precedent of extending this interface for a cross-module need); or (b) some other mechanism. Recommend (a), scoped narrowly rather than exposing the full generic `insertDocument`.
+
+2. **What event does the workflow module listen to for creating the new instance?** Does the new document-side subscriber emit `document.created` again (reusing the existing `workflow.plugin.ts` subscriber path verbatim, zero new workflow-side code), or does it need a distinct event because the new document's context differs meaningfully from a normal creation (e.g. it should carry a reference to the repassed instance/document)? Recommend clarifying this with the human — reusing `document.created` is simpler and fully precedented, but only if the new document's `createInstance` call doesn't need repass-specific context that `document.created`'s existing payload shape can't carry.
+
+3. **Where do the new document's required fields come from?** `InsertDocument` (Drizzle's `InferInsertModel<typeof documents>`) requires `documentTypeId`, `title`, `classificationLevel`, `qrTrackingNumber`, `originatingOfficeId`, `ownedByOfficeId`, `createdBy`, `retentionScheduleId` — none nullable. Confirm with the human whether these are copied from the old document, require new input at repass time, or some mix (e.g. same `documentTypeId`/`classificationLevel`, but a fresh `qrTrackingNumber` and `createdBy` set to a system actor).
+
+**Deliverable**
+
+A PR that: extends `DocumentsPublicAPI` per decision 1; adds the `workflow.instance.repassed` subscriber to `documents.plugin.ts` following the precedent above exactly; writes `supersededBy`/`supersededAt`/`closureReason` on the old document; creates the new document and emits whatever event decision 2 settles on; and includes a findings-log entry (`LOG-XXXX`, per the project's append-only convention) documenting the three decisions and how they were resolved. Do not implement any part of decisions 1–3 without explicit sign-off — write the subscriber shell and flag the exact call that's blocked on each decision if you reach that point before getting an answer.
