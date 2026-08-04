@@ -405,13 +405,13 @@ describe('B4 Engine Invariants', () => {
       expect(mockDeps.workflowRepository.updateStepInstance).toHaveBeenCalledWith(
         'step-inst-1',
         expect.objectContaining({ status: 'completed', outcome: 'REPASSED' }),
-        undefined,
+        mockDeps.db,
       );
 
       // Must emit repassed event, not completed
       expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
         expect.objectContaining({ eventType: 'workflow.instance.repassed' }),
-        undefined,
+        mockDeps.db,
       );
     });
   });
