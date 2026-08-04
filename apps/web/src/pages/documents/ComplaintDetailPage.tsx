@@ -28,6 +28,7 @@
  * include the complaint's assignedOfficeId.
  */
 
+import { CheckCircle2, FilePlus } from 'lucide-react';
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -335,6 +336,7 @@ export default function ComplaintDetailPage() {
                 onClick={() => setShowAssignDialog(true)}
                 disabled={logAndAssignMutation.isPending}
               >
+                <FilePlus />
                 Log and Assign
               </Button>
             )}
@@ -355,6 +357,7 @@ export default function ComplaintDetailPage() {
                     : undefined
                 }
               >
+                <CheckCircle2 />
                 Set Outcome
               </Button>
             )}
