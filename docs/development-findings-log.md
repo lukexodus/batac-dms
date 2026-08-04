@@ -6411,10 +6411,42 @@ create-instance.test.ts extended (CI-06 asserts `setWorkflowInstance` called
 with instance id + trx); workflow+documents suite back to its 146-failure
 baseline with no new failures.
 
-### LOG-0248: OCR Engine Selection
+---
+
+### [LOG-0212]: OCR Engine Selection
 
 - **date:** 2026-08-04
 - **author:** AI Agent
 - **status:** proposed
 - **affects:** tech-stack.md
 - **note:** [Confirmed] Per explicit human instruction, `tesseract.js` has been selected as the OCR engine, closing the open technical decision in `tech-stack.md`. The `TesseractOcrProvider` has been implemented and replaces `StubOcrProvider`.
+
+---
+
+### [LOG-0213] scheduleDocumentForFirstReading and order_of_business_scheduling step completion are fully independent mechanisms — no coupling exists between OoB-item creation and workflow-step advancement
+
+- date: 2026-08-04
+- task_id: none (found during investigation of a user-reported OoB "remove item" feature request)
+- status: proposed
+- affects: wf.md (order_of_business_scheduling step definition), consolidated-architecture-and-requirements-reference-iteration-3.md Part 4.18 / 7.2 (Order of Business as derived view)
+
+**What was found:** `scheduleDocumentForFirstReading` (`apps/server/src/modules/workflow/session.router.ts:764-945`) creates/updates `orderOfBusinessItems` rows but contains zero references to `stepInstances`, `submitStepAction`, `transitionState`, or any workflow-engine mutation (confirmed via full read of the procedure body). Separately, the `order_of_business_scheduling` step (`packages/database/src/seeds/workflow/phase1-legislative.ts:70-83`, `step_type: 'action'`) is completed generically via `submitStepAction` (`apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts:11-83`), reachable independently through `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx`/`MyAssignedStepsPage.tsx` — confirmed via repo-wide grep that no live code anywhere special-cases the `order_of_business_scheduling` step key (zero matches for the literal string outside the seed file).
+
+This means a secretary has two independent, uncoordinated action points for the same document at this workflow position: completing the step from the task inbox (advances the workflow instance, creates no agenda entry) or scheduling from the OoB page (creates the agenda entry, does not touch the workflow instance). Nothing enforces these happen together, in order, or at all.
+
+**Why this matters beyond the immediate finding:** this is very likely the actual mechanism behind the gap between the requirements doc's "automatic Thursday-cutoff inclusion" language (consolidated reference, Part 4.18/7.2) and the live manual-scheduling frontend flow the user identified — the doc describes the OoB as a derived view of document state, but the two systems that would need to stay in sync to make that true (the workflow step and the agenda item) currently have no relationship to each other at all.
+
+**What was implemented:** nothing — this entry exists specifically because a proposed fix (coupling the two, or choosing not to) is a real architecture decision requiring human input, not something to resolve silently mid-investigation. Three options were presented to the user with tradeoffs (data-only soft-delete on `orderOfBusinessItems`; soft-delete + workflow step rollback; coupling `scheduleDocumentForFirstReading` to step-completion before building any removal feature on top). Decision pending as of this entry.
+
+---
+
+### [LOG-0214] upsertOrderOfBusinessItem defined in workflow.repository.ts, never called anywhere in apps/server/src
+
+- date: 2026-08-04
+- task_id: none (found incidentally while investigating LOG-0212)
+- status: proposed
+- affects: none (implementation-only observation, not a spec deviation)
+
+**What was found:** `workflow.repository.ts:693-708` defines `upsertOrderOfBusinessItem`, an `onConflictDoUpdate`-based upsert against `orderOfBusinessItems` keyed on `(orderOfBusinessId, itemOrder)`. Confirmed via repo-wide grep of `apps/server/src`: this method has zero call sites outside its own definition. All live writes to `orderOfBusinessItems` go through the plain `tx.insert(...)` in `session.router.ts:933-940` instead.
+
+**What was implemented:** nothing — flagging only. A human should decide whether this method is intended for a not-yet-built call site (e.g., could be relevant to whichever removal/reordering approach is chosen for LOG-0212) or is simply dead code left over from an earlier design pass.

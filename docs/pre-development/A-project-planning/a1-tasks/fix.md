@@ -31770,3 +31770,459 @@ Report, explicitly and in this order:
 4. If the server was confirmed running (whether via Step 2 or because it
    was already running): Step 3's exact login test result in full.
 ````
+
+---
+
+# TASK-WF-BE-003: Couple `scheduleDocumentForFirstReading` to completion of the `order_of_business_scheduling` workflow step
+
+## Context
+
+`apps/server/src/modules/workflow/session.router.ts`'s `scheduleDocumentForFirstReading` procedure (mutation, `sp_secretary`-only) currently writes rows to `spSessions`, `orderOfBusiness`, and `orderOfBusinessItems` to place a document on an agenda for a target session date. It does **not** touch `workflow.step_instances` or advance the document's workflow instance in any way.
+
+Separately, the workflow step `order_of_business_scheduling` (seeded in `packages/database/src/seeds/workflow/phase1-legislative.ts:70-83`, `step_type: 'action'`) sits between `intake_logging` and `first_reading` in the SP Resolution workflow definition, and is currently completed — independently of `scheduleDocumentForFirstReading` — via the generic action-step completion path: `submitStepAction` in `apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts`, reachable through `workflow.completeActionStep` in `apps/server/src/modules/workflow/workflow.router.ts` (around line 995) and the frontend pages `apps/web/src/pages/workflow/WorkflowStepActionPage.tsx` / `MyAssignedStepsPage.tsx`.
+
+These two mechanisms are currently fully independent. A secretary can complete the `order_of_business_scheduling` step from their task inbox without ever calling `scheduleDocumentForFirstReading` (advancing the workflow to `first_reading` with no corresponding agenda item ever created), or can call `scheduleDocumentForFirstReading` without ever completing the step (creating an agenda item while the workflow instance remains stuck at `order_of_business_scheduling`).
+
+## Objective
+
+Make `scheduleDocumentForFirstReading` also complete the document's active `order_of_business_scheduling` step instance, atomically, inside the same database transaction that creates the `orderOfBusinessItems` row. After this change, calling `scheduleDocumentForFirstReading` should be the single, coupled action that both places the document on the agenda AND advances its workflow instance to `first_reading`.
+
+## Exact current state to verify before starting
+
+Do not assume any of the following — re-confirm each against the live repo before writing code, since this spec was written against one specific snapshot and the local agent has since-uploaded state that may differ:
+
+1. Re-read `apps/server/src/modules/workflow/session.router.ts` in full. Confirm `scheduleDocumentForFirstReading`'s current line range and exact body — the reference implementation below assumes the procedure ends with the literal text shown in the "Exact edit" section. If it does not match, stop and report the mismatch rather than adapting the edit to guess at what changed.
+2. Re-read `apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts` in full. Confirm `submitStepAction`'s exact signature is still: `(instance: InstanceRow, stepInstance: StepInstanceRow, actorId: string, comment: string | null, deps: ActionHandlerDeps, trx?: TxOrDb): Promise<void>`.
+3. Re-read `apps/server/src/modules/workflow/workflow.policy.ts`, specifically `WorkflowPolicyGuard.canCompleteActionStep` and the exported `workflowPolicy` singleton at the bottom of the file. Confirm the singleton still requires no constructor arguments.
+4. Re-read `apps/server/src/modules/workflow/workflow.router.ts` around its `completeActionStep` procedure (currently near line 995) to confirm the deps-assembly pattern (`const deps = { db, workflowRepository, documentsService, eventBus, orgService, delegationService, iamService }`) is unchanged. This is the pattern to mirror — do not invent a different deps shape.
+
+If any of these have changed since this prompt was written, stop and report the discrepancy rather than silently adapting.
+
+## Exact edit
+
+**File:** `apps/server/src/modules/workflow/session.router.ts`
+
+**Step A — imports.** Add two new imports. `stepInstances`, `steps`, and `instances` are already imported from `@batac/database/schema/workflow.schema.js` at the top of the file (lines 4-12 as of this snapshot) — do not re-import them.
+
+```
+old_str:
+import { eq, and, or, ilike, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
+import type { Context } from '../iam/iam.types.js';
+
+new_str:
+import { eq, and, or, ilike, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
+import type { Context } from '../iam/iam.types.js';
+import { submitStepAction } from './engine/step-handlers/action.handler.js';
+import { workflowPolicy, type StepInstanceAttrs } from './workflow.policy.js';
+import { WorkflowRepository } from './workflow.repository.js';
+```
+
+**Step B — the procedure body.** This is the drift-prone core of the task. The JSON block below is authoritative for what the new code must do; if the prose anywhere in this prompt appears to conflict with it, the JSON block wins.
+
+```json
+{
+  "insertion_point": "Inside scheduleDocumentForFirstReading's existing await ctx.db.transaction(async (tx) => { ... }) callback, after the existing orderOfBusinessItems insert/lookup logic, before the callback closes.",
+  "must_do": [
+    "Fetch the document's workflowInstanceId from the documents table using the tx (transaction) connection, filtered by documents.id = documentId.",
+    "If workflowInstanceId is null, do NOT throw and do NOT roll back the transaction. This document has no active workflow instance (e.g. a document type with no workflow, or intake not yet processed through the engine) — the OoB scheduling that was already performed above is still valid and should be committed as-is. Skip the step-completion logic silently in this case.",
+    "If workflowInstanceId is present, look up the active step instance for that workflow instance where the joined steps.stepKey = 'order_of_business_scheduling' and stepInstances.status = 'active', using an inner join across stepInstances -> steps -> instances, scoped by instances.id = workflowInstanceId, with isNull(stepInstances.deletedAt) in the where clause.",
+    "If no such active step instance is found (the document's workflow instance exists but is not currently sitting at order_of_business_scheduling — e.g. it was already advanced past this point via the task-inbox path, or the workflow instance is on a different step entirely), do NOT throw. Log this via console.warn with the documentId and workflowInstanceId, and skip the step-completion logic. The OoB item write that already happened should still commit. This is a known, accepted edge case (see 'Known limitation' below) — do not attempt to resolve it by searching for or completing a different step.",
+    "If an active order_of_business_scheduling step instance IS found: construct a StepInstanceAttrs object identical in shape to what fetchStepContext builds in workflow.router.ts (stepStatus, stepType, stepKey, isFinalApprovalStep from steps.config['is_final_approval'], assigneeUserId and assigneeOfficeId extracted from stepInstance.assignedTo[0] as { user_id?, office_id? }, assignedCommitteeIds from stepInstance.metadata['assigned_committees'] mapped to committee_id, instanceCreatedBy from the instances row's createdBy, documentCreatedBy from the documents row's createdBy).",
+    "Call workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs) before calling submitStepAction. Do not skip this call and do not substitute a different or narrower check. If this throws, let the TRPCError propagate and roll back the entire transaction — including the OoB item write that already happened in this same transaction. A secretary who is not authorized to complete the step should not be able to schedule the document either, since the two are now one atomic action.",
+    "Assemble the full ActionHandlerDeps object exactly as workflow.router.ts's completeActionStep procedure does: { db: tx, workflowRepository: new WorkflowRepository(tx), documentsService: server.documentsService, eventBus: (ctx.req.server as any).eventBus, orgService: server.organizationService, delegationService: server.delegationService, iamService: server.iamService }, where server is (ctx.req.server as any). Confirm ctx.req is accessible on this procedure's ctx type by checking that it compiles — session.router.ts has never used ctx.req before this change, unlike workflow.router.ts which uses it routinely, so this is the one part of this task not already proven to work in this file specifically and needs a real compile check, not an assumption.",
+    "Call submitStepAction(instanceRow, stepInstanceRow, ctx.auth.userId, null, deps, tx) — pass null for the comment argument (order_of_business_scheduling's config in the seed has require_comment: false, so a null comment is valid and submitStepAction will not reject it).",
+    "Do not emit a duplicate 'workflow.step.completed' event manually — submitStepAction's internal call to createWorkflowEvent already records this. Do not replicate the extra eventBus.emit(...) that completeActionStep performs after its transaction closes (workflow.router.ts, just after the transaction block) — that emit is for a separate audit-consumer purpose specific to that procedure's own event contract; duplicating it here is out of scope for this task and risks a double-fire. If you believe this emit is actually needed here too, stop and flag it rather than adding it silently."
+  ],
+  "must_not_do": [
+    "Do not modify getOrderOfBusiness, recordAttendance, enterCommitteeHearingDate, or any other procedure in this file.",
+    "Do not modify workflow.router.ts, action.handler.ts, workflow.policy.ts, or workflow.repository.ts. This task only adds new imports and new logic inside scheduleDocumentForFirstReading's existing transaction body in session.router.ts.",
+    "Do not export fetchStepContext or enforceRoles from workflow.router.ts, and do not import them into session.router.ts. session.router.ts must build its own StepInstanceAttrs inline, as specified above, mirroring but not calling into workflow.router.ts's private helper.",
+    "Do not change the procedure's input schema ({ documentId: z.string().uuid(), sessionDate: z.coerce.date() }) or its output ({ success: true as const }).",
+    "Do not add a new tRPC procedure. This task modifies the existing scheduleDocumentForFirstReading procedure only.",
+    "Do not touch the enforceRoles(ctx, ['sp_secretary']) role gate already present at the top of this procedure — it stays as-is; canCompleteActionStep's role gate is a second, different check (against ACTION_STEP_ROLES) that runs in addition to it, not a replacement for it."
+  ]
+}
+```
+
+## Known limitation (do not attempt to fix — this is explicitly accepted scope)
+
+If a document's `order_of_business_scheduling` step was already completed via the generic task-inbox path *before* this fix lands, or is completed that way going forward by some other route that still exists (this task does not remove the generic completion path, and should not), `scheduleDocumentForFirstReading` will find no active step instance to complete and will silently skip the coupling logic while still creating the OoB item. This is an accepted, documented gap for this task — it does not regress anything (this exact scenario is already possible today, since the two mechanisms are currently fully uncoupled), and closing it fully would require either removing the generic completion path for this specific step key or adding step-key-specific interception logic to `computePanelHint`/the task-inbox flow, both of which are out of scope for this task.
+
+## Testing
+
+1. Re-run the existing test suite for this file (`session.router.test.ts`) and confirm no existing tests regress. Note: `session.router.test.ts` currently mocks the database layer directly (per its existing structure, confirmed by the `mockDb.mockResponse([])` pattern used for `orderOfBusinessItems` inserts) — the new step-lookup queries and `submitStepAction` call will need corresponding mock responses added, or the existing mocks will hang/fail. Add these; do not skip or disable the affected test cases.
+2. Add a new test case: scheduling a document whose workflow instance IS currently at an active `order_of_business_scheduling` step should result in that step instance's status becoming `completed`, `outcome` becoming `'DONE'`, and the instance advancing (verify via `resolveNextStep`'s effect — the next active step should now correspond to `first_reading`).
+3. Add a new test case: scheduling a document whose `documents.workflowInstanceId` is `null` should still succeed (OoB item created) and should not throw.
+4. Add a new test case: scheduling a document whose workflow instance exists but is NOT currently at `order_of_business_scheduling` (e.g. mock it as already at `first_reading`) should still succeed (OoB item created, no step mutation attempted, no throw).
+5. If a live dev environment is available: create/intake an SP Resolution document, confirm its workflow instance is sitting at `order_of_business_scheduling` (via the task inbox or a direct DB check), call `scheduleDocumentForFirstReading` for it, and confirm both (a) the OoB item now appears via `getOrderOfBusiness`, and (b) the workflow instance's active step is now `first_reading`. Report the exact steps taken and observed results — do not report this as done without having actually run it, per this project's testing-claims conventions (state what you tested, not what the code "ensures").
+
+## Report back
+
+In your response, include: the exact diff applied, confirmation that `pnpm typecheck` passes, which of the test cases above were added and their pass/fail status, and explicit confirmation of whether `ctx.req.server` was accessible on `session.router.ts`'s procedures without any additional type changes (this was flagged above as the one part of this task not pre-verified against this specific file).
+
+---
+
+# TASK-WF-BE-004 / TASK-WF-FE-005: Add a "Remove from Agenda" action for Order of Business items
+
+## Prerequisite check
+
+Before starting this task, confirm TASK-WF-BE-003 has landed: `scheduleDocumentForFirstReading` in `apps/server/src/modules/workflow/session.router.ts` should now contain a call to `submitStepAction` inside its transaction body. If this is not present, stop and report — do not proceed with this task on top of the uncoupled version, since this task's soft-delete-only design depends on TASK-WF-BE-003's coupling already being in place (see "Why this depends on TASK-WF-BE-003" below).
+
+## Context
+
+`workflow.order_of_business_items` (`packages/database/schema/workflow.schema.ts:600-626`) already has `deletedAt`/`deletedBy` columns. Every query that reads this table already filters by `isNull(orderOfBusinessItems.deletedAt)`. No code anywhere in the repository currently writes to these columns — this task is the first thing that will.
+
+## Why this depends on TASK-WF-BE-003
+
+Before TASK-WF-BE-003, an OoB item's existence and the document's workflow-step position were two independent, uncoordinated facts. Removing the item alone (soft-deleting the `orderOfBusinessItems` row) without also considering the workflow step could leave a document that had already been advanced to `first_reading` in the workflow engine with no visible trace on the agenda — silently orphaned, not actually "removed" in any meaningful sense from the secretary's perspective, since the workflow will still expect a First Reading to happen.
+
+With TASK-WF-BE-003 in place, `orderOfBusinessItems` row creation and `order_of_business_scheduling` step completion happen atomically, in the same transaction, every time. This means: for a document whose OoB item exists, its workflow instance has already deterministically advanced past `order_of_business_scheduling` to `first_reading` (or has independently moved even further, e.g. via the task-inbox path — see "Known limitation" below) as a direct consequence of the same action that created the item. A plain soft-delete of the OoB item is therefore not creating a new class of inconsistency that didn't already exist the moment the item was created — it is removing the visible agenda entry for a document whose workflow position was already, and remains, independent of the agenda view's contents.
+
+## Known limitation (do not attempt to fix — this is explicitly accepted scope, same as TASK-WF-BE-003's)
+
+This task does not roll back or otherwise modify the document's workflow step when an item is removed. After removal, the document's workflow instance remains at whatever step it has already reached (typically `first_reading`, per TASK-WF-BE-003's coupling) — it does not return to `order_of_business_scheduling`, and does not become "unscheduled" in any workflow-engine sense. Removing the agenda entry is a visibility/scheduling-view action only; it is not a substitute for whatever process (out of scope for this task) would formally withdraw or defer the underlying legislative measure. If the secretary needs the document to also stop being at `first_reading` in the workflow engine, that is a separate, not-yet-built capability (Option B from the original investigation — stepping a workflow instance backward — which does not currently exist anywhere in `resolveNextStep`/`submitStepAction` and was explicitly deferred, not silently included here).
+
+## Objective
+
+Add a new tRPC mutation, `session.removeFromOrderOfBusiness`, that soft-deletes an `orderOfBusinessItems` row (sets `deletedAt`/`deletedBy`), and wire a "Remove from Agenda" button into the existing Order of Business frontend page for secretaries.
+
+## Exact current state to verify before starting
+
+1. Re-read `apps/server/src/modules/workflow/session.router.ts` in full and confirm `scheduleDocumentForFirstReading`'s current shape includes TASK-WF-BE-003's changes (see "Prerequisite check" above).
+2. Re-read `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx` in full. Confirm `SecretaryItemActions` (currently around line 371) still has exactly two existing buttons ("Enter Hearing Date" and, conditionally, "Manually Advance Step") and no existing remove/delete/cancel/unschedule action. If a remove action already exists, stop and report rather than adding a duplicate.
+3. Confirm `packages/ui`'s `Button` component still exports a `variant="destructive"` option (`packages/ui/src/components/ui/button.tsx`) — this is the variant to use for the new button, matching this codebase's existing convention for irreversible actions.
+
+## Exact edit — Backend
+
+**File:** `apps/server/src/modules/workflow/session.router.ts`
+
+Add a new procedure, `removeFromOrderOfBusiness`, in the same router. Mirror `scheduleDocumentForFirstReading`'s input shape exactly (`{ documentId, sessionDate }`) rather than requiring the frontend to know an internal `orderOfBusinessId` — `getOrderOfBusiness`'s response does not currently expose that id, and this task does not change `getOrderOfBusiness`'s output shape (see "Must not do" below).
+
+```json
+{
+  "new_procedure_name": "removeFromOrderOfBusiness",
+  "input_schema": {
+    "documentId": "z.string().uuid()",
+    "sessionDate": "z.coerce.date()"
+  },
+  "output_schema": {
+    "success": "z.literal(true)"
+  },
+  "role_gate": "enforceRoles(ctx, ['sp_secretary']) — identical to scheduleDocumentForFirstReading's own gate, called the same way, first line of the procedure body.",
+  "logic": [
+    "Resolve the target session the same way getOrderOfBusiness does: format sessionDate to a date string, look up spSessions filtered by sessionDate = that string, cityId = ctx.auth.cityId, isNull(deletedAt). If no session row exists, throw a TRPCError with code NOT_FOUND and message 'No session found for the given date.'",
+    "Look up orderOfBusiness filtered by spSessionId = the session's id, isNull(deletedAt). If none exists, throw TRPCError NOT_FOUND, message 'No Order of Business found for the given date.'",
+    "Look up the orderOfBusinessItems row filtered by orderOfBusinessId = the oob's id, documentId = input.documentId, isNull(deletedAt). If none exists, throw TRPCError NOT_FOUND, message 'This document is not currently on the agenda for the given date.'",
+    "If found, update that row: set deletedAt = new Date(), deletedBy = ctx.auth.userId. Do this inside a ctx.db.transaction, matching this file's existing convention for mutations even though this is a single-row update — for consistency with the rest of the file and to leave room for the transaction body to grow later without a second refactor.",
+    "Do NOT touch spSessions, orderOfBusiness, or any workflow.step_instances / workflow.instances row. This procedure only ever writes to orderOfBusinessItems.",
+    "Return { success: true as const }."
+  ]
+}
+```
+
+**Must not do (backend):**
+- Do not modify `getOrderOfBusiness`'s query, selected fields, or return shape. It should continue returning `{ sessionDate, items }` with no `orderOfBusinessId` field, exactly as it does today. If a future task wants to add `orderOfBusinessId` to that response for a different reason, that's a separate, explicit decision — not an incidental side effect of this task.
+- Do not modify `scheduleDocumentForFirstReading` in this task (that was TASK-WF-BE-003; if it needs further changes, that's a separate task).
+- Do not add any workflow-step-completion, rollback, or `submitStepAction`/`resolveNextStep` call to this new procedure. This procedure is intentionally soft-delete-only, per "Known limitation" above.
+- Do not hard-delete (`DELETE FROM`) the row under any circumstance. Soft-delete only.
+
+## Exact edit — Frontend
+
+**File:** `apps/web/src/pages/workflow/OrderOfBusinessPage.tsx`
+
+Three changes, in this order:
+
+**Step A — thread `sessionDate` down through the component tree.** Currently `data.sessionDate` is available in `OrderOfBusinessContent` but is not passed to `OobItemRow` or `SecretaryItemActions`. Add it to both prop chains.
+
+```
+old_str:
+              {data.items.map((item, idx) => (
+                <OobItemRow
+                  key={item.documentId}
+                  item={item}
+                  agendaNumber={idx + 1}
+                  isSecretary={isSecretary}
+                  onMutationSuccess={() => void refetch()}
+                />
+              ))}
+
+new_str:
+              {data.items.map((item, idx) => (
+                <OobItemRow
+                  key={item.documentId}
+                  item={item}
+                  agendaNumber={idx + 1}
+                  isSecretary={isSecretary}
+                  sessionDate={data.sessionDate}
+                  onMutationSuccess={() => void refetch()}
+                />
+              ))}
+```
+
+```
+old_str:
+interface OobItemRowProps {
+  item: OobItem;
+  agendaNumber: number;
+  isSecretary: boolean;
+  onMutationSuccess: () => void;
+}
+
+function OobItemRow({ item, agendaNumber, isSecretary, onMutationSuccess }: OobItemRowProps) {
+
+new_str:
+interface OobItemRowProps {
+  item: OobItem;
+  agendaNumber: number;
+  isSecretary: boolean;
+  sessionDate: Date | string;
+  onMutationSuccess: () => void;
+}
+
+function OobItemRow({ item, agendaNumber, isSecretary, sessionDate, onMutationSuccess }: OobItemRowProps) {
+```
+
+```
+old_str:
+          {/* Secretary-only actions */}
+          {isSecretary && <SecretaryItemActions item={item} onSuccess={onMutationSuccess} />}
+
+new_str:
+          {/* Secretary-only actions */}
+          {isSecretary && (
+            <SecretaryItemActions item={item} sessionDate={sessionDate} onSuccess={onMutationSuccess} />
+          )}
+```
+
+**Step B — add the Remove button and its confirm dialog to `SecretaryItemActions`.**
+
+```
+old_str:
+function SecretaryItemActions({ item, onSuccess }: { item: OobItem; onSuccess: () => void }) {
+  const [hearingDateDialogOpen, setHearingDateDialogOpen] = useState(false);
+  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+
+  return (
+    <div className="flex flex-wrap gap-2 border-t border-neutral-100 pt-1">
+      <Button
+        id={`btn-hearing-date-${item.documentId}`}
+        variant="outline"
+        size="sm"
+        className="gap-1.5 text-xs"
+        onClick={() => setHearingDateDialogOpen(true)}
+      >
+        <Calendar className="h-3.5 w-3.5" />
+        Enter Hearing Date
+      </Button>
+
+      {item.committeeReportStatus === 'red_flagged' && (
+        <Button
+          id={`btn-advance-${item.documentId}`}
+          variant="outline"
+          size="sm"
+          className="border-danger-200 text-danger-700 hover:bg-danger-50 gap-1.5 text-xs"
+          onClick={() => setAdvanceDialogOpen(true)}
+        >
+          <ArrowRightCircle className="h-3.5 w-3.5" />
+          Manually Advance Step
+        </Button>
+      )}
+
+      <EnterHearingDateDialog
+        open={hearingDateDialogOpen}
+        onClose={() => setHearingDateDialogOpen(false)}
+        documentTitle={item.title}
+        stepInstanceId={item.stepInstanceId}
+        onSuccess={onSuccess}
+      />
+
+      <ManuallyAdvanceDialog
+        open={advanceDialogOpen}
+        onClose={() => setAdvanceDialogOpen(false)}
+        documentTitle={item.title}
+        stepInstanceId={item.stepInstanceId}
+        onSuccess={onSuccess}
+      />
+    </div>
+  );
+}
+
+new_str:
+function SecretaryItemActions({
+  item,
+  sessionDate,
+  onSuccess,
+}: {
+  item: OobItem;
+  sessionDate: Date | string;
+  onSuccess: () => void;
+}) {
+  const [hearingDateDialogOpen, setHearingDateDialogOpen] = useState(false);
+  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+
+  return (
+    <div className="flex flex-wrap gap-2 border-t border-neutral-100 pt-1">
+      <Button
+        id={`btn-hearing-date-${item.documentId}`}
+        variant="outline"
+        size="sm"
+        className="gap-1.5 text-xs"
+        onClick={() => setHearingDateDialogOpen(true)}
+      >
+        <Calendar className="h-3.5 w-3.5" />
+        Enter Hearing Date
+      </Button>
+
+      {item.committeeReportStatus === 'red_flagged' && (
+        <Button
+          id={`btn-advance-${item.documentId}`}
+          variant="outline"
+          size="sm"
+          className="border-danger-200 text-danger-700 hover:bg-danger-50 gap-1.5 text-xs"
+          onClick={() => setAdvanceDialogOpen(true)}
+        >
+          <ArrowRightCircle className="h-3.5 w-3.5" />
+          Manually Advance Step
+        </Button>
+      )}
+
+      <Button
+        id={`btn-remove-${item.documentId}`}
+        variant="destructive"
+        size="sm"
+        className="ml-auto gap-1.5 text-xs"
+        onClick={() => setRemoveDialogOpen(true)}
+      >
+        <MinusCircle className="h-3.5 w-3.5" />
+        Remove from Agenda
+      </Button>
+
+      <EnterHearingDateDialog
+        open={hearingDateDialogOpen}
+        onClose={() => setHearingDateDialogOpen(false)}
+        documentTitle={item.title}
+        stepInstanceId={item.stepInstanceId}
+        onSuccess={onSuccess}
+      />
+
+      <ManuallyAdvanceDialog
+        open={advanceDialogOpen}
+        onClose={() => setAdvanceDialogOpen(false)}
+        documentTitle={item.title}
+        stepInstanceId={item.stepInstanceId}
+        onSuccess={onSuccess}
+      />
+
+      <RemoveFromAgendaDialog
+        open={removeDialogOpen}
+        onClose={() => setRemoveDialogOpen(false)}
+        documentId={item.documentId}
+        documentTitle={item.title}
+        sessionDate={sessionDate}
+        onSuccess={onSuccess}
+      />
+    </div>
+  );
+}
+```
+
+Note: `MinusCircle` is already imported at the top of this file (used by `CommitteeStatusBadge` for the "N/A" badge) — no new icon import is needed.
+
+**Step C — add the new `RemoveFromAgendaDialog` component.** Insert it as a new component in the file, after `EnterHearingDateDialog`'s closing brace and before the `// ─── ManuallyAdvanceDialog ───` section comment (or wherever that dialog's section boundary currently is — locate it by searching for the next `// ───` comment after `EnterHearingDateDialog`'s definition, since this task does not know that dialog's exact current line range and should not guess it).
+
+```jsx
+// ─── RemoveFromAgendaDialog ───────────────────────────────────────────────────
+
+interface RemoveFromAgendaDialogProps {
+  open: boolean;
+  onClose: () => void;
+  documentId: string;
+  documentTitle: string;
+  sessionDate: Date | string;
+  onSuccess: () => void;
+}
+
+function RemoveFromAgendaDialog({
+  open,
+  onClose,
+  documentId,
+  documentTitle,
+  sessionDate,
+  onSuccess,
+}: RemoveFromAgendaDialogProps) {
+  const mutation = trpc.session.removeFromOrderOfBusiness.useMutation({
+    onSuccess() {
+      toast.success('Item removed from the agenda.');
+      onClose();
+      onSuccess();
+    },
+    onError(err) {
+      toast.error(`Failed to remove item: ${err.message}`);
+    },
+  });
+
+  function handleConfirm() {
+    mutation.mutate({
+      documentId,
+      sessionDate: new Date(sessionDate),
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MinusCircle className="text-danger-500 h-4 w-4" />
+            Remove from Agenda
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-text-secondary text-sm">
+          Remove <span className="text-text-primary font-medium">{documentTitle}</span> from
+          this session&apos;s Order of Business? This only removes the agenda entry — it does
+          not change the document&apos;s current workflow step.
+        </p>
+
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleConfirm}
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? 'Removing…' : 'Remove'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+**Must not do (frontend):**
+- Do not modify `EnterHearingDateDialog` or `ManuallyAdvanceDialog`'s own bodies — only the calling code in `SecretaryItemActions` that renders them, as shown above.
+- Do not modify `ScheduleForFirstReadingPanel` or `OrderOfBusinessContent` beyond the single prop-threading edit in Step A.
+- Do not add a confirmation-bypass (e.g. a "don't ask again" checkbox) — this is a destructive, currently-irreversible-from-the-UI action (no "add back" affordance exists as part of this task) and should always confirm.
+
+## Testing
+
+1. `pnpm typecheck` across both `apps/server` and `apps/web` must pass.
+2. Add a backend test for `removeFromOrderOfBusiness`: happy path (existing item gets `deletedAt`/`deletedBy` set, `getOrderOfBusiness` no longer returns it afterward), and each of the three `NOT_FOUND` cases (no session for date, no OoB for session, item not on that OoB).
+3. If a live dev environment is available: schedule a document via the existing "Schedule for First Reading" panel, confirm it appears in the agenda list, click "Remove from Agenda," confirm in the dialog, and confirm the item disappears from the list without a page reload (via the existing `refetch()` wiring) and that a second `getOrderOfBusiness` call (e.g. via a fresh page load) also no longer includes it. Report the exact steps taken and observed results.
+
+## Report back
+
+Include the exact diffs applied to both files, `pnpm typecheck` results, test results, and confirmation of whether the prerequisite check (TASK-WF-BE-003 landed) passed before this task began.
+
+---
+
