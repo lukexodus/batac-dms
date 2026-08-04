@@ -797,6 +797,7 @@ export function createWorkflowRouter() {
 
         const subjectUserId = ctx.auth.userId;
         const effectiveOfficeIds = new Set(ctx.auth.effectiveOfficeIds || []);
+        const subjectCommitteeIds = new Set<string>(ctx.auth.committeeIds || []);
 
         const filtered = rows.filter((row) => {
           const assigned =
@@ -818,6 +819,18 @@ export function createWorkflowRouter() {
 
           if (hasSeniorRole) {
             return true;
+          }
+
+          // multi_referral steps: sp_member sees the step when their committee is assigned.
+          // assigned_to is intentionally empty for multi_referral; committees live in metadata.
+          // LOG-0215-FIX: missing check was the reason committee chairs saw nothing in My Tasks.
+          if (userRoles.has('sp_member') && row.stepType === 'multi_referral') {
+            const meta = (row.stepMetadata as Record<string, any>) || {};
+            const assignedCommittees =
+              (meta['assigned_committees'] as Array<{ committee_id: string }>) || [];
+            if (assignedCommittees.some((c) => subjectCommitteeIds.has(c.committee_id))) {
+              return true;
+            }
           }
 
           return false;

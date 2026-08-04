@@ -6584,3 +6584,59 @@ should be populated for multi_referral steps (e.g., with all committee
 members, or left empty since the step's actual access control runs on
 role rather than assignment) is a design question for a human, not
 inferred here.
+
+---
+
+### [LOG-0216] sp_member bypass_office_isolation missing — committee chairs cannot see OoB items or SPS-owned documents
+
+- date: 2026-08-04
+- task_id: none (found while investigating My Tasks / OoB visibility for committee chairs)
+- status: proposed
+- affects: C1 (Part 12, documents_office_isolation RLS policy), I1 §6.6
+
+**What was found:** `iam.middleware.ts`'s `bypassOfficeIsolation` flag was not set for the
+`sp_member` role. SP Resolution documents are owned by the SPS (SP Secretariat) office.
+When `councilor.flojo` or `councilor.pungtilan` (sp_member) called `getOrderOfBusiness`,
+the Drizzle query joined to `documents`, but the `documents_office_isolation` RLS policy
+(`owned_by_office_id = app.current_office_id OR bypass_office_isolation = 'true'`) rejected
+all SPS-owned rows because the councilors' `app.current_office_id` is `SP`, and bypass was
+`false`. Result: OoB returned 0 items for all sp_member users.
+
+The same bypass gap also causes `listMyAssignedSteps` to fail to read document rows for
+committee-referral steps, though the primary My Tasks issue has a separate root cause
+(LOG-0217 below).
+
+**What was implemented:** Added `auth.roles.includes('sp_member')` to the `bypassOfficeIsolation`
+boolean in `iam.middleware.ts` (line 348, immediately after `sp_presiding_officer`). This is
+consistent with I1 §6.6 granting sp_member `step_instance:submit_committee_report` on
+`multi_referral` steps — they cannot act on documents they cannot read. All mutating ABAC
+checks in the calling procedures continue to committee-scope sp_member actions independently.
+
+---
+
+### [LOG-0217] listMyAssignedSteps has no committee-overlap branch for multi_referral steps — committee chairs see nothing in My Tasks
+
+- date: 2026-08-04
+- task_id: none (found while investigating My Tasks visibility for committee chairs)
+- status: proposed
+- affects: B4 §3.5, I1 §6.6
+
+**What was found:** `workflow.router.ts` `listMyAssignedSteps` (lines 801–824) filters step
+instances with four branches: (1) direct user assignment via `assigned_to[*].user_id`,
+(2) office assignment via `assigned_to[*].office_id`, (3) `sp_secretary` blanket visibility,
+(4) senior-role blanket visibility. None of these branches covered `multi_referral` steps for
+`sp_member` users.
+
+For `multi_referral` steps, `assigned_to` is intentionally empty (the step config has no
+`assignee` field; committees are assigned post-creation by `assignCommittees`). Assigned
+committees live in `metadata.assigned_committees`. The existing branch structure never
+consulted this metadata field, so committee chairs (`flojo`, `pungtilan`) saw zero tasks in
+their My Tasks page even when their committees were assigned to an active `committee_referral` step.
+
+`ctx.auth.committeeIds` is populated from the JWT `cid` claim via `getCommitteeIdsForUser` at
+login time, confirming the data is available server-side without an extra query.
+
+**What was implemented:** Added a fifth branch to the `listMyAssignedSteps` filter that fires
+when `userRoles.has('sp_member') && row.stepType === 'multi_referral'`. It reads
+`row.stepMetadata.assigned_committees` and checks whether any committee_id appears in
+`ctx.auth.committeeIds`. TypeScript typecheck passes with no errors after this change.

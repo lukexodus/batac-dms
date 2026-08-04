@@ -346,6 +346,7 @@ async function setDatabaseSessionVars(
   const bypassOfficeIsolation =
     auth.roles.includes('sp_secretary') ||
     auth.roles.includes('sp_presiding_officer') ||
+    auth.roles.includes('sp_member') || // LOG-0215-FIX: SP Members need cross-office read for SPS-owned documents (OoB, committee steps)
     auth.roles.includes('records_officer') ||
     auth.roles.includes('auditor');
 
