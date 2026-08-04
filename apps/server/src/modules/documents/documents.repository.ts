@@ -140,6 +140,30 @@ export class DocumentsRepository {
   }
 
   /**
+   * Write supersession columns (superseded_by, superseded_at, closure_reason) on the
+   * old document row in one UPDATE. Called inside the same transaction as
+   * `updateDocumentLifecycleState('superseded', …)` so both writes are atomic.
+   * See ADR-014 and development-findings-log.md LOG-0222.
+   */
+  async setDocumentSupersession(
+    id: string,
+    supersededByDocumentId: string,
+    closureReason: string,
+  ): Promise<DocumentRow | null> {
+    const [row] = await this.db
+      .update(documents)
+      .set({
+        supersededBy: supersededByDocumentId,
+        supersededAt: new Date(),
+        closureReason,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(documents.id, id), isNull(documents.deletedAt)))
+      .returning();
+    return row ?? null;
+  }
+
+  /**
    * Partial update of the `metadata` JSONB column (+ `updated_at`).
    * Caller is responsible for merging patch vs. full-replace at the service layer.
    */

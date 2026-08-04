@@ -54,6 +54,29 @@ export interface AttachmentRef {
   pageCount: number;
 }
 
+/**
+ * Input for createSupersedingDocument (ADR-014).
+ */
+export interface SupersedingDocumentInput {
+  /** The document being superseded. */
+  oldDocumentId: string;
+  /** Human-readable reason written into closureReason on the old document row. */
+  closureReason: string;
+}
+
+/**
+ * Return value of createSupersedingDocument (ADR-014).
+ * Carries the identifiers the caller needs to emit document.created.
+ */
+export interface SupersedingDocumentResult {
+  newDocumentId: string;
+  /** Equals the old document's createdBy — used as actorId in document.created. */
+  actorId: string;
+  cityId: string;
+  documentTypeId: string;
+  ownedByOfficeId: string;
+}
+
 export interface DocumentStateChangedEvent {
   documentId: string;
   fromState: DocumentLifecycleState;
@@ -125,6 +148,21 @@ export interface DocumentsPublicAPI {
    * Retrieves attachment references associated with the document.
    */
   getAttachmentRefs(documentId: string, actorId: string): Promise<AttachmentRef[]>;
+
+  /**
+   * ADR-014 — called by documents.plugin.ts's workflow.instance.repassed subscriber.
+   *
+   * In a single atomic transaction:
+   *   1. Inserts a new document row (superseding document) with fields copied from
+   *      the old document: title appended with " v2", fresh qrTrackingNumber, same
+   *      createdBy, same preliminaryNumber / finalNumber, lifecycleState = 'submitted'.
+   *   2. Transitions the old document to 'superseded' (lifecycleState).
+   *   3. Writes supersededBy / supersededAt / closureReason on the old document row.
+   *
+   * Returns identifiers needed by the caller to emit document.created for the new
+   * document. Does NOT emit document.created itself. See LOG-0222.
+   */
+  createSupersedingDocument(input: SupersedingDocumentInput): Promise<SupersedingDocumentResult>;
 }
 
 declare module 'fastify' {

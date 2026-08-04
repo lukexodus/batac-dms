@@ -12,6 +12,8 @@ import type {
   AttachmentRef,
   DbClient,
   DbTransaction,
+  SupersedingDocumentInput,
+  SupersedingDocumentResult,
 } from './documents.types.js';
 import { DocumentsRepository } from './documents.repository.js';
 import type { NumberingService } from './numbering.service.js';
@@ -305,6 +307,106 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
       }
 
       return refs;
+    },
+
+    /**
+     * ADR-014 — called by documents.plugin.ts's workflow.instance.repassed subscriber.
+     *
+     * All three writes (new document INSERT, old document lifecycleState UPDATE, old
+     * document supersession-columns UPDATE) run inside a single transaction so they
+     * are atomic. The `document.state_changed` event for the old document is emitted
+     * after the transaction commits, fire-and-forget — same pattern as transitionState.
+     *
+     * Field sourcing (confirmed by human sign-off — see LOG-0222):
+     *   - title:             `${oldDoc.title} v2`
+     *   - qrTrackingNumber:  fresh crypto.randomUUID()
+     *   - createdBy:         oldDoc.createdBy (original submitter, not system actor)
+     *   - preliminaryNumber: carried forward from old document
+     *   - finalNumber:       carried forward from old document
+     *   - lifecycleState:    'submitted' (workflow engine moves it to 'in_workflow'
+     *                        after document.created triggers createInstance)
+     */
+    async createSupersedingDocument(
+      input: SupersedingDocumentInput,
+    ): Promise<SupersedingDocumentResult> {
+      const oldDoc = await deps.documentsRepository.findDocumentById(input.oldDocumentId);
+      if (!oldDoc) {
+        throw new Error(
+          `createSupersedingDocument: document not found: ${input.oldDocumentId}`,
+        );
+      }
+
+      const current = oldDoc.lifecycleState as string;
+      const allowed = VALID_TRANSITIONS[current] ?? [];
+      if (!allowed.includes('superseded')) {
+        throw new Error(
+          `createSupersedingDocument: invalid state transition: ${current} -> superseded`,
+        );
+      }
+
+      const now = new Date();
+      let newDocumentId!: string;
+
+      await deps.db.transaction(async (tx) => {
+        const txRepo = new DocumentsRepository(tx as unknown as DbClient);
+
+        // 1. Insert the new superseding document row first so we have its ID
+        //    to write into supersededBy on the old row.
+        const newDoc = await txRepo.insertDocument({
+          documentTypeId: oldDoc.documentTypeId,
+          title: `${oldDoc.title} v2`,
+          classificationLevel: oldDoc.classificationLevel,
+          qrTrackingNumber: crypto.randomUUID(),
+          originatingOfficeId: oldDoc.originatingOfficeId,
+          ownedByOfficeId: oldDoc.ownedByOfficeId,
+          createdBy: oldDoc.createdBy,
+          retentionScheduleId: oldDoc.retentionScheduleId,
+          cityId: oldDoc.cityId,
+          numberSeriesId: oldDoc.numberSeriesId,
+          preliminaryNumber: oldDoc.preliminaryNumber,
+          finalNumber: oldDoc.finalNumber,
+          lifecycleState: 'submitted',
+          versionNumber: 1,
+        });
+        newDocumentId = newDoc.id;
+
+        // 2. Transition old document to 'superseded' (only the lifecycleState column)
+        await txRepo.updateDocumentLifecycleState(input.oldDocumentId, 'superseded');
+
+        // 3. Write superseded_by / superseded_at / closure_reason on the old row
+        await txRepo.setDocumentSupersession(
+          input.oldDocumentId,
+          newDocumentId,
+          input.closureReason,
+        );
+      });
+
+      // Emit document.state_changed for the old document (outside the committed tx,
+      // fire-and-forget — same pattern as transitionState's own emit).
+      deps.eventBus.emit('document.state_changed', {
+        eventId: crypto.randomUUID(),
+        eventType: 'document.state_changed',
+        occurredAt: now.toISOString(),
+        cityId: oldDoc.cityId,
+        schemaVersion: 1,
+        payload: {
+          documentId: input.oldDocumentId,
+          fromState: current,
+          toState: 'superseded' as DocumentLifecycleState,
+          actorId: oldDoc.createdBy,
+          reason: input.closureReason,
+          cityId: oldDoc.cityId,
+          timestamp: now,
+        },
+      });
+
+      return {
+        newDocumentId,
+        actorId: oldDoc.createdBy,
+        cityId: oldDoc.cityId,
+        documentTypeId: oldDoc.documentTypeId,
+        ownedByOfficeId: oldDoc.ownedByOfficeId,
+      };
     },
   };
 }

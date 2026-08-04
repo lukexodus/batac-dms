@@ -245,6 +245,52 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
     'documents',
   );
 
+  // ADR-014: document supersession on repass.
+  // When the workflow engine emits workflow.instance.repassed the old document must be
+  // marked as superseded and a new document (with a fresh workflow instance) must be
+  // created. The new instance is kicked off by re-emitting document.created, which the
+  // workflow module's existing subscriber handles verbatim — no new workflow-side code.
+  //
+  // Uses eventService (event-connection-backed) per LOG-0207/LOG-0210. Does NOT
+  // reference fastify.workflowService and does NOT add 'workflow' to this plugin's
+  // dependencies array — workflow already depends on documents; the reverse would be
+  // circular. See LOG-0222 for the full decision record.
+  fastify.eventBus.on(
+    'workflow.instance.repassed',
+    (event) => {
+      const { instanceId, documentId } = event.payload;
+      const run = async () => {
+        const result = await eventService.createSupersedingDocument({
+          oldDocumentId: documentId,
+          closureReason:
+            'Document repassed by Sangguniang Panlalawigan; superseded by revised version.',
+        });
+
+        fastify.eventBus.emit('document.created', {
+          eventId: crypto.randomUUID(),
+          eventType: 'document.created',
+          occurredAt: new Date().toISOString(),
+          cityId: result.cityId,
+          schemaVersion: 1,
+          payload: {
+            documentId: result.newDocumentId,
+            documentTypeId: result.documentTypeId,
+            ownedByOfficeId: result.ownedByOfficeId,
+            actorId: result.actorId,
+            cityId: result.cityId,
+          },
+        });
+      };
+      run().catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId, instanceId, documentId },
+          'documents: workflow.instance.repassed handler failed (document supersession)',
+        );
+      });
+    },
+    'documents',
+  );
+
   fastify.log.info('documents.module.ready');
 }
 
