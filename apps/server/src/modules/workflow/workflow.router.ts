@@ -2501,9 +2501,9 @@ export function createWorkflowRouter() {
 
         const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
         let isActingViaDelegation = false;
-        const delegationSummary = await deps.orgService.getActiveDelegationForUser(ctx.auth.userId);
+        const delegationSummary = await deps.delegationService.getActiveDelegationForUser(ctx.auth.userId);
         if (delegationSummary) {
-          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.delegationId);
           if (grant?.scope?.roles?.includes('sp_presiding_officer')) {
             isActingViaDelegation = true;
           }
@@ -2583,9 +2583,9 @@ export function createWorkflowRouter() {
 
         const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
         let isActingViaDelegation = false;
-        const delegationSummary = await deps.orgService.getActiveDelegationForUser(ctx.auth.userId);
+        const delegationSummary = await deps.delegationService.getActiveDelegationForUser(ctx.auth.userId);
         if (delegationSummary) {
-          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.delegationId);
           if (grant?.scope?.roles?.includes('mayor')) {
             isActingViaDelegation = true;
           }
@@ -2670,9 +2670,9 @@ export function createWorkflowRouter() {
 
         const isAssignee = stepAttrs.assigneeUserId === ctx.auth.userId;
         let isActingViaDelegation = false;
-        const delegationSummary = await deps.orgService.getActiveDelegationForUser(ctx.auth.userId);
+        const delegationSummary = await deps.delegationService.getActiveDelegationForUser(ctx.auth.userId);
         if (delegationSummary) {
-          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.delegationId);
           if (grant?.scope?.roles?.includes('mayor')) {
             isActingViaDelegation = true;
           }
