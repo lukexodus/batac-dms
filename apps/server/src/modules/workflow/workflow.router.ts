@@ -407,6 +407,9 @@ function computePanelHint(
   | 'committee_revisions_decision'
   | 'valid_in_part_decision'
   | 'secretariat_decision'
+  | 'order_of_business_scheduling'
+  | 'final_number_assignment'
+  | 'amendments_logging'
   | 'generic_action'
   | 'generic_approval'
   | null {
@@ -449,6 +452,12 @@ function computePanelHint(
     (currentStep.assignedTo as Array<any>)?.[0]?.office_id === spsOfficeId
   ) {
     return 'secretariat_decision';
+  } else if (stepKey === 'order_of_business_scheduling') {
+    return 'order_of_business_scheduling';
+  } else if (stepKey === 'final_number_assignment') {
+    return 'final_number_assignment';
+  } else if (stepKey === 'amendments_logging') {
+    return 'amendments_logging';
   } else if (currentStepType === 'action') {
     return 'generic_action';
   } else if (currentStepType === 'approval') {
@@ -576,6 +585,9 @@ export function createWorkflowRouter() {
               'committee_revisions_decision',
               'valid_in_part_decision',
               'secretariat_decision',
+              'order_of_business_scheduling',
+              'final_number_assignment',
+              'amendments_logging',
               'generic_action',
               'generic_approval',
             ])
@@ -872,6 +884,9 @@ export function createWorkflowRouter() {
                 'committee_revisions_decision',
                 'valid_in_part_decision',
                 'secretariat_decision',
+                'order_of_business_scheduling',
+                'final_number_assignment',
+                'amendments_logging',
                 'generic_action',
                 'generic_approval',
               ])
@@ -1084,6 +1099,7 @@ export function createWorkflowRouter() {
             (row.assignedTo as Array<{ user_id?: string; office_id?: string }>) || [];
 
           if (assigned.some((a) => a.user_id === subjectUserId)) {
+            console.log(`Matched assigned user_id for step ${row.stepKey}`);
             return true;
           }
 
@@ -2622,7 +2638,7 @@ export function createWorkflowRouter() {
         let isActingViaDelegation = false;
         const delegationSummary = await deps.delegationService.getActiveDelegationForUser(ctx.auth.userId);
         if (delegationSummary) {
-          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.delegationId);
           if (grant?.scope?.roles?.includes('sp_presiding_officer')) {
             isActingViaDelegation = true;
           }
@@ -2704,7 +2720,7 @@ export function createWorkflowRouter() {
         let isActingViaDelegation = false;
         const delegationSummary = await deps.delegationService.getActiveDelegationForUser(ctx.auth.userId);
         if (delegationSummary) {
-          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.delegationId);
           if (grant?.scope?.roles?.includes('mayor')) {
             isActingViaDelegation = true;
           }
@@ -2791,7 +2807,7 @@ export function createWorkflowRouter() {
         let isActingViaDelegation = false;
         const delegationSummary = await deps.delegationService.getActiveDelegationForUser(ctx.auth.userId);
         if (delegationSummary) {
-          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.id);
+          const grant = await deps.delegationService.getDelegationGrantById(delegationSummary.delegationId);
           if (grant?.scope?.roles?.includes('mayor')) {
             isActingViaDelegation = true;
           }

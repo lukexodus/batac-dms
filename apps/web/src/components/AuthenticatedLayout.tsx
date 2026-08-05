@@ -145,6 +145,8 @@ export function AuthenticatedLayout() {
         'mayor',
         'brgy_encoder',
         'brgy_captain',
+        'records_officer',
+        'auditor',
       )
     ) {
       items.push({ id: 'workflow', icon: CheckSquare, label: 'My Tasks', href: '/workflow/steps' });

@@ -99,9 +99,28 @@ export async function executeTerminationStep(
         // Transition document state
         // B2 specifies DocumentsPublicAPI has transitionState method
         if (typeof deps.documentsService.transitionState === 'function') {
+          const currentDoc = await deps.documentsService.getDocumentById(instance.documentId);
+          let currentState = currentDoc?.lifecycleState;
+
+          // Catch-up hops for documents that are still in active states when the workflow terminates successfully
+          if (
+            (finalDocumentStatus === 'archived' || finalDocumentStatus === 'released' || finalDocumentStatus === 'completed') &&
+            (currentState === 'in_workflow' ||
+              currentState === 'pending_mayor_action' ||
+              currentState === 'pending_panlalawigan_review')
+          ) {
+            await deps.documentsService.transitionState(
+              instance.documentId,
+              'completed',
+              'SYSTEM',
+              undefined,
+              tx,
+            );
+            currentState = 'completed';
+          }
+
           if (finalDocumentStatus === 'archived') {
-            const currentDoc = await deps.documentsService.getDocumentById(instance.documentId);
-            if (currentDoc?.lifecycleState === 'completed') {
+            if (currentState === 'completed') {
               // Chain-of-custody requirement: a document may only reach
               // 'archived' via 'released'. See TASK-WF-014 for the decision
               // record — do not widen VALID_TRANSITIONS or the DB trigger

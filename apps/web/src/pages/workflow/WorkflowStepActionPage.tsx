@@ -20,6 +20,9 @@ import { ValidInPartDecisionPanel } from './panels/ValidInPartDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
 import { TransmittalLetterPanel } from './panels/TransmittalLetterPanel';
+import { OrderOfBusinessSchedulingPanel } from './panels/OrderOfBusinessSchedulingPanel';
+import { FinalNumberAssignmentPanel } from './panels/FinalNumberAssignmentPanel';
+import { AmendmentsLoggingPanel } from './panels/AmendmentsLoggingPanel';
 
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
@@ -80,6 +83,8 @@ export function WorkflowStepActionPage() {
           'mayor',
           'brgy_encoder',
           'brgy_captain',
+          'records_officer',
+          'auditor',
         );
         if (canAct) return <GenericActionPanel instance={instance} />;
         break;
@@ -142,6 +147,18 @@ export function WorkflowStepActionPage() {
       case 'valid_in_part_decision':
         canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <ValidInPartDecisionPanel instance={instance} />;
+        break;
+      case 'order_of_business_scheduling':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <OrderOfBusinessSchedulingPanel instance={instance} />;
+        break;
+      case 'final_number_assignment':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <FinalNumberAssignmentPanel instance={instance} />;
+        break;
+      case 'amendments_logging':
+        canAct = hasRole(identity, 'sp_secretary', 'secretariat_staff');
+        if (canAct) return <AmendmentsLoggingPanel instance={instance} />;
         break;
       default:
         break;
