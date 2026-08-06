@@ -14,25 +14,39 @@ This checklist organizes the 14 tasks of the NOTIF module into logical groups to
 ## Group 1: Database & Core Foundation
 These tasks build the underlying storage and data-access layers. They must be completed first.
 - [ ] **TASK-NOTIF-001**: Create Drizzle schema and SQL migrations for `templates`, `notification_events`, and `delivery_log`.
+  - **Prerequisites:** `[NONE]` (Can start immediately)
 - [ ] **TASK-NOTIF-002**: Scaffold the NOTIF module repository layer (`findActiveTemplate`, `insertNotificationEvent`, etc.).
+  - **Prerequisites:** `[TASK-NOTIF-001]`
 - [ ] **TASK-NOTIF-005**: Create an idempotent seed script to populate the 9 Phase 1 templates (`notif.workflow.step_assignment.in_app`, etc.).
+  - **Prerequisites:** `[TASK-NOTIF-001]`
 
 ## Group 2: Notification Engine
 The core services that power the dispatch and real-time delivery of notifications.
 - [ ] **TASK-NOTIF-003**: Implement the Server-Sent Events (SSE) infrastructure (`GET /api/notifications/stream`) to manage active user connections and push real-time updates.
+  - **Prerequisites:** `[TASK-NOTIF-002]`
 - [ ] **TASK-NOTIF-004**: Implement the core `sendNotification()` dispatch service. Handles template variable substitution, writes to `notification_events`, and routes to the SSE engine or external handlers.
+  - **Prerequisites:** `[TASK-NOTIF-002, TASK-NOTIF-003]`
 
 ## Group 3: Event Consumers (The Triggers)
 These tasks listen to domain events across the platform and trigger notifications via the dispatch service. These can be split easily once the Dispatch service (Task 004) is complete.
 - [ ] **TASK-NOTIF-006**: **Step Assignment** (`workflow.step.started`) - Notifies the user assigned to a new step.
+  - **Prerequisites:** `[TASK-NOTIF-004, TASK-WF-005]`
 - [ ] **TASK-NOTIF-007**: **Document State Change** (`document.state_changed`) - Notifies the originating office when a document changes state.
+  - **Prerequisites:** `[TASK-NOTIF-004, CROSS-MODULE REF: DOCS]`
 - [ ] **TASK-NOTIF-008**: **SLA Escalations** (`workflow.sla.warning`, `breached`, `critical`) - Escalates overdue steps to assignees, supervisors, Records Officers, and Department Heads.
+  - **Prerequisites:** `[TASK-NOTIF-004, TASK-WF-014]`
 - [ ] **TASK-NOTIF-009**: **Legislative Timers** (`workflow.approval.lapsed`, `panlalawigan.deemed_approved`) - Alerts the SP Secretary with verbatim legal citations (RA 7160).
+  - **Prerequisites:** `[TASK-NOTIF-004, TASK-WF-012, TASK-WF-013]`
 - [ ] **TASK-NOTIF-010**: **Complaint Respondent** - External recipient handler sending Nodemailer emails and logging manual phone-call fallbacks.
+  - **Prerequisites:** `[TASK-NOTIF-004]`
 - [ ] **TASK-NOTIF-011**: **Session Security** (`session.terminated`) - Alerts users of forced session displacement (new device logins).
+  - **Prerequisites:** `[TASK-NOTIF-004, CROSS-MODULE REF: IAM]`
 
 ## Group 4: APIs & Integration
 Wiring it all together and exposing the features to the frontend.
 - [ ] **TASK-NOTIF-012**: **tRPC Router** - Implement `listMine`, `markAsRead`, `preferences`, and `listDeliveryLogs` with ABAC/role protection.
+  - **Prerequisites:** `[TASK-NOTIF-001, TASK-NOTIF-004]`
 - [ ] **TASK-NOTIF-013**: **Fastify Plugin** - Register the SSE route, tRPC router, and all 8 event consumers at server startup.
+  - **Prerequisites:** `[All preceding NOTIF tasks (005 through 012)]`
 - [ ] **TASK-NOTIF-014**: **Vitest Suite** - Write automated tests ensuring full coverage of the repository, service, SSE, router, and event consumers.
+  - **Prerequisites:** `[TASK-NOTIF-013]`
