@@ -7567,3 +7567,130 @@ tests were written before `role:`/`delegation_aware:` were implemented — no `.
 history is available in any upload to confirm chronology directly; this is the most
 parsimonious explanation for a test asserting behavior the current source demonstrably
 does not have.
+
+---
+
+### [LOG-0235] `workflow.plugin.test.ts` didn't stub `fastify.documentsEventDb`/`documentsEventService` — a pre-existing gap masked by LOG-0233's now-fixed `iam`-dependency-registration failure
+
+- date: 2026-08-06
+- task_id: (none — surfaced while investigating a new failure signature in workflow.plugin.test.ts after applying TASK-SERVER-TEST-001)
+- status: proposed
+- affects: none (test-fixture-only issue; no production code or architecture doc affected)
+
+**What was found:** `apps/server/src/modules/workflow/workflow.plugin.ts:64-65` reads
+`fastify.documentsEventDb` and immediately accesses `.db` on it:
+`const eventDb = fastify.documentsEventDb; const eventWorkflowRepository = new
+WorkflowRepository(eventDb.db);`. This decoration is provided in production by
+`apps/server/src/modules/documents/documents.plugin.ts:156-157`
+(`fastify.decorate('documentsEventDb', eventConsumerDb)` /
+`fastify.decorate('documentsEventService', eventService)`), matching the
+`EventConsumerDb` interface (`apps/server/src/infrastructure/event-consumer-db.ts:39-42`:
+`{ db: AppDb; close(): Promise<void> }`) — a deliberate architectural choice
+(documented in the plugin's own inline comment, lines 58-63, and previously fixed/logged
+as LOG-0207/LOG-0210: fire-and-forget event consumers must use a dedicated connection,
+not `fastify.db`, to avoid a nested-transaction deadlock).
+
+`workflow.plugin.test.ts`'s `mockDependenciesPlugin` (lines 42-78, prior to this fix)
+decorated `db`, `eventBus`, `auditService`, `documentsService`, `organizationService`,
+`delegationService`, and `boss` — but never `documentsEventDb` or `documentsEventService`.
+The test's stub for the `documents` Fastify plugin dependency (line 98,
+`await fastify.register(fp(async () => {}, { name: 'documents' }))`) is a bare no-op that
+satisfies Fastify's dependency-name check but performs none of the real `documents.plugin.ts`'s
+decoration work. This means `fastify.documentsEventDb` was `undefined` at line 64, and line
+65's `eventDb.db` threw `TypeError: Cannot read properties of undefined (reading 'db')`.
+
+**This defect predates today's session and was not caused by TASK-SERVER-TEST-001's Fix 4**
+(the `iam` plugin stub addition, LOG-0233). It was previously masked: before Fix 4, all four
+tests in this file failed earlier, at Fastify's `checkDependencies` step (`AssertionError: The
+dependency 'iam' of plugin 'workflow' is not registered`), which fires before
+`workflowPlugin`'s body ever executes — so execution never reached line 64-65 to reveal this
+second, independent gap. Fixing LOG-0233 let registration succeed and immediately exposed this
+next failure in the same four tests. A live `pnpm vitest run` (run by the project owner,
+not narrated) confirms this exact sequence: post-fix, all four tests in this file still fail,
+but now uniformly on `Cannot read properties of undefined (reading 'db')` instead of the
+dependency-registration error.
+
+**What was implemented:** `mockDependenciesPlugin` (same file) now also decorates
+`documentsEventDb` with a mock matching `EventConsumerDb`'s real shape (a chainable
+mock query-builder object for `.db`, matching the style already used for the file's
+`fastify.db` mock at lines 44-51, plus a `close: vi.fn().mockResolvedValue(undefined)`)
+and `documentsEventService` as an empty `{} as any` (matching the file's existing style
+for `auditService`/`organizationService`/`delegationService`, none of which are called
+by name inside `workflowPlugin`'s own registration body). `WorkflowRepository`'s
+constructor (`workflow.repository.ts:41`) only stores the `db` reference with no eager
+calls, so this stub is sufficient to unblock line 65's construction.
+
+**Note:** [Confirmed] — the failing line, the decoration gap, `EventConsumerDb`'s real
+shape, and `WorkflowRepository`'s constructor were all read directly from source.
+[Inference] — that this fix resolves all four of this file's failures; the live vitest
+summary line confirming pass/fail counts after this specific change has not been
+obtained (test execution was not performed in this session, per explicit instruction —
+the fix was derived and applied via direct source reading and manual trace only, not
+verified by running the suite).
+
+---
+
+### [LOG-0238] `workflow.router.test.ts`'s `completeActionStep` FORBIDDEN test comment contradicts live `ACTION_STEP_ROLES` — doc-vs-code question, needs human resolution
+
+- date: 2026-08-06
+- task_id: (none — surfaced while investigating post-TASK-SERVER-TEST-001 test-run output)
+- status: proposed
+- affects: I1 (§6.2, cited directly in the production code's own comment)
+
+**What was found:** The test `'throws FORBIDDEN when user role is not
+permitted for action steps'` in
+`apps/server/src/modules/workflow/workflow.router.test.ts` (starting
+approximately line 481) carries the comment `// records_officer is not in
+ACTION_STEP_ROLES` and asserts that calling `completeActionStep` as a subject
+with `roles: ['records_officer']` rejects with `FORBIDDEN`.
+
+This is factually contradicted by the live production authorization policy.
+`ACTION_STEP_ROLES` (`apps/server/src/modules/workflow/workflow.policy.ts:131-140`,
+labeled in its own preceding comment as `"I1 §6.2 'step_instance:complete_action'
+base role set"`) is a `ReadonlySet` that explicitly includes `'records_officer'`
+(line 139) alongside `dept_encoder`, `dept_approver`, `sp_secretary`,
+`sp_presiding_officer`, `mayor`, `brgy_encoder`, `brgy_captain`. The
+authorization check at `workflow.policy.ts:275`
+(`if (!rolesIntersect(subject.roles, ACTION_STEP_ROLES))`) would therefore
+NOT reject a `records_officer` subject on this basis — the test's premise is
+wrong against current source, which is why the live test run shows this test
+failing with `promise resolved "{ success: true, nextStepType: null }"
+instead of rejecting`.
+
+This is not a mock-completeness gap like LOG-0235/0236/0237 above. It is a
+direct contradiction between a test's documented assumption and the current
+production access-control policy, which per this project's own routing (an
+"Implement an ABAC policy or permission check" task type routes to I1 → I2 →
+B5, and I1 §6.2 is cited by name in the code) requires checking the I1
+specification directly to determine which side is correct:
+
+1. `records_officer` may have been added to `ACTION_STEP_ROLES` at some point
+   after this test was written, and the test was never updated to match
+   (structurally similar to LOG-0234's `NotImplemented`-assertion staleness);
+   OR
+2. `records_officer` may not belong in `ACTION_STEP_ROLES` per I1 §6.2's
+   actual specification, meaning the *production authorization policy* itself
+   has a bug that happens to currently under-restrict who can complete action
+   steps.
+
+This was not resolved from source alone, and per this project's rule that
+agents never silently resolve doc-vs-code conflicts (especially ones with
+access-control/security implications), it is being surfaced here rather than
+guessed at or fixed unilaterally in either direction.
+
+**What was implemented:** Nothing. This entry documents the contradiction
+only; no code or test was changed as a result of this finding.
+
+**Note:** [Confirmed] — `ACTION_STEP_ROLES`'s current membership (including
+`records_officer`), the test's comment and assertion, and the exact failure
+output (`promise resolved` instead of `rejects`) were all verified directly
+against source and against a live `pnpm vitest run` output provided by the
+project owner. [Speculation] — which of the two resolutions above (test is
+stale vs. production policy is wrong) is correct; this requires checking the
+I1 specification document directly, which was not done as part of this
+finding (per AGENTS.md's routing table, an ABAC/permission-check task reads
+I1 → I2 → B5, none of which were opened during this investigation — this
+finding was reached via test/policy source comparison only).
+
+---
+

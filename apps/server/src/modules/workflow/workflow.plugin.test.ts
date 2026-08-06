@@ -68,6 +68,18 @@ const mockDependenciesPlugin = fp(
     fastify.decorate('documentsService', {} as any);
     fastify.decorate('organizationService', {} as any);
     fastify.decorate('delegationService', {} as any);
+    fastify.decorate('documentsEventDb', {
+      db: {
+        select: vi.fn().mockReturnThis(),
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([]),
+        insert: vi.fn().mockReturnThis(),
+        values: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockResolvedValue([]),
+      },
+      close: vi.fn().mockResolvedValue(undefined),
+    } as any);
+    fastify.decorate('documentsEventService', {} as any);
     fastify.decorate('boss', {
       createQueue: vi.fn().mockResolvedValue(undefined),
       work: vi.fn(),
