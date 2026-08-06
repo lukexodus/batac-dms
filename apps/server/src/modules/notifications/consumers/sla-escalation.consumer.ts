@@ -189,10 +189,25 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
 
           // Department head is typically the office's head. We could find the person with role 'department_head'
           // However, for safety if 'department_head' is not defined, we could fallback, but we'll assume it exists or returns empty array.
+          // KNOWN GAP (see docs/development-findings-log.md LOG-0228): 'department_head' is not
+          // a registered role code in iam.seed.ts's ROLE_DEFINITIONS as of this snapshot. This
+          // lookup will resolve to zero results until that gap is resolved by a human decision
+          // (add the role, or map this lookup to an existing role code). This warning makes that
+          // fact visible in logs rather than leaving it silent — it does not change behavior.
           const departmentHeads = await fastify.organizationService.listEmployeesByRoleAndOffice(
             'department_head',
             officeData.officeId
           );
+          if (departmentHeads.length === 0) {
+            fastify.log.warn(
+              {
+                eventId: event.eventId,
+                stepInstanceId: payload.stepInstanceId,
+                officeId: officeData.officeId,
+              },
+              'notifications: sla-critical consumer found zero department_head recipients for this office — see LOG-0228 (department_head is not a registered role code)',
+            );
+          }
 
           const targets = [...supervisors, ...recordsOfficers, ...departmentHeads];
 
