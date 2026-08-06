@@ -96,6 +96,7 @@ describe('workflow.plugin', () => {
     await fastify.register(fp(async () => {}, { name: 'audit' }));
     await fastify.register(fp(async () => {}, { name: 'organization' }));
     await fastify.register(fp(async () => {}, { name: 'documents' }));
+    await fastify.register(fp(async () => {}, { name: 'iam' }));
 
     // Register the plugin
     await fastify.register(workflowPlugin);

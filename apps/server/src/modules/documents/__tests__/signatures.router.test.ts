@@ -12,15 +12,15 @@ vi.mock('../../../config/env.js', () => ({
 
 function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
-    userId: '44444444-4444-4444-4444-444444444444',
+    userId: '44444444-4444-4444-8444-444444444444',
     sessionId: 'session-1',
-    officeId: '33333333-3333-3333-3333-333333333333',
-    cityId: '55555555-5555-5555-5555-555555555555',
+    officeId: '33333333-3333-4333-8333-333333333333',
+    cityId: '55555555-5555-4555-8555-555555555555',
     roles: ['sp_secretary'],
     permissions: [],
     committeeIds: [],
     delegationGrantId: null,
-    effectiveOfficeIds: ['33333333-3333-3333-3333-333333333333'],
+    effectiveOfficeIds: ['33333333-3333-4333-8333-333333333333'],
     effectiveRoles: ['sp_secretary'],
     isItAdmin: false,
     isPlatformAdmin: false,
@@ -31,9 +31,9 @@ function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
 function makeDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
   const now = new Date('2026-06-01T00:00:00.000Z');
   return {
-    id: '11111111-1111-1111-1111-111111111111',
-    cityId: '55555555-5555-5555-5555-555555555555',
-    documentTypeId: '22222222-2222-2222-2222-222222222222',
+    id: '11111111-1111-4111-8111-111111111111',
+    cityId: '55555555-5555-4555-8555-555555555555',
+    documentTypeId: '22222222-2222-4222-8222-222222222222',
     title: 'Test document',
     lifecycleState: 'draft',
     classificationLevel: 'internal',
@@ -41,16 +41,16 @@ function makeDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     preliminaryNumber: null,
     finalNumber: null,
     controlNumber: null,
-    originatingOfficeId: '33333333-3333-3333-3333-333333333333',
-    ownedByOfficeId: '33333333-3333-3333-3333-333333333333',
-    createdBy: '44444444-4444-4444-4444-444444444444',
+    originatingOfficeId: '33333333-3333-4333-8333-333333333333',
+    ownedByOfficeId: '33333333-3333-4333-8333-333333333333',
+    createdBy: '44444444-4444-4444-8444-444444444444',
     workflowInstanceId: null,
     versionNumber: 1,
     metadata: {},
     supersededBy: null,
     supersededAt: null,
     closureReason: null,
-    retentionScheduleId: '66666666-6666-6666-6666-666666666666',
+    retentionScheduleId: '66666666-6666-4666-8666-666666666666',
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -109,7 +109,7 @@ describe('Signatures Router tRPC Procedures', () => {
       repository.findDocumentById.mockResolvedValue(document);
 
       const mockSignatureRow: SignatureRow = {
-        id: '99999999-9999-9999-9999-999999999999',
+        id: '99999999-9999-4999-8999-999999999999',
         cityId: subject.cityId,
         documentId: document.id,
         signedByEmployeeId: '88888888-8888-8888-8888-888888888888',
@@ -147,7 +147,7 @@ describe('Signatures Router tRPC Procedures', () => {
       });
 
       expect(response).toEqual({
-        id: '99999999-9999-9999-9999-999999999999',
+        id: '99999999-9999-4999-8999-999999999999',
         documentId: document.id,
         signedByEmployeeId: '88888888-8888-8888-8888-888888888888',
         signedByDisplayName: 'John Doe',
@@ -192,9 +192,9 @@ describe('Signatures Router tRPC Procedures', () => {
       const caller = callerFor(ctx);
 
       const mockSignatureRow: SignatureRow = {
-        id: '99999999-9999-9999-9999-999999999999',
+        id: '99999999-9999-4999-8999-999999999999',
         cityId: subject.cityId,
-        documentId: '11111111-1111-1111-1111-111111111111',
+        documentId: '11111111-1111-4111-8111-111111111111',
         signedByEmployeeId: '88888888-8888-8888-8888-888888888888',
         signedByDisplayName: 'John Doe',
         signatureType: 'sp_secretary',
@@ -207,7 +207,7 @@ describe('Signatures Router tRPC Procedures', () => {
       };
 
       const document = makeDocumentRow({
-        id: '11111111-1111-1111-1111-111111111111',
+        id: '11111111-1111-4111-8111-111111111111',
         ownedByOfficeId: 'office-sps',
       });
 
@@ -215,19 +215,19 @@ describe('Signatures Router tRPC Procedures', () => {
       repository.findDocumentById.mockResolvedValue(document);
 
       const response = await caller.uploadSignatureImage({
-        signatureId: '99999999-9999-9999-9999-999999999999',
-        s3Key: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        signatureId: '99999999-9999-4999-8999-999999999999',
+        s3Key: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       });
 
       expect(repository.findSignatureById).toHaveBeenCalledWith(
-        '99999999-9999-9999-9999-999999999999',
+        '99999999-9999-4999-8999-999999999999',
       );
       expect(repository.findDocumentById).toHaveBeenCalledWith(
-        '11111111-1111-1111-1111-111111111111',
+        '11111111-1111-4111-8111-111111111111',
       );
       expect(repository.updateSignatureImageKey).toHaveBeenCalledWith(
-        '99999999-9999-9999-9999-999999999999',
-        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        '99999999-9999-4999-8999-999999999999',
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       );
       expect(response).toEqual({ success: true });
     });
@@ -242,9 +242,9 @@ describe('Signatures Router tRPC Procedures', () => {
       const caller = callerFor(ctx);
 
       const mockSignatureRow: SignatureRow = {
-        id: '99999999-9999-9999-9999-999999999999',
+        id: '99999999-9999-4999-8999-999999999999',
         cityId: subject.cityId,
-        documentId: '11111111-1111-1111-1111-111111111111',
+        documentId: '11111111-1111-4111-8111-111111111111',
         signedByEmployeeId: '88888888-8888-8888-8888-888888888888',
         signedByDisplayName: 'John Doe',
         signatureType: 'sp_secretary',
@@ -257,7 +257,7 @@ describe('Signatures Router tRPC Procedures', () => {
       };
 
       const document = makeDocumentRow({
-        id: '11111111-1111-1111-1111-111111111111',
+        id: '11111111-1111-4111-8111-111111111111',
         ownedByOfficeId: 'office-sps',
       });
 
@@ -266,8 +266,8 @@ describe('Signatures Router tRPC Procedures', () => {
 
       await expect(
         caller.uploadSignatureImage({
-          signatureId: '99999999-9999-9999-9999-999999999999',
-          s3Key: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          signatureId: '99999999-9999-4999-8999-999999999999',
+          s3Key: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         }),
       ).rejects.toThrow(TRPCError);
     });
@@ -285,7 +285,7 @@ describe('Signatures Router tRPC Procedures', () => {
 
       const mockSignatures: SignatureRow[] = [
         {
-          id: '99999999-9999-9999-9999-000000000001',
+          id: '99999999-9999-4999-8999-000000000001',
           cityId: subject.cityId,
           documentId: document.id,
           signedByEmployeeId: '88888888-8888-8888-8888-000000000001',
@@ -299,7 +299,7 @@ describe('Signatures Router tRPC Procedures', () => {
           deletedBy: null,
         },
         {
-          id: '99999999-9999-9999-9999-000000000002',
+          id: '99999999-9999-4999-8999-000000000002',
           cityId: subject.cityId,
           documentId: document.id,
           signedByEmployeeId: '88888888-8888-8888-8888-000000000002',
@@ -322,8 +322,8 @@ describe('Signatures Router tRPC Procedures', () => {
 
       expect(repository.findSignaturesByDocument).toHaveBeenCalledWith(document.id);
       expect(response).toHaveLength(2);
-      expect(response[0]!.id).toBe('99999999-9999-9999-9999-000000000001');
-      expect(response[1]!.id).toBe('99999999-9999-9999-9999-000000000002');
+      expect(response[0]!.id).toBe('99999999-9999-4999-8999-000000000001');
+      expect(response[1]!.id).toBe('99999999-9999-4999-8999-000000000002');
     });
 
     it('denies disallowed roles (e.g. plat_admin)', async () => {

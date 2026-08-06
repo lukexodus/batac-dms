@@ -3,7 +3,7 @@ import { resolveAssignees } from '../engine/assignee-resolution.js';
 
 describe('Assignee Resolution & Designations (DESIG)', () => {
   const mockDeps = {
-    orgService: {},
+    orgService: { getPrimaryOfficeForUser: vi.fn().mockResolvedValue(null) },
     delegationService: {},
   } as any;
 

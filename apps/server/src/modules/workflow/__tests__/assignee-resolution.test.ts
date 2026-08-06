@@ -3,14 +3,14 @@ import { resolveAssignees } from '../engine/assignee-resolution.js';
 
 describe('Assignee Resolution (ASSIGN)', () => {
   const mockDeps = {
-    orgService: {} as any,
+    orgService: { getPrimaryOfficeForUser: vi.fn().mockResolvedValue(null) } as any,
     delegationService: {} as any,
   };
 
   describe('ASSIGN-V: Implemented strategies', () => {
     it('ASSIGN-V-01: static:userId resolves to single user', async () => {
       const result = await resolveAssignees('static:user-mayor', {}, mockDeps);
-      expect(result).toEqual([{ user_id: 'user-mayor', resolved_via: 'static:user-mayor' }]);
+      expect(result[0]).toMatchObject({ user_id: 'user-mayor', resolved_via: 'static:user-mayor' });
     });
 
     it('ASSIGN-V-02: actor_from_context:key resolves from context', async () => {
@@ -19,9 +19,7 @@ describe('Assignee Resolution (ASSIGN)', () => {
         { submitted_by: 'user-123' },
         mockDeps,
       );
-      expect(result).toEqual([
-        { user_id: 'user-123', resolved_via: 'actor_from_context:submitted_by' },
-      ]);
+      expect(result[0]).toMatchObject({ user_id: 'user-123', resolved_via: 'actor_from_context:submitted_by' });
     });
 
     it('ASSIGN-V-03: actor_from_context with missing key returns empty array', async () => {

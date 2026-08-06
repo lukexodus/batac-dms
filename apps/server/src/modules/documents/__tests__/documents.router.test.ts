@@ -31,15 +31,15 @@ vi.mock('../../../config/env.js', () => ({
 
 function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
-    userId: '44444444-4444-4444-4444-444444444444',
+    userId: '44444444-4444-4444-8444-444444444444',
     sessionId: 'session-1',
-    officeId: '33333333-3333-3333-3333-333333333333',
-    cityId: '55555555-5555-5555-5555-555555555555',
+    officeId: '33333333-3333-4333-8333-333333333333',
+    cityId: '55555555-5555-4555-8555-555555555555',
     roles: ['dept_encoder'],
     permissions: [],
     committeeIds: [],
     delegationGrantId: null,
-    effectiveOfficeIds: ['33333333-3333-3333-3333-333333333333'],
+    effectiveOfficeIds: ['33333333-3333-4333-8333-333333333333'],
     effectiveRoles: ['dept_encoder'],
     isItAdmin: false,
     isPlatformAdmin: false,
@@ -50,9 +50,9 @@ function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
 function makeDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
   const now = new Date('2026-06-01T00:00:00.000Z');
   return {
-    id: '11111111-1111-1111-1111-111111111111',
-    cityId: '55555555-5555-5555-5555-555555555555',
-    documentTypeId: '22222222-2222-2222-2222-222222222222',
+    id: '11111111-1111-4111-8111-111111111111',
+    cityId: '55555555-5555-4555-8555-555555555555',
+    documentTypeId: '22222222-2222-4222-8222-222222222222',
     title: 'Test document',
     lifecycleState: 'draft',
     classificationLevel: 'internal',
@@ -60,16 +60,16 @@ function makeDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     preliminaryNumber: null,
     finalNumber: null,
     controlNumber: null,
-    originatingOfficeId: '33333333-3333-3333-3333-333333333333',
-    ownedByOfficeId: '33333333-3333-3333-3333-333333333333',
-    createdBy: '44444444-4444-4444-4444-444444444444',
+    originatingOfficeId: '33333333-3333-4333-8333-333333333333',
+    ownedByOfficeId: '33333333-3333-4333-8333-333333333333',
+    createdBy: '44444444-4444-4444-8444-444444444444',
     workflowInstanceId: null,
     versionNumber: 1,
     metadata: {},
     supersededBy: null,
     supersededAt: null,
     closureReason: null,
-    retentionScheduleId: '66666666-6666-6666-6666-666666666666',
+    retentionScheduleId: '66666666-6666-4666-8666-666666666666',
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -81,8 +81,8 @@ function makeDocumentRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
 function makeDocumentType(overrides: Partial<DocumentTypeRow> = {}): DocumentTypeRow {
   const now = new Date('2026-01-01T00:00:00.000Z');
   return {
-    id: '22222222-2222-2222-2222-222222222222',
-    cityId: '55555555-5555-5555-5555-555555555555',
+    id: '22222222-2222-4222-8222-222222222222',
+    cityId: '55555555-5555-4555-8555-555555555555',
     name: 'Memo',
     code: 'MEMO',
     owningModule: 'documents',
@@ -94,7 +94,7 @@ function makeDocumentType(overrides: Partial<DocumentTypeRow> = {}): DocumentTyp
     metadataSchema: {},
     requiredStepTypes: [],
     requiresPublication: false,
-    retentionScheduleId: '66666666-6666-6666-6666-666666666666',
+    retentionScheduleId: '66666666-6666-4666-8666-666666666666',
     isActive: true,
     createdAt: now,
     updatedAt: now,
@@ -202,10 +202,10 @@ describe('DocumentPolicyGuard', () => {
     it('denies confidential without an allowlist entry, even for an own-office role', () => {
       const subject = makeSubject({
         roles: ['dept_encoder'],
-        effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+        effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
       });
       const allowed = guard.canReadMetadata(subject, {
-        ownedByOfficeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ownedByOfficeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         classificationLevel: 'confidential',
         hasCrossOfficeGrant: false,
         hasAllowlistEntry: false,
@@ -216,10 +216,10 @@ describe('DocumentPolicyGuard', () => {
     it('allows confidential with an own-office allowlist entry', () => {
       const subject = makeSubject({
         roles: ['dept_encoder'],
-        effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+        effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
       });
       const allowed = guard.canReadMetadata(subject, {
-        ownedByOfficeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ownedByOfficeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         classificationLevel: 'confidential',
         hasCrossOfficeGrant: false,
         hasAllowlistEntry: true,
@@ -230,10 +230,10 @@ describe('DocumentPolicyGuard', () => {
     it('allows public classification for any operational role regardless of office', () => {
       const subject = makeSubject({
         roles: ['dept_encoder'],
-        effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+        effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
       });
       const allowed = guard.canReadMetadata(subject, {
-        ownedByOfficeId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        ownedByOfficeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         classificationLevel: 'public',
         hasCrossOfficeGrant: false,
         hasAllowlistEntry: false,
@@ -244,10 +244,10 @@ describe('DocumentPolicyGuard', () => {
     it('denies a different office for a plain encoder (no cross-office standing)', () => {
       const subject = makeSubject({
         roles: ['dept_encoder'],
-        effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+        effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
       });
       const allowed = guard.canReadMetadata(subject, {
-        ownedByOfficeId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        ownedByOfficeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
         classificationLevel: 'internal',
         hasCrossOfficeGrant: false,
         hasAllowlistEntry: false,
@@ -285,7 +285,7 @@ describe('DocumentPolicyGuard', () => {
   });
 
   describe('canCancel', () => {
-    const office = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const office = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     const subjectInOffice = (roles: string[]) =>
       makeSubject({ roles, effectiveOfficeIds: [office] });
 
@@ -348,13 +348,13 @@ describe('DocumentPolicyGuard', () => {
       const subject = makeSubject({
         roles: ['dept_encoder'],
         effectiveOfficeIds: [
-          'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-          'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
         ],
       });
       expect(guard.getSearchScope(subject)).toEqual({
         kind: 'own',
-        officeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'],
+        officeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'],
       });
     });
 
@@ -380,20 +380,20 @@ describe('documents.router (general CRUD)', () => {
   it('create: dept_encoder produces a draft document and does not return a qr tracking number', async () => {
     const subject = makeSubject({
       roles: ['dept_encoder'],
-      officeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      officeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     });
     const repository = makeMockRepository();
     repository.findDocumentTypeById.mockResolvedValue(
       makeDocumentType({ code: 'MEMO', classificationDefault: 'internal' }),
     );
     repository.insertDocument.mockImplementation(async (input: any) =>
-      makeDocumentRow({ id: '77777777-7777-7777-7777-777777777777', ...input }),
+      makeDocumentRow({ id: '77777777-7777-4777-8777-777777777777', ...input }),
     );
 
     const caller = callerFor(makeCtx(subject, { repository }));
     const result = await caller.create({
-      documentTypeId: '22222222-2222-2222-2222-222222222222',
+      documentTypeId: '22222222-2222-4222-8222-222222222222',
       title: 'A memo',
       metadata: {},
     } as any);
@@ -415,7 +415,7 @@ describe('documents.router (general CRUD)', () => {
     const caller = callerFor(makeCtx(subject, { repository }));
     await expect(
       caller.create({
-        documentTypeId: '22222222-2222-2222-2222-222222222222',
+        documentTypeId: '22222222-2222-4222-8222-222222222222',
         title: 'x',
         metadata: {},
       } as any),
@@ -434,7 +434,7 @@ describe('documents.router (general CRUD)', () => {
 
     const caller = callerFor(makeCtx(subject, { repository }));
     await expect(
-      caller.get({ documentId: '11111111-1111-1111-1111-111111111111' }),
+      caller.get({ documentId: '11111111-1111-4111-8111-111111111111' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     // sys_admin is rejected before the document is even fetched for this procedure.
     expect(repository.findDocumentById).not.toHaveBeenCalled();
@@ -449,7 +449,7 @@ describe('documents.router (general CRUD)', () => {
 
     const caller = callerFor(makeCtx(subject, { repository }));
     await expect(
-      caller.getMetadataForAdmin({ documentId: '11111111-1111-1111-1111-111111111111' }),
+      caller.getMetadataForAdmin({ documentId: '11111111-1111-4111-8111-111111111111' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
@@ -458,7 +458,7 @@ describe('documents.router (general CRUD)', () => {
     const repository = makeMockRepository();
     const caller = callerFor(makeCtx(subject, { repository }));
     await expect(
-      caller.getMetadataForAdmin({ documentId: '11111111-1111-1111-1111-111111111111' }),
+      caller.getMetadataForAdmin({ documentId: '11111111-1111-4111-8111-111111111111' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     expect(repository.findDocumentById).not.toHaveBeenCalled();
   });
@@ -468,19 +468,19 @@ describe('documents.router (general CRUD)', () => {
     const subject = makeSubject({ roles: ['dept_approver'] });
     const caller = callerFor(makeCtx(subject));
     await expect(
-      caller.cancel({ documentId: '11111111-1111-1111-1111-111111111111', reason: '' } as any),
+      caller.cancel({ documentId: '11111111-1111-4111-8111-111111111111', reason: '' } as any),
     ).rejects.toBeTruthy();
   });
 
   it('cancel: throws on a disposed document', async () => {
     const subject = makeSubject({
       roles: ['dept_approver'],
-      effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     });
     const repository = makeMockRepository();
     repository.findDocumentById.mockResolvedValue(
       makeDocumentRow({
-        ownedByOfficeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ownedByOfficeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         lifecycleState: 'disposed',
       }),
     );
@@ -489,7 +489,7 @@ describe('documents.router (general CRUD)', () => {
     const caller = callerFor(makeCtx(subject, { repository, documentsService }));
     await expect(
       caller.cancel({
-        documentId: '11111111-1111-1111-1111-111111111111',
+        documentId: '11111111-1111-4111-8111-111111111111',
         reason: 'Superseded by a later resolution.',
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
@@ -502,12 +502,12 @@ describe('documents.router (general CRUD)', () => {
   it('cancel: succeeds for an unrestricted role on a submitted document and threads the reason through', async () => {
     const subject = makeSubject({
       roles: ['dept_approver'],
-      effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     });
     const repository = makeMockRepository();
     repository.findDocumentById.mockResolvedValue(
       makeDocumentRow({
-        ownedByOfficeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ownedByOfficeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         lifecycleState: 'submitted',
       }),
     );
@@ -515,13 +515,13 @@ describe('documents.router (general CRUD)', () => {
 
     const caller = callerFor(makeCtx(subject, { repository, documentsService }));
     const result = await caller.cancel({
-      documentId: '11111111-1111-1111-1111-111111111111',
+      documentId: '11111111-1111-4111-8111-111111111111',
       reason: 'Superseded by a later resolution.',
     });
 
     expect(result).toEqual({ success: true });
     expect(documentsService.transitionState).toHaveBeenCalledWith(
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-8111-111111111111',
       'cancelled',
       subject.userId,
       'Superseded by a later resolution.',
@@ -533,7 +533,7 @@ describe('documents.router (general CRUD)', () => {
   it('search: sp_secretary gets an unscoped repository call (sees all offices, including SP)', async () => {
     const subject = makeSubject({
       roles: ['sp_secretary'],
-      effectiveOfficeIds: ['bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'],
+      effectiveOfficeIds: ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'],
     });
     const repository = makeMockRepository();
     repository.searchDocuments.mockResolvedValue([]);
@@ -549,7 +549,7 @@ describe('documents.router (general CRUD)', () => {
   it('search: dept_encoder gets an office-scoped repository call', async () => {
     const subject = makeSubject({
       roles: ['dept_encoder'],
-      effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     });
     const repository = makeMockRepository();
 
@@ -557,13 +557,13 @@ describe('documents.router (general CRUD)', () => {
     await caller.search({ queryText: 'memo', limit: 25 } as any);
 
     const arg = repository.searchDocuments.mock.calls[0][0];
-    expect(arg.scope).toEqual({ kind: 'own', officeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'] });
+    expect(arg.scope).toEqual({ kind: 'own', officeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'] });
   });
 
   it('search: brgy_encoder is denied full-text search entirely (I2 §5) — scope is "none"', async () => {
     const subject = makeSubject({
       roles: ['brgy_encoder'],
-      effectiveOfficeIds: ['cccccccc-cccc-cccc-cccc-cccccccccccc'],
+      effectiveOfficeIds: ['cccccccc-cccc-4ccc-8ccc-cccccccccccc'],
     });
     const repository = makeMockRepository();
 
@@ -584,23 +584,23 @@ describe('documents.router (general CRUD)', () => {
   it('delete: soft-deletes without ever calling a hard-delete path (Invariant #2)', async () => {
     const subject = makeSubject({
       roles: ['dept_approver'],
-      effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     });
     const repository = makeMockRepository();
     repository.findDocumentById.mockResolvedValue(
       makeDocumentRow({
-        ownedByOfficeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ownedByOfficeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         lifecycleState: 'draft',
         workflowInstanceId: null,
       }),
     );
 
     const caller = callerFor(makeCtx(subject, { repository }));
-    const result = await caller.delete({ documentId: '11111111-1111-1111-1111-111111111111' });
+    const result = await caller.delete({ documentId: '11111111-1111-4111-8111-111111111111' });
 
     expect(result).toEqual({ success: true });
     expect(repository.softDeleteDocument).toHaveBeenCalledWith(
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-8111-111111111111',
       subject.userId,
     );
   });
@@ -608,19 +608,19 @@ describe('documents.router (general CRUD)', () => {
   it('update: rejects when the document is no longer in draft', async () => {
     const subject = makeSubject({
       roles: ['dept_encoder'],
-      effectiveOfficeIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      effectiveOfficeIds: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
     });
     const repository = makeMockRepository();
     repository.findDocumentById.mockResolvedValue(
       makeDocumentRow({
-        ownedByOfficeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ownedByOfficeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         lifecycleState: 'submitted',
       }),
     );
 
     const caller = callerFor(makeCtx(subject, { repository }));
     await expect(
-      caller.update({ documentId: '11111111-1111-1111-1111-111111111111', title: 'New title' }),
+      caller.update({ documentId: '11111111-1111-4111-8111-111111111111', title: 'New title' }),
     ).rejects.toMatchObject({
       code: 'FORBIDDEN',
     });

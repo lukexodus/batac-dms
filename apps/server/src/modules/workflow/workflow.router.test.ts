@@ -35,9 +35,9 @@ vi.mock('./engine/step-resolution.js', () => ({
 }));
 
 const CITY_ID = '00000000-0000-4000-8000-000000000001';
-const USER_ID = '44444444-4444-4444-4444-444444444444';
-const VALID_UUID = '11111111-1111-1111-1111-111111111111';
-const OTHER_OFFICE = '22222222-2222-2222-2222-222222222222';
+const USER_ID = '44444444-4444-4444-8444-444444444444';
+const VALID_UUID = '11111111-1111-4111-8111-111111111111';
+const OTHER_OFFICE = '22222222-2222-4222-8222-222222222222';
 const OWN_OFFICE = 'office-1';
 
 function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -396,11 +396,11 @@ describe('Workflow Router Mutation Procedures', () => {
   let mockDb: ReturnType<typeof makeMockDb>;
 
   // Shared fixture UUIDs
-  const STEP_INSTANCE_ID = '55555555-5555-5555-5555-555555555555';
-  const INSTANCE_ID = '66666666-6666-6666-6666-666666666666';
-  const DOCUMENT_ID = '77777777-7777-7777-7777-777777777777';
+  const STEP_INSTANCE_ID = '55555555-5555-4555-8555-555555555555';
+  const INSTANCE_ID = '66666666-6666-4666-8666-666666666666';
+  const DOCUMENT_ID = '77777777-7777-4777-8777-777777777777';
   const STEP_ID = '88888888-8888-8888-8888-888888888888';
-  const ENCODER_USER_ID = '99999999-9999-9999-9999-999999999999';
+  const ENCODER_USER_ID = '99999999-9999-4999-8999-999999999999';
 
   /** A single joined row returned by fetchStepContext's query */
   function makeStepContextRow(
@@ -800,7 +800,7 @@ describe('Workflow Router Mutation Procedures', () => {
       const subject = makeSubject({
         roles: ['sp_member'],
         effectiveRoles: ['sp_member'],
-        committeeIds: ['22222222-2222-2222-2222-222222222222'],
+        committeeIds: ['22222222-2222-4222-8222-222222222222'],
       });
       const caller = callerFor(makeCtx(subject, mockDb));
 
@@ -808,7 +808,7 @@ describe('Workflow Router Mutation Procedures', () => {
         makeStepContextRow({
           stepType: 'multi_referral',
           metadata: {
-            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+            assigned_committees: [{ committee_id: '11111111-1111-4111-8111-111111111111' }],
           },
         }),
       );
@@ -816,7 +816,7 @@ describe('Workflow Router Mutation Procedures', () => {
       await expect(
         caller.submitCommitteeReport({
           stepInstanceId: STEP_INSTANCE_ID,
-          committeeId: '11111111-1111-1111-1111-111111111111',
+          committeeId: '11111111-1111-4111-8111-111111111111',
           reportText: 'Test report',
         }),
       ).rejects.toThrow(/You are not a member of any committee assigned/);
@@ -826,7 +826,7 @@ describe('Workflow Router Mutation Procedures', () => {
       const subject = makeSubject({
         roles: ['sp_member'],
         effectiveRoles: ['sp_member'],
-        committeeIds: ['11111111-1111-1111-1111-111111111111'],
+        committeeIds: ['11111111-1111-4111-8111-111111111111'],
       });
       const caller = callerFor(makeCtx(subject, mockDb));
 
@@ -836,8 +836,8 @@ describe('Workflow Router Mutation Procedures', () => {
           stepType: 'multi_referral',
           metadata: {
             assigned_committees: [
-              { committee_id: '11111111-1111-1111-1111-111111111111' },
-              { committee_id: '33333333-3333-3333-3333-333333333333' },
+              { committee_id: '11111111-1111-4111-8111-111111111111' },
+              { committee_id: '33333333-3333-4333-8333-333333333333' },
             ],
           },
         }),
@@ -849,17 +849,17 @@ describe('Workflow Router Mutation Procedures', () => {
           id: STEP_INSTANCE_ID,
           metadata: {
             assigned_committees: [
-              { committee_id: '11111111-1111-1111-1111-111111111111' },
-              { committee_id: '33333333-3333-3333-3333-333333333333' },
+              { committee_id: '11111111-1111-4111-8111-111111111111' },
+              { committee_id: '33333333-3333-4333-8333-333333333333' },
             ],
-            submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // only 1 submission
+            submissions: [{ committee_id: '11111111-1111-4111-8111-111111111111' }], // only 1 submission
           },
         },
       ]);
 
       const result = await caller.submitCommitteeReport({
         stepInstanceId: STEP_INSTANCE_ID,
-        committeeId: '11111111-1111-1111-1111-111111111111',
+        committeeId: '11111111-1111-4111-8111-111111111111',
         reportText: 'Test report',
       });
 
@@ -877,7 +877,7 @@ describe('Workflow Router Mutation Procedures', () => {
         makeStepContextRow({
           stepType: 'multi_referral',
           metadata: {
-            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
+            assigned_committees: [{ committee_id: '11111111-1111-4111-8111-111111111111' }],
           },
         }),
       );
@@ -887,15 +887,15 @@ describe('Workflow Router Mutation Procedures', () => {
         {
           id: STEP_INSTANCE_ID,
           metadata: {
-            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
-            submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all assigned submitted
+            assigned_committees: [{ committee_id: '11111111-1111-4111-8111-111111111111' }],
+            submissions: [{ committee_id: '11111111-1111-4111-8111-111111111111' }], // all assigned submitted
           },
         },
       ]);
 
       const result = await caller.submitCommitteeReport({
         stepInstanceId: STEP_INSTANCE_ID,
-        committeeId: '11111111-1111-1111-1111-111111111111',
+        committeeId: '11111111-1111-4111-8111-111111111111',
         reportText: 'Test report',
       });
 
@@ -945,8 +945,8 @@ describe('Workflow Router Mutation Procedures', () => {
         {
           id: STEP_INSTANCE_ID,
           metadata: {
-            assigned_committees: [{ committee_id: '11111111-1111-1111-1111-111111111111' }],
-            submissions: [{ committee_id: '11111111-1111-1111-1111-111111111111' }], // all submitted
+            assigned_committees: [{ committee_id: '11111111-1111-4111-8111-111111111111' }],
+            submissions: [{ committee_id: '11111111-1111-4111-8111-111111111111' }], // all submitted
           },
         },
       ]);
@@ -1024,12 +1024,12 @@ const mockGetActiveInstanceForDocument = vi.fn();
 describe('TASK-WF-021 Procedures', () => {
   let mockDb: ReturnType<typeof makeMockDb>;
 
-  const STEP_INSTANCE_ID = '55555555-5555-5555-5555-555555555555';
-  const INSTANCE_ID = '66666666-6666-6666-6666-666666666666';
-  const DOCUMENT_ID = '77777777-7777-7777-7777-777777777777';
+  const STEP_INSTANCE_ID = '55555555-5555-4555-8555-555555555555';
+  const INSTANCE_ID = '66666666-6666-4666-8666-666666666666';
+  const DOCUMENT_ID = '77777777-7777-4777-8777-777777777777';
   const STEP_ID = '88888888-8888-8888-8888-888888888888';
-  const COMMITTEE_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
-  const CHAIR_USER_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+  const COMMITTEE_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+  const CHAIR_USER_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 
   /** Default step context row for fetchStepContext (joined query via makeMockDb) */
   function makeWF021StepContextRow(

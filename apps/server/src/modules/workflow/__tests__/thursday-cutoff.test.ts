@@ -47,7 +47,10 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
           stepInstance: { id: 'step-inst-1', metadata },
         },
       ]);
-      return evaluateThursdayCutoffs({ workflowRepository: mockRepo }, { cutoffTs: fixedCutoff });
+      return evaluateThursdayCutoffs(
+        { workflowRepository: mockRepo, eventBus: { emit: vi.fn() } as any },
+        { cutoffTs: fixedCutoff },
+      );
     };
 
     beforeEach(() => {
@@ -178,7 +181,10 @@ describe('Thursday Cutoff Scheduler (THU)', () => {
           },
         },
       ]);
-      await evaluateThursdayCutoffs({ workflowRepository: mockRepo }, { cutoffTs: laterCutoff });
+      await evaluateThursdayCutoffs(
+        { workflowRepository: mockRepo, eventBus: { emit: vi.fn() } as any },
+        { cutoffTs: laterCutoff },
+      );
       expect(mockRepo.updateStepInstance).toHaveBeenCalled();
     });
   });

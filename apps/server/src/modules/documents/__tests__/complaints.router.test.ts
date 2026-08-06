@@ -27,14 +27,14 @@ vi.mock('../../../config/env.js', () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const CITY_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-const OTHER_CITY_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
-const OFFICE_ID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
-const COMMITTEE_ID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
-const OTHER_COMMITTEE_ID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+const CITY_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const OTHER_CITY_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const OFFICE_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const COMMITTEE_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const OTHER_COMMITTEE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const USER_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
-const DOC_ID = '11111111-1111-1111-1111-111111111111';
-const DOC_TYPE_ID = '22222222-2222-2222-2222-222222222222';
+const DOC_ID = '11111111-1111-4111-8111-111111111111';
+const DOC_TYPE_ID = '22222222-2222-4222-8222-222222222222';
 
 function makeSubject(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -91,7 +91,7 @@ function makeComplaintRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
     supersededBy: null,
     supersededAt: null,
     closureReason: null,
-    retentionScheduleId: '33333333-3333-3333-3333-333333333333',
+    retentionScheduleId: '33333333-3333-4333-8333-333333333333',
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
