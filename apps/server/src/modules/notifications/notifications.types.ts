@@ -4,6 +4,7 @@ import {
   notificationEvents,
   deliveryLog,
 } from '@batac/database/schema/notifications.schema.js';
+import type { MailerService } from '../../infrastructure/mailer.service.js';
 
 export type TemplateRecord = InferSelectModel<typeof templates>;
 export type NotificationEventRecord = InferSelectModel<typeof notificationEvents>;
