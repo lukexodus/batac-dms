@@ -13,4 +13,5 @@
 export const SYSTEM_SET_METADATA_FIELDS = new Set([
   'certification_of_urgency_document_id',
   'transmittal_letter_document_id',
+  'certified_urgent',
 ]);

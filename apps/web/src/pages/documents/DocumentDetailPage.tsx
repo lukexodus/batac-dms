@@ -67,7 +67,7 @@ import {
   Input,
   Badge,
 } from '@batac/ui';
-
+import { LogCertificationOfUrgencyDialog } from './dialogs/LogCertificationOfUrgencyDialog';
 import { hasRole } from '../../lib/auth-helpers';
 
 import type { WorkflowStep, RoutingEntry } from '@batac/ui';
@@ -780,10 +780,7 @@ export default function DocumentDetailPage() {
                         </Button>
                       )}
                       {showCertUrgency && (
-                        <Button size="sm" variant="outline" disabled>
-                          <AlertTriangle />
-                          Log Certification of Urgency
-                        </Button>
+                        <LogCertificationOfUrgencyDialog documentId={documentId} />
                       )}
                     </div>
                   </div>
