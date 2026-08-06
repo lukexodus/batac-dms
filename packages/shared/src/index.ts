@@ -6,7 +6,7 @@
  */
 
 export type { DomainEvent } from './events/domain-event.js';
-export type { EventPayloadMap, WorkflowStepStartedPayload } from './events/event-payload-map.js';
+export type { EventPayloadMap, WorkflowStepStartedPayload, DocumentStateChangedEvent } from './events/event-payload-map.js';
 export type {
   IDeadLetterRepository,
   PendingDeadLetter,
