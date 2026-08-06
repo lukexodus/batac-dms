@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -84,9 +84,9 @@ export function GenericApprovalPanel({
           <label className="mb-1 block text-sm font-medium">
             Comment <span className="text-muted-foreground">(required for reject/return)</span>
           </label>
-          <Textarea
+          <RichTextEditor
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={setComment}
             placeholder="Enter comment..."
           />
         </div>

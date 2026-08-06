@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sanitizeRichText, isRichTextEmpty } from './rich-text.util.js';
 import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
@@ -1313,7 +1314,9 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const { stepInstanceId, comment = null } = input;
+        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const { stepInstanceId } = input;
+        const comment = sanitizedComment ?? null;
 
         const found = await fetchStepContext(stepInstanceId, ctx);
         if (!found) {
@@ -1398,7 +1401,9 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const { stepInstanceId, comment = null } = input;
+        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const { stepInstanceId } = input;
+        const comment = sanitizedComment ?? null;
 
         const found = await fetchStepContext(stepInstanceId, ctx);
         if (!found) {
@@ -1477,7 +1482,9 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const { stepInstanceId, decision, remarks = null } = input;
+        const sanitizedRemarks = input.remarks ? sanitizeRichText(input.remarks) : undefined;
+        const { stepInstanceId, decision } = input;
+        const remarks = sanitizedRemarks ?? null;
 
         const found = await fetchStepContext(stepInstanceId, ctx);
         if (!found) {
@@ -1573,10 +1580,13 @@ export function createWorkflowRouter() {
       .input(
         z.object({
           stepInstanceId: z.string().uuid(),
-          comment: z.string().min(1),
+          comment: z.string(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        if (isRichTextEmpty(input.comment)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Comment is required.' });
+        input.comment = sanitizeRichText(input.comment);
+
         if (!ctx.auth) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
@@ -1657,10 +1667,13 @@ export function createWorkflowRouter() {
       .input(
         z.object({
           stepInstanceId: z.string().uuid(),
-          comment: z.string().min(1),
+          comment: z.string(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        if (isRichTextEmpty(input.comment)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Comment is required.' });
+        input.comment = sanitizeRichText(input.comment);
+
         if (!ctx.auth) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
@@ -1921,11 +1934,14 @@ export function createWorkflowRouter() {
         z.object({
           stepInstanceId: z.string().uuid(),
           committeeId: z.string().uuid(),
-          reportText: z.string().min(1).max(20000).optional(),
+          reportText: z.string().max(20000).optional(),
           documentId: z.string().uuid().optional(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        if (input.reportText && isRichTextEmpty(input.reportText)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Report text is required if provided.' });
+        if (input.reportText) input.reportText = sanitizeRichText(input.reportText);
+
         if (!ctx.auth) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
@@ -2533,10 +2549,13 @@ export function createWorkflowRouter() {
       .input(
         z.object({
           stepInstanceId: z.string().uuid(),
-          mandatoryComment: z.string().min(1),
+          mandatoryComment: z.string(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        if (isRichTextEmpty(input.mandatoryComment)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Comment is required.' });
+        input.mandatoryComment = sanitizeRichText(input.mandatoryComment);
+
         if (!ctx.auth) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
@@ -2777,10 +2796,13 @@ export function createWorkflowRouter() {
       .input(
         z.object({
           stepInstanceId: z.string().uuid(),
-          objectionsText: z.string().min(1),
+          objectionsText: z.string(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        if (isRichTextEmpty(input.objectionsText)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Objections text is required to veto.' });
+        input.objectionsText = sanitizeRichText(input.objectionsText);
+
         const found = await fetchStepContext(input.stepInstanceId, ctx);
         if (!found) throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
         const { stepInstance, step, instance, stepAttrs } = found;
@@ -3145,7 +3167,9 @@ export function createWorkflowRouter() {
         }),
       )
       .output(z.object({ success: z.literal(true) }))
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (input.remarks) input.remarks = sanitizeRichText(input.remarks);
+
         const stepContext = await fetchStepContext(input.stepInstanceId, ctx);
         if (!stepContext) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found' });
@@ -3239,11 +3263,14 @@ export function createWorkflowRouter() {
             'route_to_committee',
             'implement_directly',
           ]),
-          mandatoryComment: z.string().min(1),
+          mandatoryComment: z.string(),
         }),
       )
       .output(z.object({ success: z.literal(true) }))
-      .mutation(async ({ ctx, input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (isRichTextEmpty(input.mandatoryComment)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Comment is required.' });
+        input.mandatoryComment = sanitizeRichText(input.mandatoryComment);
+
         const workflowRepository = new WorkflowRepository(ctx.db);
         const instance = await workflowRepository.getActiveInstanceForDocument(input.documentId);
         if (!instance) {
