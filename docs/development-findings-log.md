@@ -7213,3 +7213,357 @@ zero-throw behavior on unmatched role code, checked directly against its impleme
 [Inference] — that "Department Approver" is the closest conceptual match if option (2) is chosen;
 this is not stated anywhere in the source documents and should not be treated as a resolution,
 only as a starting point for whoever makes this decision.
+
+---
+
+### [LOG-0229] CI's `unit-tests`/`integration-tests` jobs invoke `turbo run test:unit`/`test:integration`, which no workspace package implements — every module's test suite has been silently unreachable from CI
+
+- date: 2026-08-06
+- task_id: (none — discovered continuing prior handoff's top-priority item, TASK-NOTIF-012-INVESTIGATE)
+- status: proposed
+- affects: L1, L2, L3 (CI/Docker/Compose config docs), all modules (not NOTIF-specific)
+
+**What was found:** Root `package.json` (lines 9-10) defines `"test:unit": "turbo run
+test:unit"` and `"test:integration": "turbo run test:integration"`. `turbo.json` (lines
+9-10) declares these as valid task names with `dependsOn: ["^build"]`. No workspace
+package — not `apps/server`, not any `packages/*` — defines a `test:unit` or
+`test:integration` script in its own `package.json` (confirmed via direct read of all 7
+workspace package.json files). `apps/server/package.json` defines a differently-named
+`"test": "vitest run"` script that neither root command reaches.
+
+Turbo's documented behavior: a task declared in `turbo.json` but not implemented by a
+package is silently skipped for that package, not treated as an error. Independently run
+live (not narrated): `pnpm test:unit` and `pnpm test:integration` both report "Tasks: 3
+successful, 3 total" — the 3 being the `^build` dependency chain
+(`@batac/database:build`, `@batac/shared:build`, `server:build`) — with zero test files
+executed, exit code 0, in both cases (confirmed for `test:integration` even with no
+Postgres instance running anywhere in the environment).
+
+`.github/workflows/ci.yml`'s `unit-tests` job (lines 24-31) runs exactly `pnpm turbo run
+test:unit`; the `integration-tests` job (lines 33-63) correctly stands up real Postgres
+and MinIO services and runs real migrations (lines 44-60), then runs `pnpm turbo run
+test:integration` as its final step (line 62) — meaning all of that infrastructure setup
+work is wasted; the final invocation never reaches a single test file. Both jobs report
+green on every PR while running no tests, for any module.
+
+Real test files exist and are unreachable via anything CI currently invokes: 69 total
+test-like files under `apps/server/src` (68 matching `*.test.ts`, 1 matching `*.spec.ts`
+— `src/modules/documents/ocr.service.spec.ts` — picked up because no local
+`vitest.config.ts` exists to override vitest's default include glob, which matches both
+extensions). Per-module breakdown: workflow 30, documents 11, organization 7, tracking 6,
+iam 6, audit 5, plus 3 non-module files (`src/infrastructure/mailer.service.test.ts`,
+`src/config/__tests__/load-docker-secrets.test.ts`,
+`src/routes/__tests__/health.route.test.ts`) = 68, plus the 1 `.spec.ts` file = 69. Only
+reachable via `pnpm --filter server test` or `vitest run` directly inside `apps/server`.
+
+Running the real suite directly (`cd apps/server && pnpm vitest run`) produces: **Test
+Files 18 failed | 50 passed | 1 skipped (69)**, **Tests 151 failed | 618 passed | 9
+skipped (778)**. The 1 skipped file is `src/modules/iam/__tests__/iam.plugin.verification.test.ts`
+(1 test, entirely skipped) — separate from 3 individually-skipped tests inside
+otherwise-passing files (`invariants.test.ts` 2 skipped, `lapse-timers.test.ts` 1
+skipped), which is where the "9 skipped" test-level count comes from.
+
+**Full root-cause reconciliation of all 151 failures (this was left incomplete by the
+prior investigation — now closed):**
+
+| Root cause | Count | Mechanism |
+|---|---|---|
+| Non-RFC-4122 UUID test fixtures rejected by `z.uuid()` | 115 | See LOG-0230 |
+| ECONNREFUSED (no Postgres in this environment) | 2 | Expected; not a defect |
+| `deps.eventBus` undefined in test harness | 5 | See LOG-0231 |
+| `orgService.getPrimaryOfficeForUser` missing from empty test mock | 8 | See LOG-0232 |
+| `tx.execute` missing from test mock's transaction stub | 8 | Not yet diagnosed past this point — needs its own pass |
+| Mock/spy call assertions not met (`auditService.writeEvent`, etc.) | 3 | Not yet diagnosed past this point |
+| Fastify `iam` plugin dependency not stubbed in test harness | 4 | See LOG-0233 |
+| `waitFor` timeout on an async assertion | 1 | Not yet diagnosed past this point |
+| Test still asserts `role:`/`delegation_aware:` throw `NotImplemented`, but the real implementation now handles both | 4 | See LOG-0234 |
+| Boolean assertion mismatch in `getSlaComplianceData` | 1 | Not yet diagnosed past this point |
+
+151/151 reconciled by root-cause bucket, cross-validated via two independent extraction
+methods against the raw `vitest run` output (both converge on the same 151-line total;
+per-category counts were verified with zero cross-category leakage — no block matched
+more than one category's signature).
+
+**Also found, structurally significant:** `apps/server/tsconfig.json:20` —
+`"exclude": ["src/**/__tests__/**/*"]`. This excludes 53 of the 69 total test files
+(77%) from `pnpm typecheck` entirely — confirmed no other tsconfig variant in
+`apps/server` re-includes them. `pnpm typecheck` reporting "7 successful, 7 total, 0
+errors" (independently re-run fresh, confirmed) is therefore not a guarantee about the
+majority of the test suite. Direct demonstration: two test files exist for the same
+production function (`evaluate-thursday-cutoffs.ts`) —
+`src/modules/workflow/jobs/evaluate-thursday-cutoffs.test.ts` (co-located, NOT excluded,
+typechecked, all 6 tests pass) and `src/modules/workflow/__tests__/thursday-cutoff.test.ts`
+(under `__tests__/`, excluded, NOT typechecked, 5 of 12 tests fail with a `deps.eventBus`
+undefined error that passing an object through `tsc` would very likely have caught,
+since `EvaluateThursdayCutoffsDeps.eventBus` is a required, non-optional, non-`any`-typed
+field per `evaluate-thursday-cutoffs.ts:5-8`).
+
+**What was implemented:** Nothing — this entry documents the finding. No fix has been
+applied to the CI workflow, to any `package.json`, or to `apps/server/tsconfig.json`.
+
+**Note:** [Confirmed] — every claim above was independently reproduced via live command
+execution in this session (fresh `pnpm install --frozen-lockfile`, fresh `pnpm
+test:unit`/`test:integration`/`vitest run`/`typecheck`), not inherited from narration.
+[Confirmed] — this affects every module with tests under `apps/server`, not
+notifications-specific. Whether to fix the CI script-name mismatch (add real
+`test:unit`/`test:integration` scripts per package that delegate to `vitest run`, change
+what CI invokes, or something else) and whether to narrow or remove the `__tests__`
+typecheck exclusion are both cross-module infrastructure decisions, not resolved here.
+
+---
+
+### [LOG-0230] 115 of 151 real test failures trace to one root cause: test fixtures use non-RFC-4122-shaped UUID literals, rejected by Zod v4's `z.uuid()`
+
+- date: 2026-08-06
+- task_id: (none — sub-finding of LOG-0229)
+- status: proposed
+- affects: none (test-fixture-only issue; no production code or architecture doc affected)
+
+**What was found:** `UuidSchema` is defined at `packages/shared/src/schemas/common.ts:3`
+as `export const UuidSchema = z.uuid()`. Zod is pinned at `^4.4.3`
+(`apps/server/package.json`, `packages/shared/package.json`) — confirmed via
+`pnpm-lock.yaml` resolution. Zod v4's `z.uuid()` validates against RFC 4122 by default:
+the version nibble (13th hex digit) must be `1`-`8`, the variant nibble (17th hex digit)
+must be `8`/`9`/`a`/`b`, with two explicit literal exceptions for the nil
+(`00000000-0000-0000-0000-000000000000`) and max
+(`ffffffff-ffff-ffff-ffff-ffffffffffff`) UUIDs.
+
+Test fixtures across the codebase use two different conventions side-by-side for
+human-readable "obviously fake" UUIDs: some correctly place `4`/`8` in the
+version/variant positions (e.g. `11111111-1111-4111-8111-111111111111` — passes), while
+others repeat the same digit in every position including those two nibbles (e.g.
+`11111111-1111-1111-1111-111111111111` — fails, since `1` is a valid version but not a
+valid variant). 15 distinct non-conforming values are in use, reused across 6 files:
+`apps/server/src/modules/workflow/workflow.router.test.ts` (62 of that file's failures),
+`.../documents/__tests__/document-requests.router.test.ts` (24),
+`.../documents/__tests__/complaints.router.test.ts` (11),
+`.../documents/__tests__/documents.router.test.ts` (9),
+`.../documents/__tests__/documents.router.transactions.test.ts` (6),
+`.../documents/__tests__/signatures.router.test.ts` (3). Sum: 115, matching the
+reconciled failure count exactly.
+
+The 15 values: `11111111`, `22222222`, `33333333`, `44444444`, `55555555`, `66666666`,
+`77777777`, `99999999-9999-9999-9999-999999999999`,
+`99999999-9999-9999-9999-000000000001`, `99999999-9999-9999-9999-000000000002`,
+`aaaaaaaa`, `bbbbbbbb`, `cccccccc`, `dddddddd`, `eeeeeeee` (each expand to the full
+repeated-digit UUID form, e.g. `11111111-1111-1111-1111-111111111111`).
+
+Failures manifest in two visually different ways depending on each test's assertion
+style, but both are the same root cause: (1) tests using
+`.rejects.toThrowError(/some business-logic message/)` see the raw Zod validation array
+as the received value instead of the expected message — e.g.
+`workflow.router.test.ts:127-129` expects `/Workflow instance not found/` but gets the
+Zod issue array, because tRPC's input-validation middleware rejects the malformed UUID
+before the procedure's own `NOT_FOUND`-throwing logic ever runs; (2) tests using
+`.rejects.toMatchObject({ code: 'NOT_FOUND' })` (or `FORBIDDEN`, etc.) see `code:
+'BAD_REQUEST'` instead, for the identical reason — tRPC's `inputValidatorMiddleware`
+intercepts and returns `BAD_REQUEST` before the handler's business logic can throw its
+own, more specific error code. Verified across all 47 `BAD_REQUEST`-coded failures: every
+one shows the `"origin": "string"` fragment that is the truncated start of the same Zod
+`invalid_format` error object (0 exceptions found).
+
+**What was implemented:** Nothing yet. A standalone fix prompt
+(TASK-SERVER-TEST-001) was produced in this session — see below — but has not been
+applied.
+
+**Note:** [Confirmed] — root cause verified by direct inspection of the Zod schema
+source, the pinned Zod version, and by cross-referencing every one of the 15 non-
+conforming values against the actual regex printed in the live vitest failure output
+(`packages/shared/src/schemas/common.ts:3`, confirmed pattern:
+`/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$/`).
+This is a test-fixture defect, not a schema defect — the schema is behaving exactly as
+Zod v4 documents. **This directly corrects the prior handoff's characterization of two
+categories it tracked separately**: what it called "Category B" (66 UUID-format
+failures, root cause undiagnosed) and "Category C" (BAD_REQUEST-vs-expected-code
+failures, claimed as 0 via grep) are the same single root cause; Category C's actual
+count is 47, not 0, and it is not independent of Category B.
+
+---
+
+### [LOG-0231] `deps.eventBus` undefined in `thursday-cutoff.test.ts` — the prior handoff's "Category D: eventBus.emit is not a function, confirmed zero via grep" claim was based on too-literal a grep pattern and is incorrect
+
+- date: 2026-08-06
+- task_id: (none — sub-finding of LOG-0229)
+- status: proposed
+- affects: none (test-fixture-only issue)
+
+**What was found:** `apps/server/src/modules/workflow/jobs/evaluate-thursday-cutoffs.ts:5-8`
+defines `EvaluateThursdayCutoffsDeps` with `eventBus: EventBus` as a required (non-
+optional) field. Line 160 calls `deps.eventBus.emit(evt.type as any, {...})` inside a
+loop over `emittedEvents`.
+
+`apps/server/src/modules/workflow/__tests__/thursday-cutoff.test.ts`'s `runJob` helper
+(line 44) calls `evaluateThursdayCutoffs({ workflowRepository: mockRepo }, { cutoffTs:
+fixedCutoff })` — the deps object passed contains only `workflowRepository`; `eventBus`
+is entirely absent, confirmed via full-file grep (zero occurrences of the string
+`eventBus` anywhere in this test file). Where a test's fixture data causes `emittedEvents`
+to be non-empty (5 of the file's 12 tests), execution reaches line 160 and throws
+`TypeError: Cannot read properties of undefined (reading 'emit')`, since
+`deps.eventBus` is `undefined`, not merely an object lacking a method.
+
+This call would very likely have been caught by `tsc` — `EvaluateThursdayCutoffsDeps` is
+a real, non-`any` type with a required field the test's argument doesn't satisfy — except
+that `apps/server/tsconfig.json:20` (`"exclude": ["src/**/__tests__/**/*"]`) excludes this
+file's directory from typechecking entirely (see LOG-0229's structural finding on this
+exclusion).
+
+Directly demonstrating this: a second, separate test file for the identical production
+function exists at `apps/server/src/modules/workflow/jobs/evaluate-thursday-cutoffs.test.ts`
+(co-located next to the source file, NOT under a `__tests__/` directory, therefore NOT
+excluded from typecheck) — this file correctly provides `eventBus` and all 6 of its
+tests pass. Both files test the same `evaluateThursdayCutoffs` function; one is
+typechecked and correct, the other is excluded and has a type-shaped defect.
+
+**What was implemented:** Nothing yet — covered by the same standalone fix prompt as
+LOG-0230/LOG-0233 (TASK-SERVER-TEST-001, below).
+
+**Note:** [Confirmed] — directly traced the call site, the type definition, the
+tsconfig exclusion, and the passing sibling test file. This is a **correction** to the
+prior handoff, not a new discovery from nothing: the prior investigation's grep almost
+certainly searched for the literal string `"eventBus.emit is not a function"` (the
+`TypeError` message JavaScript throws when a property IS a defined object but lacks a
+method), which returns zero matches here because the actual thrown message is worded
+differently (`"Cannot read properties of undefined (reading 'emit')"` — thrown because
+`deps.eventBus` itself is `undefined`, a different but related failure mode). The
+underlying category the prior handoff was trying to detect (a `workflow.sla.*`/event-bus
+type mismatch surfacing at test time) is real; only the specific grep pattern used to
+detect it was too narrow.
+
+---
+
+### [LOG-0232] `assignee-resolution.test.ts` and `designations.test.ts` use an empty `orgService: {} as any` mock that predates `resolveAssignees` requiring a live `orgService.getPrimaryOfficeForUser` call on every implemented branch
+
+- date: 2026-08-06
+- task_id: (none — sub-finding of LOG-0229)
+- status: proposed
+- affects: B4 (workflow engine assignee resolution — informational only, no doc conflict identified)
+
+**What was found:** `apps/server/src/modules/workflow/engine/assignee-resolution.ts`'s
+`resolvePrimaryOfficeId` helper (lines 16-21) calls
+`deps.orgService.getPrimaryOfficeForUser(userId)` unconditionally. Every currently-
+implemented branch of `resolveAssignees` calls this helper: `static:` (line 39),
+`actor_from_context:` (line 46), `role:` (line 60), and `delegation_aware:` (lines 88,
+95) — confirmed via direct read of the full function, lines 34-108. Only `office_role:`
+(lines 70-75) does not, since it throws `NotImplemented` before reaching any resolution
+logic.
+
+`apps/server/src/modules/workflow/__tests__/assignee-resolution.test.ts` (lines 5-8) and
+`apps/server/src/modules/workflow/__tests__/designations.test.ts` construct their
+`mockDeps.orgService` as `{} as any` — an empty object with no methods, type-checked away
+by the `as any` cast. This predates (or was never updated for) the office-lookup
+behavior above: calling any implemented branch now throws `TypeError:
+deps.orgService.getPrimaryOfficeForUser is not a function`. Confirmed responsible for 8
+of the 151 failures (5 in `assignee-resolution.test.ts`'s `ASSIGN-V-01`, `ASSIGN-V-02`,
+`ASSIGN-V-04` cases; 3 in `designations.test.ts`'s `DESIG-01` through `DESIG-03` case
+group, plus its `actor_from_context:` group — exact count needs re-verification if this
+entry is acted on, since the two files' failures were not separately re-tallied down to
+the individual test name in this pass).
+
+This is confirmed as a test-fixture/mock-staleness issue, not a production bug —
+`getPrimaryOfficeForUser` genuinely exists on the real `OrganizationPublicAPI`
+(`organization.service.ts:189`, `organization.types.ts:172`), matching what a prior
+investigation (referenced in the LOG-0227 lineage) already established for the same
+method in a different consumer.
+
+Both files also excluded from typecheck via `apps/server/tsconfig.json:20`'s
+`__tests__/` exclusion (LOG-0229) — an `as any` cast would have masked this either way,
+independent of the exclusion, since `as any` explicitly opts out of structural checking
+regardless of whether the file is included in a `tsc` run.
+
+**Separately found in the same two files, same root failure family:** 4 additional
+failures where the test still asserts `role:` and `delegation_aware:` throw
+`NotImplemented`, but the real implementation (same file, lines 52-68 for `role:`, lines
+77-104 for `delegation_aware:`) now has full working logic for both. Only `office_role:`
+genuinely still throws `NotImplemented` in the current source. This is a distinct
+sub-finding — see LOG-0234.
+
+**What was implemented:** Nothing yet — covered by the same standalone fix prompt as
+LOG-0230/LOG-0231/LOG-0233 (TASK-SERVER-TEST-001, below) for the mock gap; LOG-0234
+covers the stale-assertion sub-finding separately since it requires a judgment call
+about what the corrected assertion should say, not a mechanical fixture fix.
+
+**Note:** [Confirmed] — mock construction, real interface existence, and the calling
+chain from every implemented branch through to `getPrimaryOfficeForUser` were all
+directly read from source, not inferred.
+
+---
+
+### [LOG-0233] `workflow.plugin.test.ts` doesn't stub the `iam` Fastify plugin dependency that `workflow.plugin.ts` now formally declares
+
+- date: 2026-08-06
+- task_id: (none — sub-finding of LOG-0229)
+- status: proposed
+- affects: none (test-fixture-only issue)
+
+**What was found:** `apps/server/src/modules/workflow/workflow.plugin.ts:178-180` —
+`export default fp(workflowPlugin, { ..., dependencies: ['database', 'event-bus',
+'audit', 'organization', 'documents', 'iam'] })`. Six declared Fastify plugin
+dependencies.
+
+`apps/server/src/modules/workflow/workflow.plugin.test.ts` (lines 91-98) registers stub
+plugins for five of the six: `database`, `event-bus`, `audit`, `organization`,
+`documents` — `iam` is never registered. All 4 of this file's tests fail with
+`AssertionError: The dependency 'iam' of plugin 'workflow' is not registered`, thrown by
+Fastify's own `checkDependencies` mechanism (`fastify/lib/plugin-utils.js`) at plugin
+registration time, before any of the test's actual assertions run.
+
+Unlike LOG-0231/LOG-0232, this file is NOT under a `__tests__/` directory (it's
+co-located at `workflow.plugin.test.ts`, directly in the module root) and therefore IS
+included in `pnpm typecheck`'s scope — but Fastify's `dependencies` array is a runtime
+registration-order check, not a TypeScript-level constraint, so `tsc` would not have
+caught this regardless of the exclusion pattern. This is a distinct mechanism from the
+typecheck-exclusion story in LOG-0229/0230/0231/0232, not another instance of it.
+
+**What was implemented:** Nothing yet — covered by the same standalone fix prompt
+(TASK-SERVER-TEST-001, below).
+
+**Note:** [Confirmed] — both the dependency declaration and the incomplete stub list
+were read directly from source.
+
+---
+
+### [LOG-0234] `assignee-resolution.test.ts` and `designations.test.ts` contain tests asserting `role:` and `delegation_aware:` throw `NotImplemented` — stale against the current implementation, which handles both
+
+- date: 2026-08-06
+- task_id: (none — sub-finding of LOG-0232/LOG-0229)
+- status: proposed
+- affects: none identified — informational; does not appear to affect any Group B-L document's description of assignee resolution, since B4's role in this area was not re-read in this pass (flagged below as a gap, not confirmed either way)
+
+**What was found:** Two test cases assert `role:`-prefixed and `delegation_aware:`-
+prefixed assignee expressions throw an error containing "NotImplemented":
+`assignee-resolution.test.ts`'s `ASSIGN-I-01` ("role: throws NotImplemented error") and
+`ASSIGN-I-03` ("delegation_aware: throws NotImplemented error"); `designations.test.ts`'s
+"role: prefix throws NotImplemented in current implementation" and "delegation_aware:
+prefix throws NotImplemented in current implementation" (both under a `describe` block
+literally named "NOT IMPLEMENTED (DESIG blocked)").
+
+The current `assignee-resolution.ts` source (lines 52-68 for `role:`, lines 77-104 for
+`delegation_aware:`) has full, non-throwing implementations for both — confirmed via
+direct read. Only `office_role:` (lines 70-75) still throws `NotImplemented`, with an
+inline comment explaining why ("Gap 2: Organization Published API currently lacks
+getUserByOfficeRole").
+
+Live failure output confirms the mismatch directly: the `role:` case now throws
+`Cannot read properties of undefined (reading 'getPrimaryOfficeForUser')` (an
+orgService-mock gap, see LOG-0232) instead of `NotImplemented`; the `delegation_aware:`
+case now throws `Cannot read properties of undefined (reading 'getUsersByRole')` (an
+iamService-mock gap — the mock is missing this method too, not previously separately
+logged) instead of `NotImplemented`.
+
+This indicates these two test files were written against an earlier version of
+`resolveAssignees` that had fewer implemented branches, and were not updated when `role:`
+and `delegation_aware:` were completed.
+
+**What was implemented:** Nothing — this needs a human decision on what the corrected
+assertions should say (what specific resolved output is expected for each case), not a
+mechanical fixture fix, since simply removing the `.toThrow('NotImplemented')` assertion
+without replacing it with a positive assertion would silently reduce coverage rather
+than fix it. Not included in TASK-SERVER-TEST-001's scope for this reason — see that
+prompt's explicit exclusion.
+
+**Note:** [Confirmed] — implementation state, test assertions, and the specific
+mismatched error messages were all read directly, not inferred. [Inference] that these
+tests were written before `role:`/`delegation_aware:` were implemented — no `.git`
+history is available in any upload to confirm chronology directly; this is the most
+parsimonious explanation for a test asserting behavior the current source demonstrably
+does not have.
