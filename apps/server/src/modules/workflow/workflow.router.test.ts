@@ -148,7 +148,8 @@ describe('Workflow Router Read Procedures', () => {
       mockDb.mockResponse([
         { stepInstanceId: VALID_UUID, stepType: 'approval', assignedTo: [{ user_id: USER_ID }] },
       ]); // 3. current steps lookup
-      mockDb.mockResponse([]); // 4. all steps lookup (for lapse status)
+      mockDb.mockResponse([]); // 4. resolveAssigneeName lookup for the first assignee's user_id
+      mockDb.mockResponse([]); // 5. all steps lookup (for lapse status)
 
       const result = await caller.getInstance({ instanceId: VALID_UUID });
 
@@ -1089,7 +1090,9 @@ describe('TASK-WF-021 Procedures', () => {
           organizationService: {
             getCommitteeChair: vi.fn().mockResolvedValue({ userId: CHAIR_USER_ID }),
           },
-          documentsService: {},
+          documentsService: {
+            transitionState: vi.fn().mockResolvedValue(undefined),
+          },
           delegationService: {},
         } as any,
       } as any,
