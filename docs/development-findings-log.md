@@ -7890,3 +7890,59 @@ with no remaining open question — [Confirmed], not [Inference].
 
 ---
 
+### [LOG-0242] TASK-NOTIF-009's local payload interfaces in legislative-lapse.consumer.ts omit fields that EventPayloadMap now has and the emit sites populate
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-009
+- status: proposed
+- affects: B3 (§7.21, §7.22 — schema definitions match; no B3 error), none directly — this is an implementation-only drift between two live TypeScript sources, not a document conflict
+
+TASK-NOTIF-009's own AI Prompt instructed: declare the WorkflowApprovalLapsedPayload
+and WorkflowPanlalawiganDeemedApprovedPayload interfaces locally in the consumer
+file (matching the sla-escalation.consumer.ts convention), "not imported, since
+these two events don't currently have a matching entry checked into
+packages/shared/src/events/event-payload-map.ts," with an explicit instruction to
+check this before assuming and, if the shared entries have since been added,
+"prefer the shared import instead and drop the local declaration."
+
+Confirmed: `packages/shared/src/events/event-payload-map.ts` (lines 396-409) now has
+full entries for both `workflow.approval.lapsed` and
+`workflow.panlalawigan.deemed_approved`. The consumer's own inline comment
+(`legislative-lapse.consumer.ts`, top of file) states this check was performed.
+However, the local interfaces that were kept are narrower than the shared map
+entries: the shared `workflow.approval.lapsed` entry includes an `instanceId: string`
+field not present in the local interface, and the shared
+`workflow.panlalawigan.deemed_approved` entry includes both `instanceId: string` and
+`documentId: string`, neither present in the local interface.
+
+Confirmed this is not merely a type-level discrepancy with no runtime consequence:
+`instanceId` is a real, populated value at the actual emit site
+(`apps/server/src/modules/workflow/jobs/evaluate-mayor-lapse-timers.ts`, the
+`deps.eventBus.emit('workflow.approval.lapsed', ...)` call, `payload.instanceId:
+instance.id`) — meaning this is real, available data on the wire that the consumer
+currently cannot read, because its local interface doesn't expose it and the
+payload is cast via `as unknown as` (which suppresses excess/missing-property
+checking against the narrower local shape).
+
+Confirmed the consumer currently compiles and runs correctly as-is — the `as
+unknown as` cast means the narrower local shape does not cause a type error, and
+none of the fields the consumer actually reads (`stepInstanceId`, `legalBasis`,
+`deadlineWas`, `transmissionDate`) are affected. This is a case of the spec's
+explicit conditional instruction being checked correctly but resolved in the wrong
+direction — the check happened, but the local declarations were kept instead of
+being dropped in favor of the shared import, leaving `instanceId`/`documentId`
+silently unused rather than available to the notification for e.g. more precise
+linking back to the workflow instance.
+
+This is not something this entry resolves; a human should decide whether to fold
+this into a future TASK-NOTIF-009 follow-up (drop local interfaces, import from
+`EventPayloadMap` instead) or accept the current state, given it does not affect
+runtime correctness of the fields actually used today.
+
+Note: all claims above are stated as tested/confirmed — verified directly against
+`packages/shared/src/events/event-payload-map.ts`,
+`legislative-lapse.consumer.ts`, and `evaluate-mayor-lapse-timers.ts` in the current
+repo upload — not `[Inference]` or `[Speculation]`.
+
+---
+
