@@ -92,19 +92,24 @@ export function createNotificationsRepository(db: AppDb | TxOrDb) {
       userId: string,
       opts: { unreadOnly?: boolean; cursor?: Date; pageSize: number },
     ): Promise<NotificationEventRecord[]> => {
+      const conditions = [
+        eq(notificationEvents.recipientUserId, userId),
+        isNull(notificationEvents.deletedAt),
+      ];
+
+      if (opts.unreadOnly) {
+        conditions.push(eq(notificationEvents.isRead, false));
+      }
+
       let query = db
         .select()
         .from(notificationEvents)
-        .where(
-          and(
-            eq(notificationEvents.recipientUserId, userId),
-            isNull(notificationEvents.deletedAt),
-          ),
-        )
+        .where(and(...conditions))
         .$dynamic();
 
       if (opts.cursor) {
-        // If needed, cursor pagination logic can be added here
+        // NOT part of this fix — cursor pagination remains unimplemented.
+        // See TASK-NOTIF-002-FIX-03 (not yet written) for that gap.
       }
 
       return query
@@ -115,7 +120,7 @@ export function createNotificationsRepository(db: AppDb | TxOrDb) {
     markNotificationRead: async (id: string, userId: string): Promise<void> => {
       await db
         .update(notificationEvents)
-        .set({ deletedAt: new Date() })
+        .set({ isRead: true })
         .where(
           and(
             eq(notificationEvents.id, id),

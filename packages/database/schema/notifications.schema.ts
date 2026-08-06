@@ -72,6 +72,7 @@ export const notificationEvents = notificationsSchema.table(
     status: text('status').notNull().default('pending'),
     triggeredAt: timestamp('triggered_at', { withTimezone: true }).notNull().defaultNow(),
     sourceEventType: text('source_event_type'),
+    isRead: boolean('is_read').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     deletedBy: uuid('deleted_by'), // logical FK -> iam.users.id (cross-schema)

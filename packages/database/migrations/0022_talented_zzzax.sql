@@ -1,0 +1,1 @@
+ALTER TABLE "notifications"."notification_events" ADD COLUMN "is_read" boolean DEFAULT false NOT NULL;
