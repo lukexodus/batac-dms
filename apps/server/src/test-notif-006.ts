@@ -25,6 +25,7 @@ async function main() {
       preliminaryNumber: 'PRE-1234',
       finalNumber: 'RES-2026-001',
       classificationLevel: 'public',
+      originatingOfficeId: 'office-1',
       createdAt: new Date(),
     };
   };
@@ -33,8 +34,8 @@ async function main() {
   app.eventBus.emit('workflow.step.started', {
     eventId: 'evt-1',
     eventType: 'workflow.step.started',
-    timestamp: new Date(),
-    actorId: 'system',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
     cityId: 'city-1',
     payload: {
       instanceId: '11111111-1111-4111-8111-111111111111',
@@ -58,15 +59,15 @@ async function main() {
   app.eventBus.emit('workflow.step.started', {
     eventId: 'evt-2',
     eventType: 'workflow.step.started',
-    timestamp: new Date(),
-    actorId: 'system',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
     cityId: 'city-1',
     payload: {
       instanceId: '33333333-3333-4333-8333-333333333333',
       stepInstanceId: '44444444-4444-4444-8444-444444444444',
       stepType: 'action',
       stepKey: 'manual.review',
-      assignedTo: '88888888-8888-4888-8888-888888888888',
+      assignedTo: ['88888888-8888-4888-8888-888888888888'],
       documentId: 'doc-not-found',
       dueAt: null,
     }
@@ -81,24 +82,72 @@ async function main() {
   app.eventBus.emit('workflow.step.started', {
     eventId: 'evt-3',
     eventType: 'workflow.step.started',
-    timestamp: new Date(),
-    actorId: 'system',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
     cityId: 'city-1',
     payload: {
       instanceId: '55555555-5555-4555-8555-555555555555',
       stepInstanceId: '66666666-6666-4666-8666-666666666666',
       stepType: 'action',
       stepKey: 'manual.review',
-      assignedTo: '77777777-7777-4777-8777-777777777777',
+      assignedTo: ['77777777-7777-4777-8777-777777777777'],
       documentId: 'doc-3',
       dueAt: null,
     }
   });
   await new Promise((r) => setTimeout(r, 1000));
-  if (sendNotifCalled !== 1) {
-    throw new Error(`Test 3 Failed: sendNotification called ${sendNotifCalled} times instead of 1`);
+  if ((sendNotifCalled as number) !== 1) {
+    throw new Error(`Test 3 Failed: sendNotification called ${sendNotifCalled} times, expected 1`);
   }
   console.log('Test 3 Passed: sendNotification called exactly once.');
+
+  console.log('--- Test 4: assignedTo is empty array ---');
+  sendNotifCalled = 0;
+  app.eventBus.emit('workflow.step.started', {
+    eventId: 'evt-4',
+    eventType: 'workflow.step.started',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
+    cityId: 'city-1',
+    payload: {
+      instanceId: '77777777-7777-4777-8777-777777777777',
+      stepInstanceId: '88888888-8888-4888-8888-888888888888',
+      stepType: 'action',
+      stepKey: 'manual.review',
+      assignedTo: [],
+      documentId: 'doc-3',
+      dueAt: null,
+    }
+  });
+  await new Promise((r) => setTimeout(r, 1000));
+  if (sendNotifCalled !== 0) {
+    throw new Error(`Test 4 Failed: sendNotification called ${sendNotifCalled} times, expected 0`);
+  }
+  console.log('Test 4 Passed: sendNotification not called.');
+
+  console.log('--- Test 5: multi-assignee array ---');
+  sendNotifCalled = 0;
+  app.eventBus.emit('workflow.step.started', {
+    eventId: 'evt-5',
+    eventType: 'workflow.step.started',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
+    cityId: 'city-1',
+    payload: {
+      instanceId: '99999999-9999-4999-8999-999999999999',
+      stepInstanceId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      stepType: 'action',
+      stepKey: 'manual.review',
+      assignedTo: ['user-a', 'user-b'],
+      documentId: 'doc-3',
+      dueAt: new Date(),
+    }
+  });
+  await new Promise((r) => setTimeout(r, 1000));
+  if (sendNotifCalled !== 2) {
+    throw new Error(`Test 5 Failed: sendNotification called ${sendNotifCalled} times, expected 2`);
+  }
+  console.log('Test 5 Passed: sendNotification called exactly twice.');
 
   await app.close();
 }

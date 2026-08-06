@@ -41,10 +41,12 @@ async function main() {
   app.eventBus.emit('document.state_changed', {
     eventId: 'evt-notif-007-1',
     eventType: 'document.state_changed',
-    timestamp: new Date(),
-    actorId: '99999999-9999-4999-8999-999999999999',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
     cityId: 'city-1',
     payload: {
+      cityId: 'city-1',
+      timestamp: new Date(),
       documentId: 'doc-1',
       fromState: 'Draft',
       toState: 'Submitted',
@@ -79,10 +81,12 @@ async function main() {
   app.eventBus.emit('document.state_changed', {
     eventId: 'evt-notif-007-2',
     eventType: 'document.state_changed',
-    timestamp: new Date(),
-    actorId: '88888888-8888-4888-8888-888888888888',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
     cityId: 'city-1',
     payload: {
+      cityId: 'city-1',
+      timestamp: new Date(),
       documentId: 'doc-1',
       fromState: 'Submitted',
       toState: 'In-Workflow',
@@ -102,10 +106,12 @@ async function main() {
   app.eventBus.emit('document.state_changed', {
     eventId: 'evt-notif-007-3',
     eventType: 'document.state_changed',
-    timestamp: new Date(),
-    actorId: 'system',
+    occurredAt: new Date().toISOString(),
+    schemaVersion: 1,
     cityId: 'city-1',
     payload: {
+      cityId: 'city-1',
+      timestamp: new Date(),
       documentId: 'doc-not-found',
       fromState: 'Draft',
       toState: 'Submitted',
