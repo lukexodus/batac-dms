@@ -214,16 +214,32 @@ describe('NotificationsService', () => {
       );
     });
 
-    it('SVC-03-03: throws synchronously when recipientEmail is missing for email channel', async () => {
+    it('SVC-03-03: rejects when recipientEmail is missing for email channel (guard is outside the try/catch)', async () => {
       const service = createNotificationsService({ repository: repo, logger, mailer });
-      // The outer try/catch in sendNotification swallows the error, but the guard fires before
-      // template lookup — confirm no insertNotificationEvent call was made.
-      await service.sendNotification({
-        templateId: 'notif.complaint.respondent_notice.email',
-        channel: 'email',
-        templateData: {},
-      });
-      // Error is caught internally and logged
+      // The recipientEmail guard in sendNotification (service line 16-18) sits BEFORE the
+      // function's own try block — the thrown Error is NOT caught internally, so the returned
+      // Promise rejects. Confirm the rejection AND that no downstream work happened.
+      await expect(
+        service.sendNotification({
+          templateId: 'notif.complaint.respondent_notice.email',
+          channel: 'email',
+          templateData: {},
+        }),
+      ).rejects.toThrow("recipientEmail is required for 'email' channel");
+      expect(repo.findActiveTemplateByNameAndChannel).not.toHaveBeenCalled();
+      expect(repo.insertNotificationEvent).not.toHaveBeenCalled();
+    });
+
+    it('SVC-03-04: rejects when recipientPhone is missing for sms channel (same guard pattern)', async () => {
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await expect(
+        service.sendNotification({
+          templateId: 'notif.some.sms',
+          channel: 'sms',
+          templateData: {},
+        }),
+      ).rejects.toThrow("recipientPhone is required for 'sms' channel");
+      expect(repo.findActiveTemplateByNameAndChannel).not.toHaveBeenCalled();
       expect(repo.insertNotificationEvent).not.toHaveBeenCalled();
     });
   });

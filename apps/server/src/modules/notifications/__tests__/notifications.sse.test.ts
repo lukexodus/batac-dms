@@ -5,8 +5,16 @@
  * The registry is module-level, so tests that modify it use vi.resetModules
  * or work with a fresh dynamic import per describe block.
  *
- * notificationsSseRoutes wiring is verified in notifications.plugin.ts integration
- * tests (out of scope here). These tests cover the pushToUser helper behavior.
+ * notifications.plugin.ts (the Fastify plugin that calls notificationsSseRoutes
+ * during real server startup) currently has no dedicated test file anywhere in
+ * this codebase — confirmed by repository-wide search, 2026-08-06. This file's
+ * SSE-03/04/05 tests below already exercise notificationsSseRoutes's registered
+ * handler directly (via a fake Fastify .get() capture), which is the closest
+ * coverage that exists today, but the plugin's own registration call
+ * (`await fastify.register(notificationsSseRoutes)` in notifications.plugin.ts)
+ * and its dependency-array/decorator wiring remain untested. This is a real gap,
+ * not a deliberate exclusion — see docs/development-findings-log.md for the
+ * logged finding.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
