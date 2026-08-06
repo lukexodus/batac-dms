@@ -15,11 +15,14 @@ import { createTrackingRouter } from '../modules/tracking/tracking.router.js';
 // insufficient context on its own.
 import type {} from '../modules/documents/documents.plugin.js';
 import type {} from '../modules/tracking/tracking.plugin.js';
+import type {} from '../modules/notifications/notifications.plugin.js';
+import type {} from '../infrastructure/mailer.plugin.js';
 import { workflowRouter } from '../modules/workflow/workflow.router.js';
 import { sessionRouter } from '../modules/workflow/session.router.js';
 
 import { createOrgRouter } from '../modules/organization/organization.router.js';
 import { createAuditTrpcRouter } from '../modules/audit/audit.router.js';
+import { notificationsRouter } from '../modules/notifications/notifications.router.js';
 
 export const appRouter = router({
   iam: iamRouter,
@@ -29,6 +32,7 @@ export const appRouter = router({
   session: sessionRouter,
   organization: createOrgRouter(),
   audit: createAuditTrpcRouter(),
+  notifications: notificationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

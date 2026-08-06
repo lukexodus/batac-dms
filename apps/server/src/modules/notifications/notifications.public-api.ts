@@ -1,5 +1,6 @@
 import type { NotificationsPublicAPI } from './notifications.types.js';
-import { createNotificationsService, NotificationsServiceDeps } from './notifications.service.js';
+import { createNotificationsService } from './notifications.service.js';
+import type { NotificationsServiceDeps } from './notifications.service.js';
 
 export function createNotificationsPublicAPI(deps: NotificationsServiceDeps): NotificationsPublicAPI {
   // Currently, the public API is a direct passthrough to the service.

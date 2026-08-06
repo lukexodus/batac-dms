@@ -8,6 +8,7 @@ import { registerSlaEscalationConsumer } from './consumers/sla-escalation.consum
 import { registerDocumentStateChangedConsumer } from './consumers/document-state-changed.consumer.js';
 import { registerLegislativeLapseConsumer } from './consumers/legislative-lapse.consumer.js';
 import { registerSessionDisplacedConsumer } from './consumers/session-displaced.consumer.js';
+import { notificationsSseRoutes } from './notifications.sse.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -38,6 +39,9 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   registerDocumentStateChangedConsumer(fastify);
   registerLegislativeLapseConsumer(fastify);
   registerSessionDisplacedConsumer(fastify);
+
+  // Register SSE route — must be called explicitly; nothing else wires it
+  await fastify.register(notificationsSseRoutes);
 
   fastify.log.info('notifications plugin registered');
 };

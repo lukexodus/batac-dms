@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { verifyAccessToken } from '../iam/index.js';
 
 const registry = new Map<string, FastifyReply[]>();
