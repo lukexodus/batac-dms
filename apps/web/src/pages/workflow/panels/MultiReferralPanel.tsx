@@ -69,8 +69,20 @@ export function MultiReferralPanel({
     enabled: isSpSecretary || isSpMember,
   });
 
+  const { data: myCommitteeIds } = trpc.organization.listMyCommitteeIds.useQuery(undefined, {
+    enabled: isSpMember && !isSpSecretary,
+  });
+
   const { data: documentTypes } = trpc.documents.documentTypes.useQuery(undefined, {
     enabled: isSpSecretary || isSpMember,
+  });
+
+  const assignedCommitteeIds = new Set(instance.assignedCommittees?.map((c) => c.committeeId) ?? []);
+  const selectableCommittees = (committees ?? []).filter((c) => {
+    if (!assignedCommitteeIds.has(c.committeeId)) return false;
+    if (isSpSecretary) return true;
+    if (isSpMember) return (myCommitteeIds ?? []).includes(c.committeeId);
+    return false;
   });
 
   // Committee submission status — read from getInstance metadata, cross-referenced
@@ -413,12 +425,18 @@ export function MultiReferralPanel({
               <SelectTrigger>
                 <SelectValue placeholder="Select committee…" />
               </SelectTrigger>
-              <SelectContent>
-                {(committees ?? []).map((c: { committeeId: string; name: string }) => (
-                  <SelectItem key={c.committeeId} value={c.committeeId}>
-                    {c.name}
+              <SelectContent position="popper">
+                {selectableCommittees.length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    No eligible committees
                   </SelectItem>
-                ))}
+                ) : (
+                  selectableCommittees.map((c: { committeeId: string; name: string }) => (
+                    <SelectItem key={c.committeeId} value={c.committeeId}>
+                      {c.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             <RichTextEditor
