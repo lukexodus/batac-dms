@@ -8164,3 +8164,71 @@ assert an unauthenticated/no-session case, checked by direct read of all
 16 test cases in notifications.router.test.ts. [Unverified] — whether the
 _def.procedures access pattern executes successfully at all; requires
 running the suite to confirm.
+
+---
+
+### [LOG-0248] Live seed bug: notif.iam.session_displaced.in_app's bodyTemplate in the orchestrator-loaded seed file omits {{oldSessionId}}/{{newSessionId}}, silently dropping both from every real notification
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-011
+- status: proposed
+- affects: none directly (implementation-only bug in seed data, not a document conflict) — closely related to LOG-0246, which surfaced the underlying two-seed-file split this bug lives inside
+- supersedes: none (refines the closure claimed for TASK-NOTIF-011's original "Half 1" seed-body fix — that fix is real, but was verified against the wrong file; see below)
+
+session-displaced.consumer.ts (apps/server/src/modules/notifications/consumers/session-displaced.consumer.ts,
+lines 20-24) supplies templateData with three fields: oldSessionId, newSessionId,
+newIpAddress.
+
+Per LOG-0246, apps/server/src/database/seeds/orchestrator.ts (line 9) imports
+seedNotifications only from packages/database/src/seed/notifications.seed.js — this is
+the only notifications seed file actually loaded by `pnpm db:seed`. Confirmed directly
+by resolving the relative import path.
+
+That orchestrator-loaded file's notif.iam.session_displaced.in_app bodyTemplate
+(packages/database/src/seed/notifications.seed.ts, lines 76-80) reads: 'A new login has
+replaced your previous session (from {{newIpAddress}}). If this wasn't you, please
+contact IT Admin immediately.' — this references only {{newIpAddress}}. It does not
+contain {{oldSessionId}} or {{newSessionId}} anywhere in the string.
+
+A separate, non-orchestrator-loaded file at the same relative template name,
+apps/server/src/database/seeds/notifications.seed.ts (lines 80-84), does contain the
+correct three-token body: 'Your previous session ({{oldSessionId}}) was terminated
+because a new login was detected from IP {{newIpAddress}} (new session:
+{{newSessionId}}). If you did not initiate this login, please contact IT Admin
+immediately.' A prior review pass (predating LOG-0246's discovery of the two-file split)
+verified this exact text and reported the session_displaced seed-body task deliverable
+as closed. That verification was accurate for the file it checked, but that file is not
+the one `pnpm db:seed` actually loads.
+
+Confirmed via notifications.service.ts's renderTemplate function (lines 38-53): it
+substitutes only tokens found by regex match within the template text itself (line 41),
+not all keys present in templateData. This means the orchestrator-loaded template does
+NOT render with visible broken {{token}} placeholders — it renders cleanly, but
+oldSessionId and newSessionId are silently absent from the message body entireley,
+rather than appearing as unresolved text. This is quieter and easier to miss in manual
+QA than the original bug (visible broken placeholders), since the message looks
+complete and correctly formed.
+
+Practical effect: every real production session-displacement notification currently
+tells the affected user that a new login occurred and from what IP, but never surfaces
+which of their sessions was ended or what the new session's identifier is — data that
+is available (in payload.old_session_id / payload.new_session_id at the actual IAM
+emit site, iam.service.ts lines 486-487) and clearly intended to be shown, based on
+the corrected wording that exists in the unloaded sibling file.
+
+Not resolved here: whether to fix this specific file's bodyTemplate directly (making
+it match the unloaded file's already-correct wording), or resolve it as part of
+whatever LOG-0246's broader two-seed-file question decides (delete
+apps/server/src/database/seeds/notifications.seed.ts as dead code, or make the
+orchestrator load it instead). Fixing only this one template's body without addressing
+LOG-0246's larger question risks the same drift recurring for the next template that
+diverges between the two files. A human should decide the two-file architecture
+question first; the one-line template-body fix itself is mechanical once that's
+settled.
+
+Note: [Confirmed] — the consumer's templateData shape, both seed files' exact template
+bodies at the cited line numbers, the orchestrator's actual import resolution, and the
+renderTemplate function's token-matching behavior were all checked directly against the
+current repo upload, not inferred or assumed from the prior review pass's conclusions.
+
+---
