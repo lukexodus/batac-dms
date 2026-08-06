@@ -3003,6 +3003,7 @@ export function createWorkflowRouter() {
             veto_override_votes_for: input.votesFor,
             veto_override_votes_against: input.votesAgainst,
             veto_override_absent_councilor_ids: input.absentCouncilorIds,
+            veto_override_vote_count: input.votesFor,
           };
 
           await txDeps.workflowRepository.updateInstanceContext(
