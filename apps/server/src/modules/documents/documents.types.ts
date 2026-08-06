@@ -26,6 +26,7 @@ export interface DocumentSummary {
   preliminaryNumber: string | null;
   finalNumber: string | null;
   classificationLevel: ClassificationLevel;
+  originatingOfficeId: string;
   createdAt: Date;
   hasPenaltyProvision?: boolean;
 }

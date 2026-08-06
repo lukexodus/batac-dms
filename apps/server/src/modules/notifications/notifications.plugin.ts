@@ -5,6 +5,7 @@ import { createNotificationsPublicAPI } from './notifications.public-api.js';
 import type { NotificationsPublicAPI } from './notifications.types.js';
 import { registerStepAssignmentConsumer } from './consumers/step-assignment.consumer.js';
 import { registerSlaEscalationConsumer } from './consumers/sla-escalation.consumer.js';
+import { registerDocumentStateChangedConsumer } from './consumers/document-state-changed.consumer.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -29,6 +30,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   // Register Event Bus Consumers
   registerStepAssignmentConsumer(fastify);
   registerSlaEscalationConsumer(fastify);
+  registerDocumentStateChangedConsumer(fastify);
 
   fastify.log.info('notifications plugin registered');
 };
