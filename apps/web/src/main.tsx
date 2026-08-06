@@ -1,3 +1,5 @@
+import { openobserveLogs as logs } from '@openobserve/browser-logs';
+import { openobserveRum as rum } from '@openobserve/browser-rum';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
@@ -11,9 +13,6 @@ import { RequireAuth } from './components/RequireAuth';
 import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
-
-import { openobserveRum as rum } from '@openobserve/browser-rum';
-import { openobserveLogs as logs } from '@openobserve/browser-logs';
 
 import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
 import { LoginPage } from './pages/auth/LoginPage';

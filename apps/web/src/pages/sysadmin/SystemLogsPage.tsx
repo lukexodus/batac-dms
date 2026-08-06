@@ -1,9 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 import { PageHeader, Card, CardContent, Button, Input } from '@batac/ui';
 
 import { trpc } from '@/lib/trpc';
 import { useSessionStore } from '@/stores';
+
+interface RuntimeLogEntry {
+  _timestamp?: number;
+  timestamp?: number;
+  level?: string;
+  message?: string;
+  msg?: string;
+  [key: string]: unknown;
+}
 
 // Client-side sys-admin gate.
 // NOTE: This is an approximation of the server's ctx.auth.isItAdmin,
@@ -25,17 +34,14 @@ function AccessDenied() {
 
 export function SystemLogsPage() {
   const identity = useSessionStore((s) => s.identity);
+  const isSysAdmin = !!identity?.roleCodes.includes('sys_admin');
   const [search, setSearch] = useState('');
-  const [level, setLevel] = useState<any>('');
+  const [level, setLevel] = useState<string>('');
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  if (!identity?.roleCodes.includes('sys_admin')) {
-    return <AccessDenied />;
-  }
-
   const {
-    data,
+    data: rawData,
     fetchNextPage,
     hasNextPage,
     isFetching,
@@ -51,10 +57,15 @@ export function SystemLogsPage() {
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
       refetchInterval: autoScroll ? 3000 : false,
+      enabled: isSysAdmin,
     }
   );
 
-  const logs = data?.pages.flatMap((p) => p.items) || [];
+  const data = rawData as
+    | { pages: Array<{ items: RuntimeLogEntry[] }>; nextCursor?: string | null }
+    | undefined;
+
+  const logs = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
   useEffect(() => {
     if (autoScroll && scrollContainerRef.current) {
@@ -69,6 +80,10 @@ export function SystemLogsPage() {
       if (autoScroll) setAutoScroll(false);
     }
   };
+
+  if (!isSysAdmin) {
+    return <AccessDenied />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8">
@@ -133,7 +148,7 @@ export function SystemLogsPage() {
               </div>
             )}
             <div className="divide-y divide-slate-800">
-              {logs.map((log: any, i) => (
+              {logs.map((log, i) => (
                 <div key={i} className="flex gap-4 p-2 hover:bg-slate-900">
                   <span className="w-40 shrink-0 text-slate-500">
                     {new Date((log._timestamp || log.timestamp || Date.now()) / 1000).toLocaleString()}

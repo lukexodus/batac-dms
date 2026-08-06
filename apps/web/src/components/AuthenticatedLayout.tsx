@@ -76,7 +76,7 @@ export function AuthenticatedLayout() {
   } = useShellStore();
   const location = useLocation();
 
-  const roleCodes = identity?.roleCodes ?? [];
+  const roleCodes = useMemo(() => identity?.roleCodes ?? [], [identity]);
 
   // 1. Role formatting for Topbar
   const displayRole = useMemo(() => {
@@ -230,7 +230,7 @@ export function AuthenticatedLayout() {
     }
 
     return items;
-  }, [roleCodes]);
+  }, [roleCodes, identity]);
 
   const activeItemId = useMemo(() => {
     const match = [...navItems]

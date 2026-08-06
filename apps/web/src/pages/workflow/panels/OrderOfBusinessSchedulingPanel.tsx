@@ -51,7 +51,7 @@ export function OrderOfBusinessSchedulingPanel({
         documentId: instance.documentId,
         sessionDate: new Date(selectedDate),
       });
-    } catch (err) {
+    } catch {
       // Handled by onError
     }
   };
