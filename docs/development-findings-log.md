@@ -7753,3 +7753,140 @@ it to be derived.
 
 ---
 
+### [LOG-0240] Resolution of LOG-0228 (partial): `department_head` role added to catalog per option (1); permission design deferred as a separate, larger open item
+
+- date: 2026-08-06
+- task_id: TASK-IAM-054
+- status: proposed
+- affects: I2 (Roles Reference table, new row 14), consolidated-architecture-and-requirements-reference-iteration-3.md (§ referencing "Department Heads" MFA requirement, line 1305 — cited as corroborating evidence, not edited)
+- supersedes: (does not supersede LOG-0228 — LOG-0228 remains the primary record of the original bug; this entry records its partial resolution)
+
+**What was decided:** Per project owner instruction, option (1) from
+LOG-0228's three presented options was selected: add a real `department_head`
+role to the catalog, rather than mapping the lookup to an existing role
+(option 2) or leaving the gap as a logged-but-unresolved zero-result (option
+3, which was already partially implemented as a warning log prior to this
+entry).
+
+**Corroborating evidence found beyond LOG-0228's original investigation:**
+`docs/requirements-gathering/consolidated-architecture-and-requirements-reference-iteration-3.md:1305`
+(the tier-1 source of truth per AGENTS.md §1) lists "Department Heads" as a
+category requiring TOTP/MFA in Phase 2, alongside Mayor, SP Secretary,
+Platform Administrator, and IT Admin — confirming Department Head is an
+intended, real role concept in this system's design, not merely an
+inaccurate claim isolated to B3 §7.27's note (which LOG-0228 had already
+shown was unconfirmed by the seed data or I2).
+
+**Scope decision — deliberately narrowed from a full role implementation:**
+`iam.seed.ts`'s permission matrix (`PERMISSION_RULES`, 115 total
+`buildRule(...)` calls) derives its role list automatically from
+`ROLE_DEFINITIONS` and defaults any role not explicitly mentioned in a given
+rule to `{ decision: 'deny' }`. This means adding `department_head` to
+`ROLE_DEFINITIONS` alone is sufficient to (a) resolve LOG-0228's actual bug
+(the role now exists, so `listEmployeesByRoleAndOffice('department_head',
+...)` can return real matches instead of always returning zero rows) and (b)
+leave the role correctly deny-by-default across all 115 existing permission
+rules, with no additional edits needed for that default to take effect.
+Designing what permissions a Department Head should actually hold (beyond
+being a valid escalation-notification recipient) was identified as a
+separate, larger, currently-unspecified design question — no source document
+describes Department Head taking any document-processing action — and was
+explicitly excluded from this task's scope rather than inferred by analogy
+to `records_officer` or `auditor`'s permission sets.
+
+**The `typeCode` sub-decision:** `department_head` was assigned
+`typeCode: 'auditor'` (matching `records_officer`'s typeCode), based on the
+reasoning that no document describes Department Head performing
+document-processing actions — only receiving escalation notifications (B3
+§7.29) and requiring elevated MFA — which structurally matches
+`records_officer`'s role rather than the `document_processor`-typed
+operational roles. This choice was surfaced to and confirmed by the project
+owner before being written into TASK-IAM-054, per this project's rule
+against silently resolving genuine design gaps. Its practical consequence:
+`department_head` is exempt from Architectural Invariant #12's Platform
+Administrator exclusion (the same exemption `records_officer`, `auditor`,
+`sys_admin`, and `citizen` already have, per I1's D-ABAC-01 resolved
+decision, `i1-abac-policy-specification.md:1719`).
+
+**What was implemented:** A standalone executor prompt (TASK-IAM-054) was
+written covering: (1) the `ROLE_DEFINITIONS` entry in `iam.seed.ts`; (2) a
+corresponding row 14 in I2's Roles Reference table; (3) an update to the
+now-stale "KNOWN GAP" inline comment in `sla-escalation.consumer.ts` at the
+`department_head` lookup site, reflecting the resolved state while
+preserving the existing zero-result warning log (still useful post-fix, as a
+legitimate "no one assigned" signal rather than a bug signal). Pending
+application by the local agent as of this entry.
+
+**Note:** [Confirmed] — the consolidated reference's MFA line, I1's D-ABAC-01
+typeCode categorization, and the 115-rule default-deny mechanism in
+`buildRule` were all verified directly against source.
+[Inference — confirmed by project owner before use]: `typeCode: 'auditor'`
+as the closest documented analog for `department_head`; this is an explicit
+inference, not a value stated in any source document, and should be revisited
+if a future document specifies Department Head's actual function more
+precisely.
+
+---
+
+### [LOG-0241] `EventPayloadMap`'s `workflow.sla.*` entries brought in line with B3 §7.27–7.29's `instanceId` field; resolution of the item noted (not resolved) in LOG-0227
+
+- date: 2026-08-06
+- task_id: TASK-WF-EVT-005
+- status: proposed
+- affects: B3 (§7.27-7.29, confirmed as the correct source; live code was brought in line with it, not the reverse)
+
+**What was decided:** Per project owner instruction, option (A) from the
+tradeoffs presented was selected: add `instanceId` to the live
+`EventPayloadMap` entries for `workflow.sla.warning`/`breached`/`critical`,
+matching B3's documented schema, rather than option (B) (correcting B3's
+schema to drop the field).
+
+**Verification performed before writing the fix:** Direct read of
+`docs/pre-development/B-architecture-documents/b3-internal-domain-event-catalog-v1.3.md`
+confirmed all three payload schemas — `WorkflowSlaWarningPayloadSchema`
+(lines 1355-1362), `WorkflowSlaBreachedPayloadSchema` (lines 1381-1389), and
+`WorkflowSlaCriticalPayloadSchema` (lines 1408-1415) — consistently include
+`instanceId: z.string().uuid()` as a top-level field alongside
+`stepInstanceId`. This is a repeated, deliberate pattern across all three
+event definitions, not an isolated instance.
+
+The originally-flagged concern (whether `instanceId` is actually available
+at emit time, or whether adding it to the type would leave it unpopulated)
+was checked directly against
+`apps/server/src/modules/workflow/jobs/evaluate-sla-breaches.ts`: `instance.id`
+is already in scope at every one of the three payload-construction sites
+(destructured at the enclosing `for` loop) and is already passed, under the
+same name, to the adjacent `createWorkflowEvent(...)` call a few lines above
+each payload object — it is simply never included in the `payload` object
+itself. This is a pure data-flow gap requiring no new lookup or computation.
+
+Confirmed this fix does not affect the file's second, unrelated event family:
+the same file's instance-level pass (a separate loop lower in the file)
+emits `workflow.instance.sla.warning/.breached/.critical` — different event
+types, not covered by B3 §7.27-7.29, and explicitly excluded from this task's
+scope.
+
+Confirmed the sole consumer of these three event types,
+`apps/server/src/modules/notifications/consumers/sla-escalation.consumer.ts`,
+only ever reads named fields off `payload` (never iterates keys or checks
+object shape exhaustively) — adding a new field is safe and non-breaking on
+the consumer side. The consumer was confirmed to already derive `instanceId`
+independently via `stepSummary.instanceId` rather than the event payload, so
+this fix does not require or expect any change to the consumer itself.
+
+**What was implemented:** A standalone executor prompt (TASK-WF-EVT-005) was
+written covering: (1) the type definitions in `event-payload-map.ts` (one
+edit, all three event types); (2) six payload-construction edits in
+`evaluate-sla-breaches.ts` (two occurrences each — inside `createWorkflowEvent`'s
+call and inside the corresponding `emittedEvents.push` call — for each of
+the three event types' step-level emit sites). Pending application by the
+local agent as of this entry.
+
+**Note:** [Confirmed] — B3's three schema definitions, `instance.id`'s
+existing in-scope availability at all three emit sites, the file's two
+distinct event-loop structure, and the sole consumer's field-access pattern
+were all verified directly against source. This is a schema-conformance fix
+with no remaining open question — [Confirmed], not [Inference].
+
+---
+
