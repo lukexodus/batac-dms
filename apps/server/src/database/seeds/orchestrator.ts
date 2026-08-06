@@ -5,9 +5,8 @@ import { seedIam } from './iam.seed.js';
 import { seedOrganization } from './organization.seed.js';
 import { seedNumberSeries } from './number-series.seed.js';
 import { seedDocumentTypes } from './document-types.seed.js';
-import { seedNotificationTemplates } from './notifications.seed.js';
 import { seedPhase1WorkflowDefinitions } from '../../../../../packages/database/src/seeds/workflow/phase1-legislative.js';
-
+import { seedNotifications } from '../../../../../packages/database/src/seed/notifications.seed.js';
 async function main() {
   const databaseUrl = process.env['DATABASE_URL_MIGRATE'];
   if (!databaseUrl) {
@@ -40,7 +39,7 @@ async function main() {
       await seedPhase1WorkflowDefinitions(tx, documentTypeIds);
 
       console.log('[seed:orchestrator] Running Notifications seed...');
-      await seedNotificationTemplates(tx);
+      await seedNotifications(tx);
 
       console.log('[seed:orchestrator] Database seeding completed successfully.');
     });
