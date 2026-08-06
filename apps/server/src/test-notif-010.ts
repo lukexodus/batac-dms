@@ -120,7 +120,7 @@ async function main() {
     console.log('Test 2 Passed: Email failure path verified in database.');
 
     console.log('--- Test 3: SMS phone-fallback path ---');
-    const testSmsTemplateName = 'test.notif010.sms_verification.sms';
+    const testSmsTemplateName = `test.notif010.sms_verification.${Date.now()}`;
 
     // Insert throwaway template row
     await app.db.insert(templates).values({
@@ -170,9 +170,7 @@ async function main() {
       throw new Error(`Test 3 Failed: expected mailer.sendEmail to be called 0 times, got ${sendEmailCalled}`);
     }
 
-    // Clean up throwaway row
-    await app.db.delete(templates).where(eq(templates.name, testSmsTemplateName));
-
+    // Deleting the row is skipped to avoid postgres permission issues on the templates table
     console.log('Test 3 Passed: SMS phone-fallback path verified in database.');
   } finally {
     await app.close();
