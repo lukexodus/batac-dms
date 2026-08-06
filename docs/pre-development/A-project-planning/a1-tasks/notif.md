@@ -985,100 +985,140 @@ AI Prompt:
 
 ---
 
-## TASK-NOTIF-013
+## TASK-NOTIF-013 (corrected)
 
-Phase:          1
-Module:         NOTIF
-Title:          Wire NOTIF Fastify plugin and event bus consumers
-Prerequisites:  [TASK-NOTIF-005, TASK-NOTIF-006, TASK-NOTIF-007, TASK-NOTIF-008, TASK-NOTIF-009, TASK-NOTIF-010, TASK-NOTIF-011, TASK-NOTIF-012]
-Deliverables:
-  - /apps/server/src/modules/notifications/notifications.plugin.ts — Fastify plugin registering: the SSE route (TASK-NOTIF-003), the `notificationsRouter` (TASK-NOTIF-012), and all 6 event bus consumer subscriptions (TASK-NOTIF-006 through -011) at server startup
-  - /apps/server/src/modules/notifications/index.ts (updated) — barrel now exports the completed `NotificationsPublicAPI` implementation from TASK-NOTIF-004
+Phase: 1 Module: NOTIF Title: Wire NOTIF Fastify plugin and event bus consumers Prerequisites: [TASK-NOTIF-005, TASK-NOTIF-006, TASK-NOTIF-007, TASK-NOTIF-008, TASK-NOTIF-009, TASK-NOTIF-010, TASK-NOTIF-011, TASK-NOTIF-012] Deliverables:
+
+- `/apps/server/src/modules/notifications/notifications.plugin.ts` — registers the SSE route, the `notificationsRouter`, all 8 event bus consumer subscriptions, and the corrected `dependencies` array (`'iam'` and `'mailer'` added per TASK-NOTIF-009/-010)
+- `/apps/server/src/trpc/root.ts` (updated) — adds `notifications: notificationsRouter` to the `appRouter` object, plus the `import type {}` augmentation-import line if `apps/web`'s typecheck needs it (see correction below — check before assuming either way)
+- `/apps/server/src/modules/notifications/index.ts` (updated) — barrel exports the completed `NotificationsPublicAPI`
+
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes
-  - [ ] Server startup registers exactly 6 event bus subscriptions for this module: `workflow.step.started`, `document.state_changed`, `workflow.sla.warning`, `workflow.sla.breached`, `workflow.sla.critical`, `workflow.approval.lapsed`, `workflow.panlalawigan.deemed_approved`, `session.terminated` — **wait, recount: that is 8 distinct event types, not 6** — verify the plugin subscribes to all 8 (Step Assignment=1, Document State Change=1, SLA×3=3, Lapse×2=2, Session=1 → 8 total; the Complaint Respondent path, TASK-NOTIF-010, is not an event subscription and is not registered here — it's reached only via the Published API)
-  - [ ] Every subscription handler is wrapped in the plugin's own top-level try/catch in addition to each consumer's internal error handling, as defense in depth
-  - [ ] `NotificationsPublicAPI.sendNotification` is reachable from another module's code via the barrel import (`import { NotificationsPublicAPI } from '@/modules/notifications'`) with no internal file exposed
-  - [ ] Server fails fast (does not start) if the SSE route or router registration throws during plugin init — but an individual event consumer registration failure logs a startup warning rather than blocking server start (consistency with WF's own established pattern for non-critical subscription wiring)
-  - [ ] Manual: start the server, confirm via startup logs that 8 event subscriptions are registered and the `/api/notifications/stream` route responds
+
+- [ ] `pnpm typecheck` passes, **including `apps/web`'s typecheck specifically**, not just `apps/server`'s — see the `root.ts` type-augmentation note below
+- [ ] Server startup registers exactly 8 event bus subscriptions: `workflow.step.started`, `document.state_changed`, `workflow.sla.warning`, `workflow.sla.breached`, `workflow.sla.critical`, `workflow.approval.lapsed`, `workflow.panlalawigan.deemed_approved`, `session.replaced` — **note the last one: `session.replaced`, not `session.terminated`**, per TASK-NOTIF-011's correction; if you're picking this task up without having read that correction, stop and read it first, because subscribing to `session.terminated` here would wire up a subscriber for an event nothing in the codebase ever emits
+- [ ] The SSE route is actually registered — confirmed still outstanding as of this task: `notifications.sse.ts` exports `notificationsSseRoutes`, a working, already-implemented route handler at `GET /api/notifications/stream`, but nothing in the current `notifications.plugin.ts` calls `fastify.register(notificationsSseRoutes)` yet. This is real, not-yet-done work for this task, not a formality.
+- [ ] `notifications.plugin.ts`'s `dependencies` array reads `['database', 'event-bus', 'documents', 'workflow', 'organization', 'iam', 'mailer']` — the last two were added by TASK-NOTIF-009 and TASK-NOTIF-010 respectively; confirm both are present, don't remove them, and don't reintroduce the missing-dependency boot crash those two tasks fixed
+- [ ] `NotificationsPublicAPI.sendNotification` is reachable from another module's code via the barrel import with no internal file exposed
+- [ ] Server fails fast (does not start) if the SSE route or router registration throws during plugin init; an individual event consumer registration failure logs a startup warning rather than blocking server start
+- [ ] Manual: start the server, confirm via startup logs that 8 event subscriptions are registered and `/api/notifications/stream` responds
+
 AI Prompt:
-  > You are wiring the final assembly point for the `notifications` module: the Fastify plugin that registers the SSE route, the tRPC router, and every event bus consumer built in TASK-NOTIF-006 through -011.
-  >
-  > **Complete list of event subscriptions this plugin must register (8 event types across 6 consumer files):**
-  > ```
-  > workflow.step.started              → step-assignment.consumer.ts        (TASK-NOTIF-006)
-  > document.state_changed             → document-state-changed.consumer.ts (TASK-NOTIF-007)
-  > workflow.sla.warning               → sla-escalation.consumer.ts         (TASK-NOTIF-008)
-  > workflow.sla.breached              → sla-escalation.consumer.ts         (TASK-NOTIF-008)
-  > workflow.sla.critical              → sla-escalation.consumer.ts         (TASK-NOTIF-008)
-  > workflow.approval.lapsed           → legislative-lapse.consumer.ts      (TASK-NOTIF-009)
-  > workflow.panlalawigan.deemed_approved → legislative-lapse.consumer.ts   (TASK-NOTIF-009)
-  > session.terminated                 → session-displaced.consumer.ts      (TASK-NOTIF-011)
-  > ```
-  > TASK-NOTIF-010 (Complaint Respondent) is **not** in this list — it has no triggering domain event (H4 §4.8/§8.4, still an open B3 action item on whether one will ever exist) and is reached exclusively via the `NotificationsPublicAPI.sendNotification()` Published API surface, which this plugin exposes through the barrel export but does not "subscribe" to anything for.
-  >
-  > **Plugin registration order:**
-  > ```
-  > 1. Register the SSE route (TASK-NOTIF-003) — GET /api/notifications/stream
-  > 2. Register the notificationsRouter (TASK-NOTIF-012) into the root tRPC router at
-  >    /apps/server/src/trpc/root.ts, per E1's stated router file layout convention
-  > 3. Subscribe all 8 event handlers to the in-process event bus (per B2's event bus mechanism)
-  > 4. Export the completed NotificationsPublicAPI implementation (TASK-NOTIF-004) through this
-  >    module's index.ts barrel, so other modules (eventually Portal, Wave G) can import and call
-  >    sendNotification() directly.
-  > ```
-  >
-  > **Startup failure semantics — mirror WF's established pattern (TASK-WF-024):** critical registration (route, router) should fail server startup loudly if it errors, since a broken router means the whole API surface is compromised. Individual event-consumer subscription failures should log a clear startup warning and continue — a broken SLA consumer, for instance, should not prevent the SSE route or the tRPC router from working, since those failures are independently recoverable (a fix-and-redeploy for that one consumer) rather than systemic.
-  >
-  > Before submitting this PR, confirm each item:
-  > - [ ] `pnpm typecheck` passes
-  > - [ ] All 8 event subscriptions are registered at startup (verified via startup log output)
-  > - [ ] `NotificationsPublicAPI.sendNotification` is reachable from outside the module via the barrel import only
-  > - [ ] Route/router registration failure fails startup; individual consumer registration failure logs a warning and continues
-  > A reviewer will verify each one independently.
+
+> You are wiring the final assembly point for the `notifications` module: the Fastify plugin that registers the SSE route, the tRPC router, and every event bus consumer.
+> 
+> **Correction to the original event list — this is the single most important thing to get right in this task, since getting it wrong silently produces a dead subscriber, not a build error:**
+> 
+> The original spec's event list included `session.terminated`. That event does not exist at runtime anywhere in this codebase — TASK-NOTIF-011 traced this in full: `session.terminated` is declared as a constant and typed in `EventPayloadMap`, but is never emitted by `iam.service.ts` or anywhere else. The real event for new-device session displacement is `session.replaced`, which is what TASK-NOTIF-011's corrected consumer (`session-displaced.consumer.ts`) actually subscribes to. If you register `session.terminated` here instead, `pnpm typecheck` will pass, the server will start cleanly, and the subscription will simply never fire — a silent, undetectable-until-a-real-incident gap. Register `session.replaced`.
+> 
+> **Corrected, complete list of event subscriptions this plugin must register (8 event types across 6 consumer files):**
+> 
+> ```
+> workflow.step.started                 → step-assignment.consumer.ts        (TASK-NOTIF-006)
+> document.state_changed                → document-state-changed.consumer.ts (TASK-NOTIF-007)
+> workflow.sla.warning                  → sla-escalation.consumer.ts         (TASK-NOTIF-008)
+> workflow.sla.breached                 → sla-escalation.consumer.ts         (TASK-NOTIF-008)
+> workflow.sla.critical                 → sla-escalation.consumer.ts         (TASK-NOTIF-008)
+> workflow.approval.lapsed              → legislative-lapse.consumer.ts      (TASK-NOTIF-009)
+> workflow.panlalawigan.deemed_approved → legislative-lapse.consumer.ts      (TASK-NOTIF-009)
+> session.replaced                      → session-displaced.consumer.ts      (TASK-NOTIF-011, corrected)
+> ```
+> 
+> TASK-NOTIF-010 (Complaint Respondent) is not in this list — it's reached exclusively via the `NotificationsPublicAPI.sendNotification()` Published API, wired directly into `notifications.service.ts` rather than through a subscriber.
+> 
+> **The `dependencies` array needs two additions this plugin doesn't currently have.** Before finalizing this task, open the current `notifications.plugin.ts` and check its `fp(notificationsPlugin, { dependencies: [...] })` array. If TASK-NOTIF-009 and TASK-NOTIF-010 were completed correctly, it should already read `['database', 'event-bus', 'documents', 'workflow', 'organization', 'iam', 'mailer']`. If either `'iam'` or `'mailer'` is missing, add it now — `fastify-plugin` enforces this at boot and the server will not start without both, since the SP Secretary lookup (009) needs `fastify.iamService` and the complaint-notice email path (010) needs `fastify.mailer`.
+> 
+> **The SSE route needs actual wiring, not just a mention.** `notifications.sse.ts` already exports a complete, working `notificationsSseRoutes` function (confirmed: registers `GET /api/notifications/stream`, handles the connection registry, auth check, and cleanup on close). Nothing currently calls it. Add, inside your `fp`-wrapped plugin body:
+> 
+> ```typescript
+> await fastify.register(notificationsSseRoutes);
+> ```
+> 
+> matching the exact pattern `iam.plugin.ts` uses for its own routes (`await fastify.register(registerIamRoutes)`) — don't invent a different registration style.
+> 
+> **The tRPC router needs a `root.ts` edit that the original deliverable list didn't mention — add it.** Unlike this module's own plugin file, `notificationsRouter` doesn't get wired into the live API by anything inside `notifications.plugin.ts`. Every other module's sub-router is added to `appRouter` by hand in `/apps/server/src/trpc/root.ts` — that file is imported once, directly, by `app.ts`, and isn't touched by any `*.plugin.ts` file. Add:
+> 
+> ```typescript
+> import { notificationsRouter } from '../modules/notifications/notifications.router.js';
+> // ...
+> export const appRouter = router({
+>   // ...existing entries...
+>   notifications: notificationsRouter,
+> });
+> ```
+> 
+> **Before you consider this done, check whether `apps/web`'s typecheck needs an `import type {}` augmentation line for this module, the way `documents` and `tracking` already have one in `root.ts` with an explicit comment explaining why** (`declare module 'fastify'` interface augmentations in a `*.plugin.ts` file aren't reachable from `apps/web`'s import graph unless something in the chain `tsc` actually walks imports them — the existing comment in `root.ts` describes this exact failure mode costing 12 TS2339 errors when it was missed for another module). `notifications.plugin.ts` has its own `declare module 'fastify' { interface FastifyInstance { notificationsService: ... } }` block. Run `apps/web`'s typecheck specifically (not just `apps/server`'s) after your `root.ts` edit — if it fails with property-not-found errors referencing `notificationsService` or similar, add `import type {} from '../modules/notifications/notifications.plugin.js';` to `root.ts` alongside the existing two. Don't skip this check just because `apps/server`'s own typecheck passes; the two are separate and this specific failure mode only shows up in the consuming app's typecheck, not the module's own.
+> 
+> **On the "wrap every handler in a top-level try/catch" acceptance criterion from the original spec — this needs correcting, not just implementing as written, because implementing it literally would be pointless and possibly confusing:**
+> 
+> I checked `packages/shared/src/event-bus.ts` directly. `EventBus.emit()` already wraps every individual handler call in its own try/catch (synchronous) and `.catch()` (for handlers that return a Promise), logs the failure via Pino, and routes it to a dead-letter table (`shared.event_bus_dead_letters`) with automatic 5-attempt exponential-backoff retry (`event-bus-dead-letter-retry.ts`, every 5 minutes). This is real, working infrastructure, not aspirational documentation. A plugin-level try/catch wrapped around your `fastify.eventBus.on(...)` registration calls wouldn't add meaningful protection — `.on()` just registers a listener and returns immediately; it's `.emit()`, called by whichever module produces the event, that invokes the handler, and that's already isolated by the bus itself. Drop the "top-level try/catch, defense in depth" framing from this task's actual acceptance bar; it describes a layer that either does nothing useful (wrapping `.on()` calls) or is already fully handled elsewhere (wrapping `.emit()`, which this plugin doesn't do).
+> 
+> **What's worth flagging instead, as an observation for whoever owns this module going forward, not something to silently fix inside this task:** I traced through exactly how the bus's dead-letter/retry protection actually connects to a handler, and found that none of the three already-built consumers (`step-assignment`, `document-state-changed`, `sla-escalation`) — nor, by the same pattern, the ones built in TASK-NOTIF-009 and TASK-NOTIF-011 — actually opt into it. Each one writes its handler as `(event) => { const run = async () => {...}; run().catch(logHandler); }`, where the outer arrow function returns `undefined` synchronously rather than `return run();`. Since `EventBus.emit`'s dead-letter branch only fires when `handler(...)` returns something that `instanceof Promise`, none of these consumers' async failures ever reach the dead-letter table or get automatically retried — they're caught, logged once, and then simply gone. This may be intentional (automatic retries could be actively wrong for some of these notifications — a stale "SP Secretary, please confirm this" retry hours later isn't obviously desirable), but it's a real, systemic gap across every consumer file in this module, existing ones included, and it's worth a deliberate decision rather than an accidental one. Note it in your PR description as a discovered-but-out-of-scope finding; don't silently rewrite the existing consumer files as part of this task.
+> 
+> Before submitting this PR, confirm each item:
+> 
+> - [ ] `pnpm typecheck` passes for both `apps/server` and `apps/web`
+> - [ ] All 8 event subscriptions are registered at startup, with `session.replaced` — not `session.terminated`
+> - [ ] `dependencies` array includes `'iam'` and `'mailer'` alongside the original five
+> - [ ] `notificationsSseRoutes` is actually registered via `fastify.register(...)`, not just referenced
+> - [ ] `root.ts` includes `notifications: notificationsRouter`, with the `import type {}` augmentation added if `apps/web`'s typecheck requires it
+> - [ ] The dead-letter/retry opt-out gap across all consumer files (old and new) is flagged in the PR description, not silently resolved A reviewer will verify each one independently.
 
 ---
 
-## TASK-NOTIF-014
+## TASK-NOTIF-014 (corrected)
 
-Phase:          1
-Module:         NOTIF
-Title:          Implement NOTIF Vitest test suite
-Prerequisites:  [TASK-NOTIF-013]
-Deliverables:
-  - /apps/server/src/modules/notifications/__tests__/notifications.repository.test.ts
-  - /apps/server/src/modules/notifications/__tests__/notifications.service.test.ts
-  - /apps/server/src/modules/notifications/__tests__/notifications.sse.test.ts
-  - /apps/server/src/modules/notifications/__tests__/notifications.router.test.ts
-  - /apps/server/src/modules/notifications/__tests__/consumers.test.ts — covers all 6 consumer files (TASK-NOTIF-006 through -011) in one suite, mirroring the shared event-bus-mocking setup across all 8 subscribed event types
+Phase: 1 Module: NOTIF Title: Implement NOTIF Vitest test suite Prerequisites: [TASK-NOTIF-013] Deliverables:
+
+- `/apps/server/src/modules/notifications/__tests__/notifications.repository.test.ts`
+- `/apps/server/src/modules/notifications/__tests__/notifications.service.test.ts`
+- `/apps/server/src/modules/notifications/__tests__/notifications.sse.test.ts`
+- `/apps/server/src/modules/notifications/__tests__/notifications.router.test.ts`
+- `/apps/server/src/modules/notifications/__tests__/consumers.test.ts`
+
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes
-  - [ ] `pnpm test --filter notifications` passes with zero failures
-  - [ ] Every Acceptance Criterion listed across TASK-NOTIF-001 through TASK-NOTIF-013 has at least one corresponding automated test — this task is where implementing agents must enumerate that full list and confirm coverage; per-task acceptance criteria cite representative checks only, this task closes the gap (mirroring WF's own TASK-WF-025 pattern for the same reason)
-  - [ ] Test coverage includes: the `assignedTo === null` no-op case, the 3-tier SLA escalation audience differences, the `reason: 'forced'` vs `'timeout'` filter, the verbatim legal-basis string preservation (both phrases), the `recipient_user_id` ABAC scoping on `listMine`/`markAsRead`, and the phone-fallback `delivery_log` logging path
-  - [ ] Manual: run the full suite locally (`pnpm test --filter notifications`) and confirm the reported test count is consistent with the enumerated criteria count across all 13 preceding tasks (no criteria silently uncovered)
-AI Prompt:
-  > You are implementing the Vitest test suite for the `notifications` module, covering every task in this list (TASK-NOTIF-001 through TASK-NOTIF-013).
-  >
-  > **Your first responsibility:** read every Acceptance Criteria checkbox across all 13 preceding tasks in this document and confirm each has at least one corresponding automated test in this suite. Per-task Acceptance Criteria in this document cite a representative subset for reviewability; this task is explicitly where full enumeration and coverage confirmation happens (this is the same closing-the-gap role WF's own TASK-WF-025 plays for its module, per that task's own stated purpose).
-  >
-  > **Priority coverage areas (these are the highest-risk correctness points identified during this module's generation and deserve dedicated, explicit test cases, not just incidental coverage):**
-  > 1. **`assignedTo === null` no-op** (TASK-NOTIF-006) — a system-executed step (`decision`/`notification` type) must never generate a Step Assignment notification.
-  > 2. **SLA 3-tier escalation audience** (TASK-NOTIF-008) — warning → assignee only; breach → supervisor + Records Officer; critical → + Department Head. Test each tier's exact recipient set, not just "a notification was sent."
-  > 3. **`session.terminated` reason filter** (TASK-NOTIF-011) — `'forced'` notifies; `'timeout'` does not. Both branches need explicit tests, not just the happy path.
-  > 4. **Verbatim legal basis strings** (TASK-NOTIF-009) — assert the exact byte sequence `"RA 7160 Section 47"` and `"RA 7160 Section 56(d)"` appear unaltered; a test that only checks "contains RA 7160" would not catch a paraphrasing regression.
-  > 5. **`recipient_user_id` ABAC scoping** (TASK-NOTIF-012) — `listMine` and `markAsRead` must be tested with two distinct seeded users to confirm cross-user isolation, not just single-user happy-path coverage.
-  > 6. **Phone-fallback logging** (TASK-NOTIF-010) — confirm `delivery_log` receives a `phone_call_required`-flavored entry with `status: 'delivered'` (not `'failed'`) for the no-email-available path.
-  > 7. **Downstream handler failure isolation** (B3 §9 Rule 5, applies to every consumer) — a thrown error inside any one consumer's logic must not propagate and must not prevent other consumers from processing their own events. At least one test per consumer file should simulate a downstream failure (e.g., `sendNotification` rejecting) and assert the subscriber process itself does not crash.
-  >
-  > Before submitting this PR, confirm each item:
-  > - [ ] `pnpm typecheck` passes
-  > - [ ] `pnpm test --filter notifications` passes with zero failures
-  > - [ ] Every Acceptance Criterion across TASK-NOTIF-001 through -013 has at least one corresponding test
-  > - [ ] All 7 priority coverage areas above have dedicated, explicit test cases
-  > A reviewer will verify each one independently.
 
----
+- [ ] `pnpm typecheck` passes
+- [ ] `pnpm test --filter notifications` passes with zero failures
+- [ ] Every Acceptance Criterion listed across TASK-NOTIF-001 through TASK-NOTIF-013 (**as corrected**, not as originally drafted — see correction below) has at least one corresponding automated test
+- [ ] Test coverage includes: the `assignedTo === null` no-op case, the 3-tier SLA escalation audience differences, the SP Secretary verbatim legal-basis strings (both phrases), the `session.replaced` displacement notification (not a `reason` filter — see correction below), the `recipient_user_id` ABAC scoping on `listMine`/`markAsRead` including the corrected "FORBIDDEN, not silent no-op" behavior, real cursor pagination on `listMine` and `listDeliveryLogs`, and the phone-fallback `delivery_log` logging path
+- [ ] Manual: run the full suite locally and confirm the reported test count is consistent with the enumerated criteria count across all 13 preceding tasks as corrected
+
+AI Prompt:
+
+> You are implementing the Vitest test suite for the `notifications` module, covering TASK-NOTIF-001 through TASK-NOTIF-013.
+> 
+> **Before writing a single test, re-read TASK-NOTIF-009, -010, -011, and -012 in their corrected form, not their originally-drafted form — several of the "priority coverage areas" listed in the original version of this task describe behavior that no longer exists in the corrected implementation, and a test written against the old description would either fail to compile or, worse, pass while testing nothing real.** Specifically:
+> 
+> 1. **There is no `reason: 'forced'` vs `'timeout'` filter to test.** The original spec's priority area #3 said to test both branches of a `session.terminated` reason filter. TASK-NOTIF-011 was corrected: the real event is `session.replaced`, which has no `reason` field at all — it only ever means displacement, so there's no filter logic in the consumer to have two branches of. Don't write a test asserting a `'timeout'` case produces zero notifications; there's no code path that could produce that behavior to begin with, since `session.replaced` doesn't carry a timeout variant. Instead, test: (a) a `session.replaced` event notifies `payload.user_id`, and (b) the template data passed to `sendNotification` matches the real payload fields (`old_session_id`, `new_session_id`, `new_ip_address`), not the old, nonexistent `sessionId`/`reason` fields.
+>     
+> 2. **The `listMine`/`markAsRead`/`listDeliveryLogs` middleware pattern to test is inline `ctx.auth.roles` checks, not `requireRole`/`requirePolicy` calls.** Those two functions don't exist in this codebase (confirmed by TASK-NOTIF-012's correction). Structure your router tests the same way `tracking.router.test.ts` or `organization.router.test.ts` structure theirs — constructing a `ctx` with a given `roles`/`effectiveRoles` array and asserting the procedure throws `TRPCError({ code: 'FORBIDDEN' })` or succeeds, rather than mocking or spying on middleware functions that were never built.
+>     
+> 3. **`markAsRead`'s cross-user test needs to assert an actual `FORBIDDEN` throw, not just "the notification didn't get marked read."** TASK-NOTIF-012's correction flagged that the underlying repository originally couldn't distinguish "not found" from "not yours" from "success" — the corrected router implementation should now surface this properly. Write the test to assert the specific thrown error, and separately assert (via a direct repository read, not just the router's return value) that the target notification's `is_read` column was _not_ changed by the unauthorized attempt — a test that only checks the router's return value could pass even if the underlying row silently got updated anyway.
+>     
+> 4. **`listMine`'s and `listDeliveryLogs`'s pagination tests need to exercise a real second page, not just accept whatever `nextCursor` value comes back.** TASK-NOTIF-012's correction noted the original `listNotificationsForUser` repository method had cursor pagination explicitly marked unimplemented, and `listDeliveryLogs` had no date-range filtering at all — both needed real implementation as part of that corrected task. Seed enough rows to require at least two pages, call the procedure once, take the returned `nextCursor`, call again with it, and assert the second page returns different, non-overlapping items and eventually terminates with `nextCursor: null`. A test that seeds 3 rows against a `pageSize: 20` default and calls once would pass even against a completely broken cursor implementation — that's not real coverage of the fix TASK-NOTIF-012 made.
+>     
+> 5. **The complaint-respondent email test should mock `fastify.mailer.sendEmail`, not `nodemailer` directly.** TASK-NOTIF-010's correction redirected the implementation to call the existing `MailerService` via `fastify.mailer`, rather than constructing a new Nodemailer transport. Mirror `mailer.service.test.ts`'s own mocking approach (`vi.mock('nodemailer', ...)`) at the `MailerService` level if you're testing the mailer itself, but for `notifications.service.test.ts`'s coverage of the `sendNotification` email branch specifically, mock the injected `mailer` dependency directly (a simple `{ sendEmail: vi.fn() }` stub passed into `NotificationsServiceDeps`) rather than reaching down through two layers of real Nodemailer mocking — that keeps the test focused on notifications' own dispatch logic rather than re-testing `MailerService`'s internals, which already have their own dedicated test file.
+>     
+> 
+> **Priority coverage areas, corrected:**
+> 
+> 6. **`assignedTo === null` no-op** (TASK-NOTIF-006) — unchanged from the original spec; a system-executed step must never generate a Step Assignment notification.
+> 7. **SLA 3-tier escalation audience** (TASK-NOTIF-008) — unchanged; warning → assignee only; breach → supervisor + Records Officer; critical → + Department Head. Test each tier's exact recipient set.
+> 8. **`session.replaced` displacement notification** (TASK-NOTIF-011, corrected) — notifies `payload.user_id` with the real payload fields; no `reason` branching exists to test, per correction #1 above.
+> 9. **Verbatim legal basis strings** (TASK-NOTIF-009) — assert the exact byte sequence `"RA 7160 Section 47"` and `"RA 7160 Section 56(d)"` appear unaltered in the rendered notification body. **Also worth a dedicated test given what TASK-NOTIF-009's correction flagged:** confirm with whoever resolved the seed-template duplication question (the `mayor_lapse`/`panlalawigan_deemed_approved` templates currently render the citation twice — once via `{{legalBasis}}`, once as hardcoded suffix text) whether that's intentional before writing an assertion that locks in either the single- or double-occurrence behavior as "correct" — check the current seed file state rather than assuming it still has the duplication, since it may have been resolved by the time this task runs.
+> 10. **`recipient_user_id` ABAC scoping, including FORBIDDEN semantics** (TASK-NOTIF-012, corrected) — `listMine` and `markAsRead` tested with two distinct seeded users; `markAsRead` cross-user attempt asserted to throw `FORBIDDEN` _and_ leave the target row unchanged, per correction #3 above.
+> 11. **Real cursor pagination** (TASK-NOTIF-012, corrected) — `listMine` and `listDeliveryLogs` tested across a real second page, per correction #4 above.
+> 12. **Phone-fallback logging** (TASK-NOTIF-010) — unchanged; confirm `delivery_log` receives a `phone_call_required` value in `error_message` with `status: 'delivered'` (not `'failed'`), matching the existing `delivery_log.status` CHECK constraint which has no `phone_call_required` value of its own.
+> 13. **Downstream handler failure isolation** (B3 §9 Rule 5) — unchanged in spirit, but write these tests knowing what TASK-NOTIF-013's correction found: none of the consumer files' handlers return their internal `run()` promise, so `EventBus`'s own dead-letter/retry mechanism never sees their async failures — only each consumer's own `run().catch(...)` does. Your test for this should assert the _consumer's own_ catch-and-log behavior (subscriber process doesn't crash, error is logged) rather than asserting anything about dead-letter table rows or retry attempts for these specific handlers, since — as currently written — they don't produce either.
+> 
+> Before submitting this PR, confirm each item:
+> 
+> - [ ] `pnpm typecheck` passes
+> - [ ] `pnpm test --filter notifications` passes with zero failures
+> - [ ] Every Acceptance Criterion across TASK-NOTIF-001 through -013, **as corrected**, has at least one corresponding test
+> - [ ] All 8 priority coverage areas above (as corrected) have dedicated, explicit test cases
+> - [ ] No test asserts behavior tied to `session.terminated`, a `reason` filter, `requireRole`/`requirePolicy`, or a fake/no-op cursor — all four were corrected away in the tasks this suite covers A reviewer will verify each one independently.
 
 ## Module Summary — NOTIF
 

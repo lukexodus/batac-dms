@@ -24,6 +24,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   const notificationsService = createNotificationsPublicAPI({
     repository,
     logger: fastify.log,
+    mailer: fastify.mailer,
   });
 
   fastify.decorate('notificationsService', notificationsService);
@@ -39,5 +40,5 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fp(notificationsPlugin, {
   name: 'notifications',
-  dependencies: ['database', 'event-bus', 'documents', 'workflow', 'organization', 'iam'], // depends on other modules for document and assignee lookup
+  dependencies: ['database', 'event-bus', 'documents', 'workflow', 'organization', 'iam', 'mailer'], // depends on other modules for document and assignee lookup, plus mailer for email sending
 });

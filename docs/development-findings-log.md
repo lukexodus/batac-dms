@@ -7154,3 +7154,62 @@ history was available to confirm this was never correct at some earlier point in
 
 ---
 
+### [LOG-0228] `department_head` role code used by sla-escalation.consumer.ts does not exist in the seeded role catalog — critical-tier Department Head escalation silently resolves to zero recipients
+
+- date: 2026-08-06
+- task_id: (none — discovered during handoff verification, same investigation as LOG-0227)
+- status: proposed
+- affects: B3 (§7.27, §7.29), H4 (§4.5), I2 (Roles Reference), iam.seed.ts, step-config.schema.ts
+
+**What was found:** apps/server/src/modules/notifications/consumers/sla-escalation.consumer.ts
+(the workflow.sla.critical handler, line 190) hardcodes a call to
+`listEmployeesByRoleAndOffice('department_head', officeData.officeId)` to resolve the third
+recipient tier (Department Head) for critical-severity SLA escalations, per H4 §4.5 and B3
+§7.29's confirmed tiered-audience decision (OI-11). The role code `department_head` does not
+exist anywhere in the authoritative role catalog: apps/server/src/database/seeds/iam.seed.ts's
+ROLE_DEFINITIONS array (lines 26-130, 13 entries) and docs/pre-development/I-security-and-
+authorization/i2-role-permission-matrix.md's Roles Reference table (lines 53-69, the same 13
+roles) were both read in full — neither contains `department_head`, `department-head`, or any
+apparent equivalent. B3 §7.27's own note states "Department Head already exists as a role in
+the platform's auth model" — this claim was not confirmed by the current seed data or I2; it
+may describe a role that was planned but never implemented, or may simply be inaccurate.
+
+`listEmployeesByRoleAndOffice` (apps/server/src/modules/organization/organization.service.ts,
+lines 449-490) is a plain SQL join filtered by `eq(roles.code, roleCode)` with no existence
+check on the role code itself — a nonexistent code does not throw, it returns zero matching
+rows. This means the consumer's own inline comment ("we'll assume it exists or returns empty
+array") is technically accurate, but the practical, confirmed consequence is that the Department
+Head addition to critical-tier escalation is a permanent no-op: indistinguishable from correct
+behavior (empty result, no error, no log line) without deliberately checking.
+
+No alternative resolution mechanism was found: apps/server/src/modules/organization/
+organization.types.ts's OfficeTree/EmployeeSummary types (lines 45-56) have no office-head or
+supervisor-designation field that could serve as a substitute for a role-code lookup.
+
+Related, currently-dormant risk in the same mechanism: the escalation_config Zod schema
+(packages/shared/src/workflow/step-config.schema.ts, lines 185-188) validates supervisor_role
+and records_officer_role as plain z.string() with no check against the real role catalog. No
+seeded workflow definition currently sets this field (confirmed by repository-wide search for
+`escalation_config` outside the schema and consumer files — zero results), so
+getEscalationConfigForInstance's hardcoded fallback defaults ('sp_presiding_officer',
+'records_officer' — both confirmed real, registered role codes) are what fire in practice
+today. But the same silent-empty-result failure mode observed with department_head would recur
+for any mistyped or nonexistent role code a future workflow definition configures into this
+field, for any of the three roles this mechanism resolves — nothing in the schema or the
+consumer would catch it.
+
+**What was implemented:** Nothing — this is a design question, not a mechanical fix, and was
+surfaced to the project owner rather than resolved unilaterally. Three options were presented:
+(1) add a real `department_head` role to iam.seed.ts and I2's matrix; (2) treat an existing role
+(Department Approver is the closest match by I2's stated scope, though this equivalence is not
+documented anywhere and would need confirmation) as the Department Head substitute; (3) leave
+the gap as-is but add a warning log when the critical-tier department-head lookup returns zero
+results, so the gap is discoverable rather than silent, independent of which of (1)/(2) is
+eventually chosen.
+
+**Note:** [Confirmed] — role catalog completeness (13 roles, no department_head) checked
+directly against both iam.seed.ts and I2, not inferred. [Confirmed] — listEmployeesByRoleAndOffice's
+zero-throw behavior on unmatched role code, checked directly against its implementation.
+[Inference] — that "Department Approver" is the closest conceptual match if option (2) is chosen;
+this is not stated anywhere in the source documents and should not be treated as a resolution,
+only as a starting point for whoever makes this decision.
