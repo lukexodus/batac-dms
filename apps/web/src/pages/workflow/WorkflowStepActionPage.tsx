@@ -4,25 +4,25 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 
+import { AmendmentsLoggingPanel } from './panels/AmendmentsLoggingPanel';
 import { CommitteeRevisionsDecisionPanel } from './panels/CommitteeRevisionsDecisionPanel';
 import { DocketingPanel } from './panels/DocketingPanel';
+import { FinalNumberAssignmentPanel } from './panels/FinalNumberAssignmentPanel';
 import { GenericActionPanel } from './panels/GenericActionPanel';
 import { GenericApprovalPanel } from './panels/GenericApprovalPanel';
 import { LegalOfficeReviewDecisionPanel } from './panels/LegalOfficeReviewDecisionPanel';
 import { MayorDecisionPanel } from './panels/MayorDecisionPanel';
 import { MayorLapseConfirmationPanel } from './panels/MayorLapseConfirmationPanel';
 import { MultiReferralPanel } from './panels/MultiReferralPanel';
+import { OrderOfBusinessSchedulingPanel } from './panels/OrderOfBusinessSchedulingPanel';
 import { PanlalawiganOutcomePanel } from './panels/PanlalawiganOutcomePanel';
 import { PublicationDatePanel } from './panels/PublicationDatePanel';
 import { ReturnedReviewDecisionPanel } from './panels/ReturnedReviewDecisionPanel';
 import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
+import { TransmittalLetterPanel } from './panels/TransmittalLetterPanel';
 import { ValidInPartDecisionPanel } from './panels/ValidInPartDecisionPanel';
 import { VetoOverrideRecordingPanel } from './panels/VetoOverrideRecordingPanel';
 import { VPCertificationPanel } from './panels/VPCertificationPanel';
-import { TransmittalLetterPanel } from './panels/TransmittalLetterPanel';
-import { OrderOfBusinessSchedulingPanel } from './panels/OrderOfBusinessSchedulingPanel';
-import { FinalNumberAssignmentPanel } from './panels/FinalNumberAssignmentPanel';
-import { AmendmentsLoggingPanel } from './panels/AmendmentsLoggingPanel';
 
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
@@ -38,10 +38,6 @@ export function WorkflowStepActionPage() {
     isLoading,
     error,
   } = trpc.workflow.getInstance.useQuery({ instanceId: instanceId! }, { enabled: !!instanceId });
-
-  const { data: users } = trpc.iam.listAllUsers.useQuery(undefined, {
-    staleTime: 5 * 60 * 1000,
-  });
 
   if (isLoading) {
     return (

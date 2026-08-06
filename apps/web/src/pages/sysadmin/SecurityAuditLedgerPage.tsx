@@ -31,7 +31,8 @@ export function SecurityAuditLedgerPage() {
     return <AccessDenied />;
   }
 
-  const { data: eventTypes } = trpc.audit.getSecurityLedgerEventTypes.useQuery();
+  const { data: eventTypesRaw } = trpc.audit.getSecurityLedgerEventTypes.useQuery();
+  const eventTypes = (eventTypesRaw ?? []) as string[];
 
   const { data, isPending, fetchNextPage, hasNextPage } = trpc.audit.listSecurityLedger.useInfiniteQuery(
     {

@@ -639,25 +639,32 @@ export default function DocumentIntakePage() {
                       field.onChange(val);
                       const type = documentTypes?.find((t) => t.id === val);
                       const defaultMetadata: Record<string, unknown> = {};
-                      const props = (type?.metadataSchema as any)?.properties;
-                      
-                      const setDefaultsRecursive = (schemaProps: any, obj: Record<string, unknown>) => {
+                      const schema = type?.metadataSchema as {
+                        properties?: Record<string, SchemaPropertyDescriptor>;
+                      } | null | undefined;
+
+                      const setDefaultsRecursive = (
+                        schemaProps: Record<string, SchemaPropertyDescriptor> | undefined,
+                        obj: Record<string, unknown>,
+                      ) => {
                         if (!schemaProps) return;
                         for (const [k, p] of Object.entries(schemaProps)) {
-                          const pAny = p as any;
-                          if (pAny.type === 'boolean' || (Array.isArray(pAny.type) && pAny.type.includes('boolean'))) {
-                            obj[k] = pAny.default ?? false;
-                          } else if (pAny.type === 'object' && pAny.properties) {
+                          if (
+                            p.type === 'boolean' ||
+                            (Array.isArray(p.type) && p.type.includes('boolean'))
+                          ) {
+                            obj[k] = p.default ?? false;
+                          } else if (p.type === 'object' && p.properties) {
                             obj[k] = {};
-                            setDefaultsRecursive(pAny.properties, obj[k] as Record<string, unknown>);
+                            setDefaultsRecursive(p.properties, obj[k] as Record<string, unknown>);
                           }
                         }
                       };
-                      
-                      if (props) {
-                        setDefaultsRecursive(props, defaultMetadata);
+
+                      if (schema?.properties) {
+                        setDefaultsRecursive(schema.properties, defaultMetadata);
                       }
-                      
+
                       setValue('metadata', defaultMetadata);
                     }}
                     value={field.value}
