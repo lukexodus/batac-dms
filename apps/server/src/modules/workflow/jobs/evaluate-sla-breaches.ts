@@ -71,6 +71,7 @@ export async function evaluateSlaBreaches(
             actorType: 'scheduler',
             actorId: null,
             payload: {
+              instanceId: instance.id,
               stepInstanceId: lockedStep.id,
               slaDeadline: stepInstance.slaDeadline!.toISOString(),
               percentElapsed: 80,
@@ -82,6 +83,7 @@ export async function evaluateSlaBreaches(
         emittedEvents.push({
           type: 'workflow.sla.warning',
           payload: {
+            instanceId: instance.id,
             stepInstanceId: lockedStep.id,
             slaDeadline: stepInstance.slaDeadline!.toISOString(),
             percentElapsed: 80,
@@ -100,6 +102,7 @@ export async function evaluateSlaBreaches(
             actorType: 'scheduler',
             actorId: null,
             payload: {
+              instanceId: instance.id,
               stepInstanceId: lockedStep.id,
               slaDeadline: stepInstance.slaDeadline!.toISOString(),
               breachDetectedAt: now.toISOString(),
@@ -112,6 +115,7 @@ export async function evaluateSlaBreaches(
         emittedEvents.push({
           type: 'workflow.sla.breached',
           payload: {
+            instanceId: instance.id,
             stepInstanceId: lockedStep.id,
             slaDeadline: stepInstance.slaDeadline!.toISOString(),
             breachDetectedAt: now.toISOString(),
@@ -132,6 +136,7 @@ export async function evaluateSlaBreaches(
             actorType: 'scheduler',
             actorId: null,
             payload: {
+              instanceId: instance.id,
               stepInstanceId: lockedStep.id,
               slaDeadline: stepInstance.slaDeadline!.toISOString(),
             },
@@ -142,6 +147,7 @@ export async function evaluateSlaBreaches(
         emittedEvents.push({
           type: 'workflow.sla.critical',
           payload: {
+            instanceId: instance.id,
             stepInstanceId: lockedStep.id,
             slaDeadline: stepInstance.slaDeadline!.toISOString(),
           },

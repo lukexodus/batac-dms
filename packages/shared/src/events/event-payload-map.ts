@@ -430,17 +430,20 @@ export interface EventPayloadMap {
 
   // SLA events (evaluate-sla-breaches.ts — step-level)
   'workflow.sla.warning': {
+    instanceId: string;
     stepInstanceId: string;
     slaDeadline: string;
     percentElapsed: number;
   };
   'workflow.sla.breached': {
+    instanceId: string;
     stepInstanceId: string;
     slaDeadline: string;
     breachDetectedAt: string;
     breachedAt: string;
   };
   'workflow.sla.critical': {
+    instanceId: string;
     stepInstanceId: string;
     slaDeadline: string;
   };
