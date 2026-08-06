@@ -7694,3 +7694,62 @@ finding was reached via test/policy source comparison only).
 
 ---
 
+### [LOG-0239] Resolution of LOG-0238: I1 §6.2 confirms `records_officer` does not belong in `ACTION_STEP_ROLES` — production code has the bug, test was correct
+
+- date: 2026-08-06
+- task_id: (none — resolves LOG-0238 via direct I1 §6.2 read)
+- status: proposed
+- affects: I1 (§6.2, confirmed as the authoritative source), workflow.policy.ts
+- supersedes: LOG-0238
+
+**What was found:** LOG-0238 flagged a contradiction between
+`workflow.router.test.ts`'s `completeActionStep` FORBIDDEN test (asserting
+`records_officer` should be rejected) and `workflow.policy.ts`'s live
+`ACTION_STEP_ROLES` (which included `'records_officer'`), without resolving
+which side was correct. This entry resolves it via direct read of
+`docs/pre-development/I-security-and-authorization/i1-abac-policy-specification.md`,
+Section 6.2 (`step_instance:complete_action`, lines 742-766), the exact
+section `workflow.policy.ts`'s own preceding comment (line 130) cites as its
+source.
+
+I1 §6.2's `ALLOW IF` role list (lines 752-756) is: `{ 'dept_encoder',
+'dept_approver', 'sp_secretary', 'sp_presiding_officer', 'mayor',
+'brgy_encoder', 'brgy_captain' }` — seven roles. `records_officer` is not
+among them. This is corroborated by two further checks within the same
+document: (1) §6.1, the immediately preceding section
+(`step_instance:read`, lines 721-740), *does* include `records_officer`
+alongside `auditor` in its role set — confirming the document deliberately
+distinguishes step visibility (`records_officer` has it) from action-step
+execution authority (`records_officer` does not), rather than omitting it by
+oversight; (2) §18's resolved decision D-ABAC-01 (line 1719) explicitly
+classifies `records_officer` as seeded with a `type_code` other than
+`'document_processor'` — the same category as all seven roles in §6.2's set
+— consistent with `records_officer` being excluded from this role set
+throughout the document. §19 (Remaining Open Items) contains exactly one
+open item, unrelated to this role set (Acting Mayor/OIC delegation trigger
+coverage) — no deferred-decision basis exists for the code's current
+inclusion of `records_officer`.
+
+**Conclusion: the production code is wrong, not the test.**
+`workflow.policy.ts:139`'s inclusion of `'records_officer'` in
+`ACTION_STEP_ROLES` is a confirmed bug with a live access-control impact — a
+`records_officer` subject can currently call `completeActionStep` on any
+action-type step assigned to their office, which I1 does not authorize.
+
+**What was implemented:** Nothing directly by this entry's author (per this
+project's rule that agents never edit Group B-L documents or, in this case,
+production authorization policy, without it going through the standard
+prompt/executor path). A standalone executor prompt (TASK-WF-TEST-003) was
+written to remove `'records_officer'` from `ACTION_STEP_ROLES`. The test
+itself (`workflow.router.test.ts`'s `completeActionStep` FORBIDDEN test)
+requires no change — it was already correct.
+
+**Note:** [Confirmed] — I1 §6.2's exact role list, §6.1's contrasting
+inclusion of `records_officer`, D-ABAC-01's `type_code` classification, and
+§19's single unrelated open item were all read directly from
+`i1-abac-policy-specification.md`. This is a `[Confirmed]`-basis resolution,
+not `[Inference]` — I1 explicitly states the role set rather than requiring
+it to be derived.
+
+---
+
