@@ -7073,3 +7073,84 @@ was noted as containing structurally similar patterns (local payload interfaces,
 from event-payload-map.ts) during this session but was explicitly not opened for a full review pass, as it
 was outside the scope of both the original 5+1 task assignment and this NOTIF-007 fix. It is flagged here
 only as a candidate for a future dedicated review, not as a confirmed defect.
+
+---
+
+### [LOG-0227] sla-escalation.consumer.ts assumes a nonexistent `{type, id}` assignee shape — every SLA notification (warning/breach/critical) is currently unreachable
+
+- date: 2026-08-06
+- task_id: (none yet — discovered during handoff verification, prior to TASK-NOTIF-008-FIX-01 being written)
+- status: proposed
+- affects: B3 (§7.27-7.29), H4 (§4.3-4.5), assignee-resolution.ts
+
+**What was found:** apps/server/src/modules/notifications/consumers/sla-escalation.consumer.ts
+(all three handlers — workflow.sla.warning, workflow.sla.breached, workflow.sla.critical) filters
+assignee objects with `if (assignee.type !== 'user' || !assignee.id) continue;` before ever
+sending a notification. No object of shape `{type, id}` is produced anywhere in this codebase.
+The authoritative assignee shape, `AssigneeSnapshot` (apps/server/src/modules/workflow/engine/
+assignee-resolution.ts, lines 4-8), is `{ user_id: string; resolved_via: string; office_id:
+string | null }` — no `type` field, and the user identifier field is `user_id`, not `id`. This
+is confirmed as the real production shape: it is what `resolveAssignees` (same file, lines 34-108)
+returns from every one of its four currently-implemented branches (`static:`, `actor_from_context:`,
+`role:`, `delegation_aware:` — the fifth branch, `office_role:`, throws `NotImplemented` and never
+returns a value), it is what step-resolution.ts writes to `step_instances.assigned_to`
+(step-resolution.ts:119, via `updateStepInstance(..., { assignedTo: assignees }, ...)`), and it is
+what every test fixture across the workflow module uses (dozens of occurrences in
+workflow.router.test.ts alone, e.g. lines 149, 293, 329, all using `user_id`/`office_id` keys).
+
+Root cause: `WorkflowPublicAPI.getStepInstanceSummary` (apps/server/src/modules/workflow/index.ts:39)
+returns `assignedTo: any` — an intentionally untyped pass-through of a schema-less JSONB column
+(packages/database/schema/workflow.schema.ts:341, `assignedTo: jsonb('assigned_to')`). Because the
+type is `any`, TypeScript could not catch the consumer's incorrect assumption about the shape at
+that boundary — unlike the previous two instances of this same drift pattern (LOG-... entries
+covering step-assignment.consumer.ts's `assignedTo` array-type bug and document-state-changed.
+consumer.ts's `DocumentStateChangedPayload` bug), where the drift was at least hidden behind an
+explicit `as` cast on a nominally-typed value. This is the same root failure mode
+(consumer-side assumption about an upstream shape, never checked against the real producer) but
+without even that guard — this consumer assumed a shape with no supporting type anywhere to check
+it against.
+
+Empirically confirmed (throwaway Node script, run and discarded, not committed): constructed a
+realistic AssigneeSnapshot-shaped object and ran the exact guard-condition logic from all three
+handlers against it. The guard fails (evaluates to "skip this assignee") for every real assignee
+object tested, in all three handlers, with zero exceptions — meaning every notification this
+consumer exists to send (SLA warning to the assignee, breach escalation to supervisor + Records
+Officer, critical escalation to supervisor + Records Officer + Department Head, per H4 §4.3-4.5
+and B3 §7.27-7.29's confirmed tiered-audience decision, OI-11) is currently unreachable. Unlike
+the document-state-changed consumer's prior bug (LOG-0225), this fails with no thrown error and
+no log line at all — the `continue` inside the guard is silent, so there is currently no trace of
+this failure anywhere in server logs.
+
+Separately, a second, compounding, lower-severity gap was found in the same file: H4 §5.5-5.7 and
+the seeded template bodies for all three SLA templates (apps/server/src/database/seeds/
+notifications.seed.ts, lines 35, 43, 51) reference `{{instanceId}}`, but no handler in
+sla-escalation.consumer.ts includes `instanceId` in its `templateData` object, even though the
+value is already fetched and in scope in every handler (`stepSummary.instanceId`, used earlier
+in each handler to call `getInstanceById`). Once the primary guard bug above is fixed, this
+would cause every SLA notification to display the literal, un-substituted string `{{instanceId}}`
+to the end user and generate a `logger.warn` line on every single send (per the unmatched-token
+handling in notifications.service.ts).
+
+Also noted, not acted on: B3's own Zod schemas for these three events (§7.27-7.29) include
+`instanceId` as a top-level payload field, but the currently-live `EventPayloadMap` entries for
+`workflow.sla.warning`/`breached`/`critical` (packages/shared/src/events/event-payload-map.ts,
+lines 426-440) do not include `instanceId` — only `stepInstanceId`. This is a genuine, pre-existing
+doc-vs-code discrepancy (B3 says one thing, the live type says another) that predates this
+investigation. It does not block the fix above, since the consumer already independently derives
+`instanceId` via `stepSummary.instanceId` rather than from the event payload — but per AGENTS.md
+§1, this is flagged as a discrepancy for a human to resolve (either the live EventPayloadMap should
+gain an `instanceId` field to match B3, or B3's schema should be corrected to match the live type),
+not silently resolved in either direction here.
+
+**What was implemented:** Nothing yet — this entry documents the finding. A standalone fix prompt
+(TASK-NOTIF-008-FIX-01) was produced in the same session and is pending application.
+
+**Note:** [Confirmed — empirically tested via a throwaway probe script against the guard logic
+extracted verbatim from the source] the guard-failure behavior described above. [Inference] that
+this has been unreachable since this consumer was first written, since `AssigneeSnapshot`'s shape
+(user_id/resolved_via/office_id, no type/id) has no other historical shape anywhere in this
+codebase's git-less snapshot to suggest it ever matched the `{type, id}` assumption — no `.git`
+history was available to confirm this was never correct at some earlier point in the file's history.
+
+---
+

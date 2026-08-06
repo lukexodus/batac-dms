@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import type { AssigneeSnapshot } from '../../workflow/engine/assignee-resolution.js';
 
 // Event payloads according to EventPayloadMap
 export interface WorkflowSlaWarningPayload {
@@ -29,8 +30,8 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
         const stepSummary = await fastify.workflowService.getStepInstanceSummary(payload.stepInstanceId);
         if (!stepSummary || !stepSummary.assignedTo) return;
 
-        const assignees = Array.isArray(stepSummary.assignedTo) ? stepSummary.assignedTo : [stepSummary.assignedTo];
-        
+        const assignees: AssigneeSnapshot[] = Array.isArray(stepSummary.assignedTo) ? stepSummary.assignedTo : [stepSummary.assignedTo];
+
         const instanceSummary = await fastify.workflowService.getInstanceById(stepSummary.instanceId);
         if (!instanceSummary) return;
 
@@ -38,13 +39,14 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
         if (!document) return;
 
         for (const assignee of assignees) {
-          if (assignee.type !== 'user' || !assignee.id) continue;
+          if (!assignee.user_id) continue;
 
           await fastify.notificationsService.sendNotification({
-            recipientUserId: assignee.id,
+            recipientUserId: assignee.user_id,
             templateId: 'notif.workflow.sla_warning.in_app',
             channel: 'in_app',
             templateData: {
+              instanceId: stepSummary.instanceId,
               stepInstanceId: payload.stepInstanceId,
               slaDeadline: payload.slaDeadline,
               percentElapsed: payload.percentElapsed.toString(),
@@ -75,7 +77,7 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
         const payload = event.payload as WorkflowSlaBreachedPayload;
         const stepSummary = await fastify.workflowService.getStepInstanceSummary(payload.stepInstanceId);
         if (!stepSummary || !stepSummary.assignedTo) return;
-        
+
         const instanceSummary = await fastify.workflowService.getInstanceById(stepSummary.instanceId);
         if (!instanceSummary) return;
 
@@ -85,15 +87,15 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
         const escalationConfig = await fastify.workflowService.getEscalationConfigForInstance(stepSummary.instanceId);
         if (!escalationConfig) return;
 
-        const assignees = Array.isArray(stepSummary.assignedTo) ? stepSummary.assignedTo : [stepSummary.assignedTo];
+        const assignees: AssigneeSnapshot[] = Array.isArray(stepSummary.assignedTo) ? stepSummary.assignedTo : [stepSummary.assignedTo];
 
         const notifiedUserIds = new Set<string>();
 
         for (const assignee of assignees) {
-          if (assignee.type !== 'user' || !assignee.id) continue;
+          if (!assignee.user_id) continue;
 
           // Find the assignee's office
-          const officeData = await fastify.organizationService.getPrimaryOfficeForUser(assignee.id);
+          const officeData = await fastify.organizationService.getPrimaryOfficeForUser(assignee.user_id);
           if (!officeData) continue;
 
           // Resolve supervisors
@@ -119,6 +121,7 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
               templateId: 'notif.workflow.sla_breach.in_app',
               channel: 'in_app',
               templateData: {
+                instanceId: stepSummary.instanceId,
                 stepInstanceId: payload.stepInstanceId,
                 slaDeadline: payload.slaDeadline,
                 breachDetectedAt: payload.breachDetectedAt,
@@ -151,7 +154,7 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
         const payload = event.payload as WorkflowSlaCriticalPayload;
         const stepSummary = await fastify.workflowService.getStepInstanceSummary(payload.stepInstanceId);
         if (!stepSummary || !stepSummary.assignedTo) return;
-        
+
         const instanceSummary = await fastify.workflowService.getInstanceById(stepSummary.instanceId);
         if (!instanceSummary) return;
 
@@ -161,15 +164,15 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
         const escalationConfig = await fastify.workflowService.getEscalationConfigForInstance(stepSummary.instanceId);
         if (!escalationConfig) return;
 
-        const assignees = Array.isArray(stepSummary.assignedTo) ? stepSummary.assignedTo : [stepSummary.assignedTo];
+        const assignees: AssigneeSnapshot[] = Array.isArray(stepSummary.assignedTo) ? stepSummary.assignedTo : [stepSummary.assignedTo];
 
         const notifiedUserIds = new Set<string>();
 
         for (const assignee of assignees) {
-          if (assignee.type !== 'user' || !assignee.id) continue;
+          if (!assignee.user_id) continue;
 
           // Find the assignee's office
-          const officeData = await fastify.organizationService.getPrimaryOfficeForUser(assignee.id);
+          const officeData = await fastify.organizationService.getPrimaryOfficeForUser(assignee.user_id);
           if (!officeData) continue;
 
           // Resolve supervisors
@@ -202,6 +205,7 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
               templateId: 'notif.workflow.sla_critical.in_app',
               channel: 'in_app',
               templateData: {
+                instanceId: stepSummary.instanceId,
                 stepInstanceId: payload.stepInstanceId,
                 slaDeadline: payload.slaDeadline,
                 documentId: instanceSummary.documentId,
