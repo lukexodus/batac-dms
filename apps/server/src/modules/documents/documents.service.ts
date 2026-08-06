@@ -69,6 +69,7 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
         preliminaryNumber: doc.preliminaryNumber,
         finalNumber: doc.finalNumber,
         classificationLevel: doc.classificationLevel as any,
+        originatingOfficeId: doc.originatingOfficeId,
         createdAt: doc.createdAt,
       };
     },
