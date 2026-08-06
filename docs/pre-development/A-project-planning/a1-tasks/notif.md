@@ -620,296 +620,368 @@ AI Prompt:
 
 ---
 
-## TASK-NOTIF-009
+## TASK-NOTIF-009 (corrected)
 
-Phase:          1
-Module:         NOTIF
-Title:          Implement Mayor and Panlalawigan lapse-timer event consumers
-Prerequisites:  [TASK-WF-012, TASK-WF-013, TASK-NOTIF-004]
+Phase: 1
+Module: NOTIF
+Title: Implement Mayor and Panlalawigan lapse-timer event consumers
+Prerequisites: [TASK-WF-012, TASK-WF-013, TASK-NOTIF-004]
 Deliverables:
-  - /apps/server/src/modules/notifications/consumers/legislative-lapse.consumer.ts — event bus subscribers for `workflow.approval.lapsed` and `workflow.panlalawigan.deemed_approved`; both notify the SP Secretary only; both preserve their `legalBasis` phrase verbatim
+- `/apps/server/src/modules/notifications/consumers/legislative-lapse.consumer.ts` — event bus subscribers for `workflow.approval.lapsed` and `workflow.panlalawigan.deemed_approved`; both notify the SP Secretary only; both preserve their `legalBasis` phrase verbatim
+- A one-line edit to `/apps/server/src/modules/notifications/notifications.plugin.ts`'s `dependencies` array
+
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes
-  - [ ] `workflow.approval.lapsed` notifies the SP Secretary only, with `legalBasis` rendered as the exact literal `"RA 7160 Section 47"` — byte-for-byte, no paraphrase
-  - [ ] `workflow.panlalawigan.deemed_approved` notifies the SP Secretary only, with `legalBasis` rendered as the exact literal `"RA 7160 Section 56(d)"` — byte-for-byte, no paraphrase, and includes both `transmissionDate` and `deadlineWas` in `templateData`
-  - [ ] A test asserts the recipient role resolves to `sp_secretary` specifically, not any other SP-adjacent role
-  - [ ] Handler failure is caught and logged locally, does not crash the subscriber process
-  - [ ] Manual: trigger `workflow.approval.lapsed` via a test harness, confirm the SP Secretary's notification body contains the unaltered string `RA 7160 Section 47`
+- [ ] `pnpm typecheck` passes
+- [ ] `notifications.plugin.ts`'s `fp(...)` `dependencies` array includes `'iam'` (currently `['database', 'event-bus', 'documents', 'workflow', 'organization']` — missing `'iam'`, which this task's SP Secretary lookup requires; `fastify-plugin` enforces load order and will throw at boot without this)
+- [ ] `workflow.approval.lapsed` notifies the SP Secretary only, with `legalBasis` rendered as the exact literal `"RA 7160 Section 47"` — byte-for-byte, no paraphrase
+- [ ] `workflow.panlalawigan.deemed_approved` notifies the SP Secretary only, with `legalBasis` rendered as the exact literal `"RA 7160 Section 56(d)"` — byte-for-byte, no paraphrase, and includes both `transmissionDate` and `deadlineWas` in `templateData`
+- [ ] A test asserts the recipient role resolves to `sp_secretary` specifically, not any other SP-adjacent role
+- [ ] Handler failure is caught and logged locally (via the `run().catch(...)` pattern below), does not crash the subscriber process
+- [ ] Manual: trigger `workflow.approval.lapsed` via a test harness, confirm the SP Secretary's notification body contains the unaltered string `RA 7160 Section 47`
+
 AI Prompt:
-  > You are implementing the two legislative lapse-timer notification consumers (H4 §4.6, §4.7). Both share near-identical structure — same single recipient, same "verbatim legal basis" constraint — so they are combined into one reviewable task, mirroring how the underlying WF scheduler jobs (TASK-WF-012, TASK-WF-013) were split as siblings rather than merged.
-  >
-  > **Subscribe to `workflow.approval.lapsed`** (Mayor 10-day) **and `workflow.panlalawigan.deemed_approved`** (Panlalawigan 30-day). Both confirmed consumers per B3 Master Event Registry rows 34–35 (`notifications`, `audit`). Emitted respectively by TASK-WF-012 (`evaluateMayorLapseTimers`, hourly `node-cron`) and TASK-WF-013 (`evaluatePanlalawiganTimers`, daily 06:00 PHT).
-  >
-  > **Payload schemas (B3 §7.21, §7.22, canonical):**
-  > ```typescript
-  > interface WorkflowApprovalLapsedPayload {
-  >   stepInstanceId: string;
-  >   legalBasis: 'RA 7160 Section 47';  // literal type — verbatim, immutable
-  >   deadlineWas: string;               // ISO 8601
-  > }
-  > interface WorkflowPanlalawiganDeemedApprovedPayload {
-  >   stepInstanceId: string;
-  >   legalBasis: 'RA 7160 Section 56(d)';  // literal type — verbatim, immutable
-  >   transmissionDate: string;             // ISO 8601
-  >   deadlineWas: string;                  // ISO 8601
-  > }
-  > ```
-  >
-  > **Legal basis phrases are verbatim and immutable (H4 §8.6):** these strings are typed as Zod/TypeScript literals precisely because they must never be altered, paraphrased, or reformatted by application code or by an administrator editing the template. When rendering `{{legalBasis}}` into the template body, pass the payload's `legalBasis` value through unchanged — do not construct or reformat this string anywhere in the handler.
-  >
-  > **Recipient (both events):** **SP Secretary only** — H4 §4.6, §4.7 both state this explicitly with no other recipients. Resolve via `role:sp_secretary` (the same `role:<key>` assignee-expression pattern from B4 §3.5 that WF's own engine uses).
-  >
-  > **Handler logic:**
-  > ```
-  > For workflow.approval.lapsed:
-  >   sendNotification({
-  >     recipientUserId: <resolved sp_secretary user>,
-  >     templateId: 'notif.workflow.mayor_lapse.in_app', channel: 'in_app',
-  >     templateData: { stepInstanceId: payload.stepInstanceId, legalBasis: payload.legalBasis,
-  >                      deadlineWas: payload.deadlineWas },
-  >   });
-  >
-  > For workflow.panlalawigan.deemed_approved:
-  >   sendNotification({
-  >     recipientUserId: <resolved sp_secretary user>,
-  >     templateId: 'notif.workflow.panlalawigan_deemed_approved.in_app', channel: 'in_app',
-  >     templateData: { stepInstanceId: payload.stepInstanceId, legalBasis: payload.legalBasis,
-  >                      transmissionDate: payload.transmissionDate, deadlineWas: payload.deadlineWas },
-  >   });
-  > ```
-  > Both must prompt the SP Secretary to confirm the outcome in the system to advance the workflow (Mayor lapse → docketing; Panlalawigan deemed-approval → populate Remarks with "Lapsed 30 days") — this is a message-content/UX concern for the administrator-edited template body, not application logic this task implements, but note it in the seeded starter body text from TASK-NOTIF-005.
-  >
-  > Wrap both in try/catch; log and swallow per B3 §9 Rule 5.
-  >
-  > Before submitting this PR, confirm each item:
-  > - [ ] `pnpm typecheck` passes
-  > - [ ] Both events notify the SP Secretary only
-  > - [ ] `legalBasis` is rendered byte-for-byte verbatim in both cases
-  > - [ ] Panlalawigan event includes both `transmissionDate` and `deadlineWas`
-  > - [ ] Handler failure is caught and logged, does not crash the subscriber process
-  > A reviewer will verify each one independently.
+> You are implementing the two legislative lapse-timer notification consumers (H4 §4.6, §4.7). Both share near-identical structure — same single recipient, same "verbatim legal basis" constraint — so they are combined into one reviewable task.
+>
+> **Correction to the original task spec — read before writing any recipient-resolution code:** the original version of this task said to resolve the SP Secretary via a `role:<key>` assignee-expression pattern "the same way WF's own engine" does. That's half right and will send you down the wrong path if followed literally. That `role:` DSL is real — it lives in `apps/server/src/modules/workflow/engine/assignee-resolution.ts` — but it's internal to the workflow engine's step-assignment logic, not a general-purpose lookup exposed to other modules. What it actually does under the hood, when it sees a `role:sp_secretary` expression, is call `deps.iamService.getUsersByRole('sp_secretary')`. That IAM method is the real, stable, decorated API you should call directly:
+> ```typescript
+> const users = await fastify.iamService.getUsersByRole('sp_secretary'); // UserSummary[], has .userId
+> ```
+> **Before this will work, you must add `'iam'` to `notifications.plugin.ts`'s dependency array.** Currently it reads `dependencies: ['database', 'event-bus', 'documents', 'workflow', 'organization']` — no `'iam'`. `fastify-plugin` enforces declared load order and will throw at server boot if `notifications` registers before `iam` decorates `fastify.iamService`, whether or not your handler code is otherwise correct. Every other module that touches `fastify.iamService` (e.g. `organization.plugin.ts`) lists `'iam'` in its own dependency array for exactly this reason — follow that precedent.
+>
+> `getUsersByRole` returns an array; SP Secretary is expected to resolve to exactly one active user. If it resolves to zero, log a warning and skip sending (mirroring the pattern in `document-state-changed.consumer.ts`, which already handles "no resolvable recipient" as an expected, non-error condition, not a thrown exception). If it resolves to more than one, send to the first and log a warning — don't silently pick without logging, since two people holding this role simultaneously would itself be worth someone's attention.
+>
+> **Subscribe to `workflow.approval.lapsed`** (Mayor 10-day) **and `workflow.panlalawigan.deemed_approved`** (Panlalawigan 30-day). Both confirmed consumers per B3 Master Event Registry rows 34–35 (`notifications`, `audit`). Emitted respectively by TASK-WF-012 (`evaluateMayorLapseTimers`, hourly `node-cron`) and TASK-WF-013 (`evaluatePanlalawiganTimers`, daily 06:00 PHT).
+>
+> **Payload schemas (B3 §7.21, §7.22, canonical):**
+> ```typescript
+> interface WorkflowApprovalLapsedPayload {
+>   stepInstanceId: string;
+>   legalBasis: 'RA 7160 Section 47';  // literal type — verbatim, immutable
+>   deadlineWas: string;               // ISO 8601
+> }
+> interface WorkflowPanlalawiganDeemedApprovedPayload {
+>   stepInstanceId: string;
+>   legalBasis: 'RA 7160 Section 56(d)';  // literal type — verbatim, immutable
+>   transmissionDate: string;             // ISO 8601
+>   deadlineWas: string;                  // ISO 8601
+> }
+> ```
+> These payload interfaces should be declared locally in the consumer file with a `// Event payloads according to EventPayloadMap` comment, matching the convention in `sla-escalation.consumer.ts` — not imported, since these two events don't currently have a matching entry checked into `packages/shared/src/events/event-payload-map.ts`. (Worth a quick look before you start: if they've since been added there, prefer the shared import instead and drop the local declaration — check first rather than assuming either way, the same way I had to check for `session.terminated`.)
+>
+> **Legal basis phrases are verbatim and immutable (H4 §8.6):** these strings are typed as Zod/TypeScript literals precisely because they must never be altered, paraphrased, or reformatted by application code or by an administrator editing the template. When rendering `{{legalBasis}}` into the template body, pass the payload's `legalBasis` value through unchanged — do not construct or reformat this string anywhere in the handler.
+>
+> **⚠ Known issue in the already-seeded template bodies (TASK-NOTIF-005), not something this task should silently fix — flag it, don't patch it without sign-off:** `notifications.seed.ts`'s `mayor_lapse` template body currently reads `"...Legal basis: {{legalBasis}} (RA 7160 Section 47)"`, and the `panlalawigan_deemed_approved` template similarly reads `"...Legal basis: {{legalBasis}} (RA 7160 Section 56(d))"`. Both bake the literal citation as static suffix text *in addition to* the `{{legalBasis}}` variable substitution, so the phrase will render twice in the final notification body. Your acceptance criterion ("body contains the unaltered string `RA 7160 Section 47`") will technically pass either way, since the string is present — but confirm with the task owner whether the duplication is intentional before treating this as done; if not, this is a one-line seed-file fix, separate from this task's own deliverable.
+>
+> **Recipient (both events):** SP Secretary only — H4 §4.6, §4.7 both state this explicitly with no other recipients. Resolve via `fastify.iamService.getUsersByRole('sp_secretary')` as described above.
+>
+> **Handler logic, following the house consumer pattern (see `sla-escalation.consumer.ts` / `document-state-changed.consumer.ts` for the exact shape — `fastify.eventBus.on(eventName, handler, 'notifications')`, async work in an unawaited `run()` wrapped in `.catch()`, errors logged via `fastify.log.error({ err, eventId, ...identifyingFields }, 'notifications: X consumer failed')`):**
+> ```
+> For workflow.approval.lapsed:
+>   const users = await fastify.iamService.getUsersByRole('sp_secretary');
+>   if (users.length === 0) { log warn, return; }
+>   if (users.length > 1) { log warn (multiple SP secretaries resolved), continue with users[0]; }
+>   await fastify.notificationsService.sendNotification({
+>     recipientUserId: users[0].userId,
+>     templateId: 'notif.workflow.mayor_lapse.in_app', channel: 'in_app',
+>     templateData: { stepInstanceId: payload.stepInstanceId, legalBasis: payload.legalBasis,
+>                      deadlineWas: payload.deadlineWas },
+>   });
+>
+> For workflow.panlalawigan.deemed_approved: (same resolution, then)
+>   await fastify.notificationsService.sendNotification({
+>     recipientUserId: users[0].userId,
+>     templateId: 'notif.workflow.panlalawigan_deemed_approved.in_app', channel: 'in_app',
+>     templateData: { stepInstanceId: payload.stepInstanceId, legalBasis: payload.legalBasis,
+>                      transmissionDate: payload.transmissionDate, deadlineWas: payload.deadlineWas },
+>   });
+> ```
+> Both must prompt the SP Secretary to confirm the outcome in the system to advance the workflow (Mayor lapse → docketing; Panlalawigan deemed-approval → populate Remarks with "Lapsed 30 days") — this is a message-content/UX concern for the administrator-edited template body, not application logic this task implements. Both templates already exist (confirmed seeded by TASK-NOTIF-005 as `notif.workflow.mayor_lapse.in_app` and `notif.workflow.panlalawigan_deemed_approved.in_app`), so no seed changes are required for this task beyond the duplication question flagged above.
+>
+> Before submitting this PR, confirm each item:
+> - [ ] `pnpm typecheck` passes
+> - [ ] `'iam'` is added to `notifications.plugin.ts`'s `dependencies` array
+> - [ ] Both events notify the SP Secretary only, resolved via `iamService.getUsersByRole('sp_secretary')`
+> - [ ] `legalBasis` is rendered byte-for-byte verbatim in both cases
+> - [ ] Panlalawigan event includes both `transmissionDate` and `deadlineWas`
+> - [ ] The seed-template double-citation issue has been raised with the task owner, not silently patched
+> - [ ] Handler failure is caught and logged, does not crash the subscriber process
+> A reviewer will verify each one independently.
 
 ---
 
-## TASK-NOTIF-010
+## TASK-NOTIF-010 (corrected)
 
-Phase:          1
-Module:         NOTIF
-Title:          Implement Complaint Respondent notification — email and phone fallback
-Prerequisites:  [TASK-NOTIF-004]
+Phase: 1
+Module: NOTIF
+Title: Implement Complaint Respondent notification — email and phone fallback
+Prerequisites: [TASK-NOTIF-004]
 Deliverables:
-  - /apps/server/src/modules/notifications/notifications.external-recipient.ts — extends the core dispatch service (TASK-NOTIF-004) for external (non-platform-user) recipients: email delivery via Nodemailer/LGU SMTP for the `email` channel, and a `phone_call_required` delivery-log-only path for the `sms` channel (no actual SMS gateway exists until Phase 3)
+- Modifications to `/apps/server/src/modules/notifications/notifications.service.ts` — fill in the existing `else` branch (currently a `// TODO: channel handler logic goes here` stub) to handle `email` and `sms` channels
+- Modifications to `/apps/server/src/modules/notifications/notifications.types.ts` — extend `NotificationsServiceDeps` to accept a mailer dependency
+- Modifications to `/apps/server/src/modules/notifications/notifications.plugin.ts` — pass `fastify.mailer` through, and add `'mailer'` to the dependency array
+- (No new `notifications.external-recipient.ts` file — see correction below)
+
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes
-  - [ ] `sendNotification({ recipientEmail, templateId: 'notif.complaint.respondent_notice.email', channel: 'email', templateData })` sends a real email via Nodemailer/LGU SMTP and writes a `delivery_log` row with `status: 'delivered'` on success, `'bounced'`/`'failed'` on SMTP error
-  - [ ] `sendNotification({ recipientPhone, channel: 'sms', ... })` in Phase 1 does **not** attempt an actual SMS send (no gateway exists) — writes a `delivery_log` row with `status: 'delivered'` and `error_message` (or an equivalent field) recording `'phone_call_required'`, logging that manual Secretariat follow-up is needed
-  - [ ] A request with neither `recipientEmail` nor `recipientPhone` for the `email`/`sms` channels throws a clear validation error at the call site (a caller programming error, not a runtime data-availability case)
-  - [ ] Every respondent notice attempt — email or phone-fallback — lands in `notifications.delivery_log`, satisfying B2's stated design intent that this path is centrally logged even though it bypasses SMTP direct-calling
-  - [ ] Manual: call `sendNotification` with a test `recipientEmail`, confirm an email arrives at a test inbox (e.g. Mailhog/Mailtrap in the dev environment) with the complaint reference number in the subject line
+- [ ] `pnpm typecheck` passes
+- [ ] `notifications.plugin.ts`'s `dependencies` array includes `'mailer'`
+- [ ] `sendNotification({ recipientEmail, templateId: 'notif.complaint.respondent_notice.email', channel: 'email', templateData })` sends a real email via the existing `MailerService` and writes a `delivery_log` row with `status: 'delivered'` on success, `'bounced'`/`'failed'` on SMTP error
+- [ ] `sendNotification({ recipientPhone, channel: 'sms', ... })` in Phase 1 does **not** attempt an actual SMS send (no gateway exists) — writes a `delivery_log` row with `status: 'delivered'` and `error_message` recording `'phone_call_required'`
+- [ ] A request with neither `recipientEmail` nor `recipientPhone` for the `email`/`sms` channels throws a clear validation error at the call site
+- [ ] Every respondent notice attempt lands in `notifications.delivery_log`
+- [ ] Manual: call `sendNotification` with a test `recipientEmail`, confirm an email arrives at a test inbox with the complaint reference number in the subject line
+
 AI Prompt:
-  > You are implementing the Complaint Respondent Notification (H4 §4.8) — the **only Phase 1 notification that uses the `email` channel for general delivery**, and the only one with a phone-only fallback path. This is a confirmed Phase 1 requirement (consolidated ref Part 4.14), routed entirely through this module's `sendNotification()` Published API per a resolved architecture decision — not a direct SMTP call from Portal, and not a domain event on the bus.
-  >
-  > **Routing — already resolved, not open (ADR-B2-4, confirmed in both H4 §8.4 and B2 Module 7's Published API doc comment):** "Portal's Respondent Notice Service calls `Notifications.sendNotification()` — not a direct SMTP call, and not a separate domain event on the bus. The Notifications module handles delivery and logs every attempt in `notifications.delivery_log`. B1's direct-SMTP diagram is superseded by ADR-B2-4." Portal doesn't exist yet (Wave G, after NOTIF) — this task's job is to make sure `sendNotification()` is ready and correctly behaved for this exact call shape *before* Portal's own Step 2 pass needs to call it.
-  >
-  > **No triggering domain event exists for this notification** (H4 §4.8, §8.4 — a confirmed, still-open B3 action item: "Whether this call path is accompanied by a formal domain event... is still the team's choice when implementing the complaint module." Do not invent one here — that decision belongs to whichever future module pass implements the complaint workflow itself, likely `documents` or a dedicated complaints capability, not `notifications`.)
-  >
-  > **Two delivery paths, chosen by the caller via `channel` (H4 §4.8 table):**
-  >
-  > | Respondent contact available | `NotificationInput` shape | Behavior |
-  > |---|---|---|
-  > | Email address | `{ recipientEmail, channel: 'email', templateId: 'notif.complaint.respondent_notice.email', templateData }` | Send via Nodemailer + LGU SMTP (tech-stack.md). This email **constitutes both the notification and delivery of the formal written notice** — not just an alert (H4 §5.10 Implementation Notes). |
-  > | Contact number only, no email | `{ recipientPhone, channel: 'sms', templateData }` | **No SMS gateway exists in Phase 1** (Phase 3 per H4 §3.3). Do not attempt an actual send. Write a `delivery_log` entry recording that a phone call is required (H4 §8.4: "logs a `delivery_log` entry of type `phone_call_required`"). The actual phone call and in-person written-notice handoff remain manual Secretariat actions — this task's only job is to ensure the *attempt* is centrally logged, per B2's stated rationale for routing this through `sendNotification()` in the first place. |
-  >
-  > **Template variables (H4 §5.10, T-09):** `{{respondentName}}`, `{{complaintReference}}`, `{{complaintSubject}}`, `{{lguOffice}}`, `{{secretariatContactInfo}}`.
-  >
-  > **Validation:** a caller must supply exactly one of `recipientEmail` (for `channel: 'email'`) or `recipientPhone` (for `channel: 'sms'`) — this is a caller contract, not a data-availability branch to handle silently; throw a clear error (not a swallowed no-op) if neither is present, since that indicates a bug in the calling code (future Portal module), not a legitimate runtime state.
-  >
-  > **Delivery log status semantics for the phone-fallback path:** since no real delivery occurs, use `status: 'delivered'` with a distinguishing `error_message` value (e.g. `'phone_call_required'`) rather than `status: 'failed'` — this was not a failed delivery attempt, it is a correctly-executed logging of a manual-follow-up requirement. Using `'failed'` here would misrepresent this as an error condition in delivery-log reporting (TASK-NOTIF-012's `listDeliveryLogs` procedure, visible only to Sys Admin/Plat Admin).
-  >
-  > Before submitting this PR, confirm each item:
-  > - [ ] `pnpm typecheck` passes
-  > - [ ] Email path sends via Nodemailer/LGU SMTP and logs `delivered`/`bounced`/`failed` correctly
-  > - [ ] Phone-fallback path logs `phone_call_required` without attempting an actual SMS send
-  > - [ ] Missing both `recipientEmail` and `recipientPhone` throws a clear caller-contract error
-  > - [ ] Every attempt (either path) writes a `delivery_log` row
-  > A reviewer will verify each one independently.
+> You are implementing the Complaint Respondent Notification (H4 §4.8) — the only Phase 1 notification using the `email` channel for general delivery, and the only one with a phone-only fallback path.
+>
+> **Correction to the original task spec — this changes the shape of the work meaningfully, read before starting:**
+>
+> 1. **A new standalone file is the wrong deliverable.** The original spec said to create `/apps/server/src/modules/notifications/notifications.external-recipient.ts` as something that "extends the core dispatch service." That's not how the code is actually structured to receive this. Open `notifications.service.ts` and look at lines 62–86 — `sendNotification` already owns template resolution, rendering, and the `notification_events` insert for every channel including `email`/`sms`. There's a literal stub comment at the exact point where your logic belongs:
+>    ```typescript
+>    } else {
+>      // 'email' / 'sms': delegate to TASK-NOTIF-010's channel handler
+>      // Stub for TASK-NOTIF-010:
+>      // TODO: channel handler logic goes here
+>      // The handler will call back into this same notification_events row via its id
+>    }
+>    ```
+>    Your job is to fill in this branch, using the already-inserted `event.id` (available as `event` in the surrounding scope) — not to write a parallel dispatch path that re-derives template resolution or re-inserts `notification_events`.
+>
+> 2. **Nodemailer/SMTP infrastructure already exists — don't build it again.** `apps/server/src/infrastructure/mailer.service.ts` is a complete, working `MailerService` class wrapping Nodemailer, reading SMTP config from `env.SMTP_*`, connection-pooled, with its own vitest suite (`mailer.service.test.ts`, using `vi.mock('nodemailer', ...)` — reuse that same mocking pattern for your tests rather than standing up a real Mailhog instance for automated tests; keep Mailhog/Mailtrap for the manual verification step only). It's decorated on Fastify as `fastify.mailer` via `mailer.plugin.ts` (plugin name `'mailer'`). Call `fastify.mailer.sendEmail({ to, subject, text })` from inside the `sendNotification` branch — do not `import nodemailer` directly or construct a new transport.
+>    - `MailerService.sendEmail` takes `{ to, subject, text?, html?, replyTo? }` and returns `{ messageId, accepted, rejected }` or throws on failure (it validates the recipient with Zod and throws before attempting the send if malformed — handle that as a `'failed'` delivery-log write, not an uncaught exception).
+>    - The template row's `subjectTemplate` field (already populated for `notif.complaint.respondent_notice.email` per TASK-NOTIF-005's seed) needs the same `{{variable}}` substitution `sendNotification` already does for `bodyTemplate` — check whether the existing rendering logic (lines 35–48) currently handles `subjectTemplate` too, since a first read suggests it only renders `renderedBody` from `template.bodyTemplate` and doesn't touch `template.subjectTemplate` at all. If that's confirmed, this task needs to extend the rendering step to also produce a rendered subject line for the email path — the acceptance criterion below ("complaint reference number in the subject line") depends on it.
+>
+> 3. **Threading the mailer dependency through.** `NotificationsServiceDeps` (in `notifications.types.ts`) currently only declares `{ repository, logger }` — no mailer. Add a `mailer` field (type it against `MailerService`'s public shape, or import the class directly), then update `createNotificationsPublicAPI` in `notifications.public-api.ts` and the plugin registration in `notifications.plugin.ts` to pass `fastify.mailer` through. **`notifications.plugin.ts`'s dependency array is currently `['database', 'event-bus', 'documents', 'workflow', 'organization']` — missing `'mailer'`.** Add it, or the server will throw at boot the moment `notifications` tries to register before `mailer` has decorated `fastify.mailer`.
+>
+> **No triggering domain event exists for this notification** (H4 §4.8, §8.4 — confirmed still-open: whether a formal domain event ever accompanies this call path is a decision for whichever future module implements the complaint workflow, not this task. Do not invent one here.)
+>
+> **Two delivery paths, chosen by the caller via `channel`:**
+>
+> | Respondent contact available | `NotificationInput` shape | Behavior |
+> |---|---|---|
+> | Email address | `{ recipientEmail, channel: 'email', templateId: 'notif.complaint.respondent_notice.email', templateData }` | Send via `fastify.mailer.sendEmail(...)`. This email constitutes both the notification and delivery of the formal written notice (H4 §5.10). |
+> | Contact number only, no email | `{ recipientPhone, channel: 'sms', templateData }` | No SMS gateway exists in Phase 1 (Phase 3 per H4 §3.3). Do not attempt an actual send. Write a `delivery_log` entry recording that a phone call is required. |
+>
+> **Template variables (H4 §5.10, T-09, confirmed matching the seeded template):** `{{respondentName}}`, `{{complaintReference}}`, `{{complaintSubject}}`, `{{lguOffice}}`, `{{secretariatContactInfo}}`.
+>
+> **Validation:** a caller must supply exactly one of `recipientEmail` (for `channel: 'email'`) or `recipientPhone` (for `channel: 'sms'`) — throw a clear error if neither is present, at the top of your new branch, before attempting template resolution. This indicates a bug in the calling code, not a legitimate runtime state.
+>
+> **Delivery log status semantics for the phone-fallback path:** since no real delivery occurs, use `status: 'delivered'` with a distinguishing `error_message` value of `'phone_call_required'` — this matches the existing `delivery_log.status` CHECK constraint (`'delivered' | 'bounced' | 'failed'`, confirmed in `notifications.schema.ts`), which has no `phone_call_required` value, so it must go in `error_message`, not `status`. Using `'failed'` here would misrepresent a correctly-executed logging step as an error condition in `listDeliveryLogs` reporting (TASK-NOTIF-012).
+>
+> **Delivery log status semantics for the email path:** on `MailerService.sendEmail` success, insert `delivery_log` with `status: 'delivered'`, `deliveredAt: new Date()`. On thrown error (SMTP rejection, malformed recipient caught by the Zod check inside `MailerService`), catch it and insert `status: 'failed'` with `error_message` set to the caught error's message. Also update `notification_events.status` to `'sent'` or `'failed'` accordingly, matching the pattern already used for the `in_app` branch just above your stub.
+>
+> Before submitting this PR, confirm each item:
+> - [ ] `pnpm typecheck` passes
+> - [ ] `'mailer'` is added to `notifications.plugin.ts`'s dependency array
+> - [ ] Your logic fills the existing stub branch in `sendNotification`, not a new parallel file
+> - [ ] Email path sends via `fastify.mailer.sendEmail` and logs `delivered`/`failed` correctly, including a rendered subject line
+> - [ ] Phone-fallback path logs `phone_call_required` in `error_message` (not `status`) without attempting an actual SMS send
+> - [ ] Missing both `recipientEmail` and `recipientPhone` throws a clear caller-contract error before any template/mailer work happens
+> - [ ] Every attempt (either path) writes a `delivery_log` row
+> A reviewer will verify each one independently.
 
 ---
 
-## TASK-NOTIF-011
+## TASK-NOTIF-011 (corrected — subscription target changed)
 
-Phase:          1
-Module:         NOTIF
-Title:          Implement Session Security event consumer for `session.terminated`
-Prerequisites:  [CROSS-MODULE REF: IAM — task list not yet supplied; TASK-NOTIF-004]
+Phase: 1
+Module: NOTIF
+Title: Implement Session Security event consumer for new-device session displacement
+Prerequisites: [TASK-NOTIF-004] *(the IAM cross-module placeholder from the original spec is resolved below — the real emitting code is TASK-IAM's session-issuance logic in `iam.service.ts`, confirmed live in this repo)*
 Deliverables:
-  - /apps/server/src/modules/notifications/consumers/session-displaced.consumer.ts — event bus subscriber for `session.terminated`, filtered to `reason: 'forced'` only (new-device displacement — not `'timeout'`); notifies the displaced user
+- `/apps/server/src/modules/notifications/consumers/session-displaced.consumer.ts` — event bus subscriber for `session.replaced`; notifies the displaced user
+- A one-line correction to the seeded `notif.iam.session_displaced.in_app` template body (drops `{{reason}}`, which the real event payload doesn't carry)
+
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes
-  - [ ] `session.terminated` with `reason: 'forced'` calls `sendNotification` for `recipientUserId: payload.userId`
-  - [ ] `session.terminated` with `reason: 'timeout'` results in **no** call to `sendNotification` (H4 §4.9 is scoped specifically to new-device displacement, not ordinary inactivity timeout)
-  - [ ] This PR includes the required companion edit to B3's Master Event Registry (§8, row 3) adding `notifications` as a consumer of `session.terminated` alongside the existing `audit` consumer — per H4 §8.3's explicit instruction that this edit "must be included in the same PR that implements this feature"
-  - [ ] Handler failure is caught and logged locally, does not crash the subscriber process
-  - [ ] Manual: force a session termination via a second-device login test, confirm the displaced user sees the security notification on their next SSE connection or `notifications.listMine` call
+- [ ] `pnpm typecheck` passes
+- [ ] `session.replaced` calls `sendNotification` for `recipientUserId: payload.user_id`, notifying the *displaced* user (the holder of `old_session_id`), not the user who just logged in
+- [ ] This PR includes a companion correction to B3's Master Event Registry (§8, row 3) and to H4 §4.9/§8.3 — **not** the edit those documents currently prescribe (adding `notifications` as a second consumer of `session.terminated`), but a correction of the underlying premise: `session.terminated` has no live emitter anywhere in the codebase; `session.replaced` is the actual event carrying this information and currently has zero consumers (not even `audit`). Flag this to the task owner as a doc-correction, since it also affects the `audit` module's existing (non-functional) subscription — that fix belongs to whoever owns `audit`, not to this task.
+- [ ] Handler failure is caught and logged locally, does not crash the subscriber process
+- [ ] Manual: force a session displacement via a second-device login test, confirm the displaced user sees the security notification on their next SSE connection or `notifications.listMine` call
+
 AI Prompt:
-  > You are implementing the Session Security notification consumer (H4 §4.9).
-  >
-  > **This event registration is a known, flagged gap you are closing, not inventing.** B3's Master Event Registry (§8, row 3) currently lists `session.terminated`'s only consumer as `audit`. H4 §8.3 explicitly documents this as a required, still-open action item: *"The `notifications` module must also subscribe to `session.terminated`... Add `notifications` as a consumer of `session.terminated` in B3's Master Event Registry. This edit is an action item for the B3 document, outside this catalog's authority to make directly. The update must be included in the same PR that implements this feature."* This task is that PR — implement the subscription **and** make the corresponding edit to B3 (or file it as an immediate companion change, per your team's process for cross-document edits raised by a task).
-  >
-  > **Subscribe to `session.terminated`, filter to `reason === 'forced'` only.** Payload schema (B3 §4.3, canonical):
-  > ```typescript
-  > interface SessionTerminatedPayload {
-  >   sessionId: string;      // uuid — the terminated session
-  >   userId: string;         // uuid — the displaced user
-  >   terminatedBy: string;   // uuid — IT Admin actor, or a system UUID for timeout
-  >   reason: 'forced' | 'timeout';
-  > }
-  > ```
-  > H4 §4.9 scopes this notification specifically to new-device displacement (`reason: 'forced'`), **not** ordinary inactivity timeout (`reason: 'timeout'`) — a routine timeout is not a security event worth alerting the user about; a forced displacement from a new device login is. Filter at the top of the handler: `if (payload.reason !== 'forced') return;`.
-  >
-  > **Cross-module note:** `session.terminated` is emitted by the `iam` module. This module pass was supplied `TASK-WF list` only — not `TASK-IAM list` — so there is no confirmed `TASK-IAM-NNN` ID to cite even though IAM's Wave B ran chronologically before this Wave F pass. Per A1-AGENTS.md §5's placeholder convention, use `[CROSS-MODULE REF: IAM — task list not yet supplied]`; the Step 4 integration pass resolves it once both lists exist together in the same context.
-  >
-  > **Recipient:** the displaced user — `recipientUserId: payload.userId`, direct, no role resolution needed.
-  >
-  > **Delivery timing note (H4 §4.9):** "delivered upon the user's next login or active SSE connection" — this is naturally satisfied by the existing dispatch architecture: the `notification_events` row is durable (written by `sendNotification`, TASK-NOTIF-004) regardless of whether the user has a live SSE connection at the moment of dispatch; `notifications.listMine` (TASK-NOTIF-012) will surface it on their next session regardless. No special "queue until next login" logic is needed beyond what TASK-NOTIF-003/004 already provide.
-  >
-  > **Handler logic:**
-  > ```
-  > 1. If payload.reason !== 'forced': return (no notification for timeout).
-  > 2. sendNotification({
-  >      recipientUserId: payload.userId,
-  >      templateId: 'notif.iam.session_displaced.in_app', channel: 'in_app',
-  >      templateData: { sessionId: payload.sessionId, userId: payload.userId, reason: payload.reason },
-  >    });
-  > 3. Wrap in try/catch; log and swallow per B3 §9 Rule 5.
-  > ```
-  > Message content should advise the user to contact the IT Admin if the new-device login was not initiated by them (consolidated ref Part 11.17) — note this in TASK-NOTIF-005's seeded starter body text.
-  >
-  > Before submitting this PR, confirm each item:
-  > - [ ] `pnpm typecheck` passes
-  > - [ ] `reason: 'forced'` triggers exactly one `sendNotification` call to the displaced user
-  > - [ ] `reason: 'timeout'` triggers zero calls
-  > - [ ] The companion B3 Master Event Registry edit (adding `notifications` as a `session.terminated` consumer) is included in this PR
-  > - [ ] Handler failure is caught and logged, does not crash the subscriber process
-  > A reviewer will verify each one independently.
+> You are implementing the Session Security notification consumer (H4 §4.9).
+>
+> **Stop before subscribing to anything — the event this task was originally written against does not exist at runtime, and this is worth understanding fully before you write a single line, because the fix isn't cosmetic.**
+>
+> The original task said to subscribe to `session.terminated`, filtering to `payload.reason === 'forced'`. I traced this all the way down and found:
+> - `IAM_EVENTS.SESSION_TERMINATED` (`'session.terminated'`) is declared as a constant in `apps/server/src/modules/iam/iam.events.ts` and has a typed entry in `packages/shared/src/events/event-payload-map.ts` — but grep the entire `apps/server/src` tree for `eventBus.emit(IAM_EVENTS.SESSION_TERMINATED` and you will find **zero results**. It is never emitted. The `EventPayloadMap` entry itself carries a comment saying exactly this: *"no live producer exists for this event as of this task... type inferred from `audit.event-consumer.ts`'s `makeHandler` callback, not from a real emitted payload."* `audit` does have a handler registered for this event name, but since nothing ever emits it, that handler is dead code too.
+> - What IAM actually emits for new-device session displacement is a **different** event: `IAM_EVENTS.SESSION_REPLACED` (`'session.replaced'`), fired at `iam.service.ts` inside the login flow, specifically in the branch where an `oldSession` is found and a `newSession` is created to replace it — i.e. exactly the "someone logged in from a new device while an existing session was active" scenario H4 §4.9 describes. Its real, canonical payload (from `EventPayloadMap`, matching the emit site exactly):
+>   ```typescript
+>   'session.replaced': {
+>     user_id: string;
+>     old_session_id: string;
+>     new_session_id: string;
+>     new_ip_address: string | null;
+>   }
+>   ```
+>   Note the `snake_case` field names — this matches the actual emit-site object literal, not a `camelCase` convention some other events use.
+> - There is also `IAM_EVENTS.FORCED_LOGOUT` (`'session.forced_logout'`), which *does* carry a `reason: string` field — but don't use this one either. It's a different feature entirely: it fires only when an IT Admin deliberately terminates a specific user's session via an admin action (`forceTerminateSession`, sourced from TASK-IAM-010, ABAC-gated to IT Admin). That's a real, separate, currently-unnotified security event that may be worth its own future task, but it is not what H4 §4.9 is describing, and folding it into this task would conflate two different situations under one handler.
+>
+> **So: subscribe to `session.replaced`, not `session.terminated`.** Because this event only ever fires for the displacement case — there's no `'timeout'` variant of it, unlike the old spec assumed — there's no `reason` field to filter on and no filtering logic needed at all. Every `session.replaced` event is, by construction, a case worth notifying about.
+>
+> **Recipient:** the displaced user, i.e. `payload.user_id` (the person who held `old_session_id`) — direct, no role resolution needed. Confirm this against the emit site yourself before assuming: `iam.service.ts` names the field `user_id` (the account, not the session) at the point where `SESSION_REPLACED` is emitted, and it's the same account for both the old and new session (a person displacing their own earlier session by logging in again) — so `payload.user_id` is correct and unambiguous, there's no separate "old user" vs "new user" to disambiguate.
+>
+> **Handler logic:**
+> ```
+> 1. sendNotification({
+>      recipientUserId: payload.user_id,
+>      templateId: 'notif.iam.session_displaced.in_app', channel: 'in_app',
+>      templateData: { oldSessionId: payload.old_session_id, newSessionId: payload.new_session_id,
+>                       newIpAddress: payload.new_ip_address ?? '' },
+>    });
+> 2. Wrap in try/catch (or the `run().catch()` pattern used elsewhere in this module); log and swallow.
+> ```
+>
+> **The seeded template needs a matching correction.** `notifications.seed.ts`'s `notif.iam.session_displaced.in_app` body currently reads: `"Your session {{sessionId}} was terminated for reason: {{reason}}. If you did not initiate a new login, please contact IT Admin immediately."` — written against the old, non-existent payload shape. `{{sessionId}}` and `{{reason}}` won't match anything in the `templateData` above; the rendering logic in `sendNotification` handles unmatched variables gracefully (logs a warning, leaves the literal `{{token}}` in the rendered body) rather than crashing, but that still means a broken, confusing message reaching the actual displaced user. Update the seed body to reference the real fields — something like: `"A new login has replaced your previous session (from {{newIpAddress}}). If this wasn't you, please contact IT Admin immediately."` Confirm the exact wording with the task owner since this is user-facing security copy, but do not leave the old `{{sessionId}}`/`{{reason}}` placeholders in place — they will never resolve.
+>
+> **Companion documentation correction, not the one originally specified.** H4 §8.3 and B3 §8 row 3 both currently describe a required fix of "add `notifications` as a second consumer of `session.terminated`, alongside `audit`." That instruction is built on the same false premise as the rest of this task — `session.terminated` isn't live. The corrected companion edit should instead note: `session.replaced` (B3, wherever IAM's live events are actually catalogued — check whether `session.replaced` has its own row yet, since the doc excerpts available for this pass only showed row 3 for `session.terminated`) needs `notifications` added as a consumer, and separately, flag to whoever owns the `audit` module that its existing `session.terminated` subscription is presently dead code subscribed to an event nothing emits — that's their fix to make, not this task's, but it should be raised rather than left for someone to discover independently later.
+>
+> Before submitting this PR, confirm each item:
+> - [ ] `pnpm typecheck` passes
+> - [ ] Subscribes to `session.replaced`, not `session.terminated`
+> - [ ] Notifies `payload.user_id` (the displaced user) with no `reason`-based filtering (none needed — every event is a displacement)
+> - [ ] Seed template body is corrected to reference `newIpAddress`/session-id fields that actually exist in the real payload, not `{{sessionId}}`/`{{reason}}`
+> - [ ] The `audit` module's dead `session.terminated` subscription has been flagged to its owner, not silently left or silently "fixed" outside this task's scope
+> - [ ] Handler failure is caught and logged, does not crash the subscriber process
+> A reviewer will verify each one independently.
 
 ---
 
-## TASK-NOTIF-012
+## TASK-NOTIF-012 (corrected)
 
-Phase:          1
-Module:         NOTIF
-Title:          [ABAC] Implement notifications tRPC router procedures
-Prerequisites:  [TASK-NOTIF-001, TASK-NOTIF-004]
+Phase: 1
+Module: NOTIF
+Title: [ABAC] Implement notifications tRPC router procedures
+Prerequisites: [TASK-NOTIF-001, TASK-NOTIF-004]
 Deliverables:
-  - /apps/server/src/modules/notifications/notifications.router.ts — `notificationsRouter` with all 4 confirmed procedures: `listMine`, `markAsRead`, `getOwnPreferences`/`updateOwnPreferences`, `listDeliveryLogs`
-  - /apps/server/src/modules/notifications/notifications.policy.ts — ABAC condition helpers for own-recipient scoping
+- `/apps/server/src/modules/notifications/notifications.router.ts` — `notificationsRouter` with all 4 procedures: `listMine`, `markAsRead`, `getOwnPreferences`/`updateOwnPreferences`, `listDeliveryLogs`
+- Modifications to `/apps/server/src/modules/notifications/notifications.repository.ts` — extend `listNotificationsForUser` to actually support cursor pagination, extend `listDeliveryLogs` to support cursor pagination and date-range filtering, and change `markNotificationRead` to report whether it actually matched a row
+- (No separate `notifications.policy.ts` file required unless you find the inline-check pattern below gets unwieldy enough to warrant extracting; see correction below)
+
 Acceptance Criteria:
-  - [ ] `pnpm typecheck` passes
-  - [ ] `notifications.listMine` returns only notifications where `recipient_user_id = ctx.subject.userId` — verified by a test asserting a second user's notifications never appear
-  - [ ] `notifications.markAsRead` on another user's notification returns `FORBIDDEN`, not a silent no-op
-  - [ ] `notifications.listDeliveryLogs` is callable only by `sys_admin` and `plat_admin` — every other role gets `FORBIDDEN` at the `requireRole` gate before any query runs
-  - [ ] `notifications.updateOwnPreferences` with `channel: 'email'` or `'sms'` is schema-valid (accepted) but has no functional effect in Phase 1 (per E1's explicit note that these channels are "functionally inert in Phase 1")
-  - [ ] All 4 procedures run the full middleware chain (`verifyAccessToken` → `loadDelegationContext` → Zod input parse → `requireRole` → `requirePolicy`) — no procedure skips `requirePolicy` even where the ABAC condition is "own records only," per E1's Global Convention #3
-  - [ ] Manual: as a `records_officer` test user, call `listMine`, confirm only that user's own notifications are returned; attempt `listDeliveryLogs` as the same user, confirm `FORBIDDEN`
+- [ ] `pnpm typecheck` passes
+- [ ] `notifications.listMine` returns only notifications where `recipient_user_id = ctx.auth.userId` — verified by a test asserting a second user's notifications never appear
+- [ ] `notifications.listMine`'s `nextCursor` is a real, working cursor, not a hardcoded `null` — verified by a test that pages through more results than fit in one page
+- [ ] `notifications.markAsRead` on another user's notification returns `FORBIDDEN`, not a silent no-op — this requires the repository change below, not just router-level logic
+- [ ] `notifications.listDeliveryLogs` is callable only by `sys_admin` and `plat_admin` — every other role gets `FORBIDDEN` before any query runs
+- [ ] `notifications.listDeliveryLogs`'s `from`/`to` date-range input actually filters results — verified by a test
+- [ ] `notifications.updateOwnPreferences` with `channel: 'email'` or `'sms'` is schema-valid (accepted) but has no functional effect in Phase 1
+- [ ] Manual: as a `records_officer` test user, call `listMine`, confirm only that user's own notifications are returned; attempt `listDeliveryLogs` as the same user, confirm `FORBIDDEN`
+
 AI Prompt:
-  > You are implementing the `notificationsRouter` — 4 procedures, all confirmed in E1 Module 8 with complete input/output schemas. This is the only tRPC surface this module exposes; template CRUD is a known gap (see Module Summary) and is explicitly **not** implemented here — do not add it.
-  >
-  > **Global middleware chain (E1 Global Conventions §3, applies to every procedure below with zero exceptions):**
-  > ```
-  > 1. verifyAccessToken — populates ctx.subject from the JWT
-  > 2. loadDelegationContext — expands effective office/role scope if a delegation grant is active
-  > 3. Zod input parse (tRPC's .input() validator)
-  > 4. requireRole([...]) — coarse role-set gate, per procedure below
-  > 5. requirePolicy(resource, action) — full ABAC cascade via IAM.evaluatePolicy(); runs even when the
-  >    only resource-specific clause is "own records only" — the Global Gates (tenant isolation, IT Admin
-  >    content isolation, Platform Admin operational exclusion, soft-delete gate) always apply.
-  > ```
-  >
-  > **Shared fragment schemas referenced below (E1 "Shared Fragment Schemas"):**
-  > ```typescript
-  > const paginationInput = z.object({
-  >   cursor: z.string().nullish(),
-  >   pageSize: z.number().int().min(1).max(100).default(20),
-  > });
-  > const dateRangeInput = z.object({
-  >   from: z.coerce.date().nullish(),
-  >   to: z.coerce.date().nullish(),
-  > });
-  > interface PaginatedOutput<T> { items: T[]; nextCursor: string | null; }
-  > ```
-  >
-  > **`notifications.listMine`**
-  > ```typescript
-  > type = 'query'
-  > input = paginationInput.extend({ unreadOnly: z.boolean().default(false) })
-  > output = z.object({
-  >   items: z.array(z.object({
-  >     notificationId: z.string().uuid(), templateId: z.string(), renderedTitle: z.string(),
-  >     renderedBody: z.string(), isRead: z.boolean(), createdAt: z.coerce.date(),
-  >     relatedDocumentId: z.string().uuid().nullable(),
-  >   })),
-  >   nextCursor: z.string().nullable(),
-  > })
-  > callableBy = ['records_officer','dept_encoder','dept_approver','sp_secretary','sp_member',
-  >               'sp_presiding_officer','mayor','brgy_encoder','brgy_captain']  // all 9 operational roles per I2 §11; NOT sys_admin/plat_admin/auditor/citizen
-  > abac = "WHERE recipient_user_id = subject.user_id — own notifications only"
-  > businessOperation = "Reads notifications.notification_events filtered to the caller (repository.listNotificationsForUser, TASK-NOTIF-002)"
-  > ```
-  >
-  > **`notifications.markAsRead`**
-  > ```typescript
-  > type = 'mutation'
-  > input = z.object({ notificationId: z.string().uuid() })
-  > output = z.object({ success: z.literal(true) })
-  > callableBy = same as listMine, plus 'citizen' (output-schema completeness per I2's row — citizen's actual
-  >              channel is the Portal REST layer in practice, not this tRPC router; include for schema parity)
-  > abac = "notification.recipient_user_id = subject.user_id"
-  > businessOperation = "Sets notification_events.is_read = true — repository.markNotificationRead"
-  > ```
-  > **Note on `is_read`:** neither C1's DDL nor this module's earlier tasks define an `is_read` column on `notification_events` explicitly in the excerpt loaded for this pass — the DDL shown in TASK-NOTIF-001 does not list `is_read`. Add it as part of this task's migration-adjacent scope if it does not already exist (`ALTER TABLE notifications.notification_events ADD COLUMN is_read BOOLEAN NOT NULL DEFAULT false`), since `listMine`'s output schema (`isRead: z.boolean()`) and `markAsRead`'s behavior both require it and no other task in this list adds it. Flag this explicitly in your PR description as a correction discovered while implementing E1's contract against C1's DDL.
-  >
-  > **`notifications.getOwnPreferences` / `notifications.updateOwnPreferences`**
-  > ```typescript
-  > type = 'query' / 'mutation'
-  > inputUpdate = z.object({ channel: z.enum(['in_app']), templateCategory: z.string(), enabled: z.boolean() })
-  >   // NOTE: input enum is ['in_app'] only in Phase 1 per E1 — email/sms are schema-valid elsewhere but
-  >   // this specific input constrains to in_app; if extending to accept email/sms as inert values, keep
-  >   // them functionally inert per E1's explicit note, do not wire them to any real delivery gating.
-  > output = z.object({ preferences: z.array(z.object({
-  >   templateCategory: z.string(), channel: z.string(), enabled: z.boolean(),
-  > })) })
-  > callableBy = all 12 authenticated internal roles
-  > abac = "Own preferences only"
-  > businessOperation = "User-configurable, no admin approval needed (consolidated ref Part 11.21 'User-configurable' tier)"
-  > ```
-  >
-  > **`notifications.listDeliveryLogs`**
-  > ```typescript
-  > type = 'query'
-  > input = paginationInput.extend({ ...dateRangeInput.shape })
-  > output = z.object({
-  >   items: z.array(z.object({
-  >     deliveryLogId: z.string().uuid(), recipientUserId: z.string().uuid().nullable(),
-  >     recipientEmail: z.string().nullable(), channel: z.string(), status: z.string(),
-  >     sentAt: z.coerce.date(),
-  >   })),
-  >   nextCursor: z.string().nullable(),
-  > })
-  > callableBy = ['sys_admin', 'plat_admin']
-  > abac = "None beyond role gate"
-  > businessOperation = "Reads notifications.delivery_log in full — the only procedure in this router with cross-recipient visibility"
-  > ```
-  > Note: this output schema's field is `recipientUserId` — a fourth independent confirmation of the `recipient_user_id` naming decision made in TASK-NOTIF-001 (see Module Summary conflict #1).
-  >
-  > Before submitting this PR, confirm each item:
-  > - [ ] `pnpm typecheck` passes
-  > - [ ] `listMine` returns only the caller's own notifications
-  > - [ ] `markAsRead` on another user's notification returns `FORBIDDEN`
-  > - [ ] `listDeliveryLogs` is callable only by `sys_admin`/`plat_admin`
-  > - [ ] `updateOwnPreferences` accepts `in_app` per the confirmed input schema; email/sms remain inert if accepted at all
-  > - [ ] All 4 procedures run the full 5-step middleware chain with no shortcuts
-  > A reviewer will verify each one independently.
+> You are implementing the `notificationsRouter` — 4 procedures. Template CRUD is a known, separate gap and is explicitly **not** implemented here.
+>
+> **Correction to the original task spec's middleware description — the vocabulary it used doesn't exist in this codebase, and following it literally will send you looking for functions that were never built:**
+>
+> The original prompt described a 5-step chain: `verifyAccessToken` → `loadDelegationContext` → Zod input parse → `requireRole([...])` → `requirePolicy(resource, action)`. The first two are real — they're global Fastify `preHandler` hooks registered in `iam.middleware.ts` (`fastify.addHook('preHandler', verifyAccessToken)` and the same for `loadDelegationContext`), and they run automatically on every request before it reaches any tRPC procedure. You don't call them from inside the router file; they've already populated `ctx` by the time your procedure body runs. But `requireRole` and `requirePolicy` as named, callable functions **do not exist anywhere in this codebase** — I grepped for both as exports, definitions, and even loose references and found nothing. They describe an idealized middleware architecture from the E1 design document that was never implemented under those names.
+>
+> **What the codebase actually does instead — confirmed against `tracking.router.ts`, a real, working router with the same shape of role-gated + ABAC-scoped procedures you're building here:** role and ABAC checks are done *inline*, inside each procedure body, using `ctx.auth.roles` / `ctx.auth.effectiveRoles` and throwing `TRPCError` directly. Concretely:
+> ```typescript
+> import { router, protectedProcedure } from '../../trpc/trpc.js';
+> import { TRPCError } from '@trpc/server';
+>
+> export const notificationsRouter = router({
+>   listMine: protectedProcedure
+>     .input(/* schema below */)
+>     .output(/* schema below */)
+>     .query(async ({ ctx, input }) => {
+>       const auth = ctx.auth!;
+>       // role gate (if the procedure isn't open to all authenticated internal roles)
+>       // ABAC condition applied directly in the repository call, scoped to auth.userId
+>       ...
+>     }),
+> });
+> ```
+> `tracking.router.ts`'s own header comment explains *why* it does this inline rather than via a shared policy evaluator: `PolicyEvaluator` (in `iam.policy.ts`) only has `session` and `delegation_grant` registered as resource types — `notification` isn't one of them. Follow the same precedent rather than trying to register a new resource type in `PolicyEvaluator` as part of this task; that's a larger architectural change out of scope here. A separate `notifications.policy.ts` file is optional — only split it out if you find the inline checks across 4 procedures genuinely repetitive enough to warrant a shared helper; don't create it just because the original spec named it as a deliverable.
+>
+> **Second correction — the repository layer this router depends on doesn't yet support what the promised output schemas need. This is real implementation work, not a formality, and needs to happen before or alongside the router:**
+>
+> 1. **`listMine`'s `nextCursor` can't currently be real.** `repository.listNotificationsForUser` (in `notifications.repository.ts`) has a cursor parameter in its options, but the body contains a literal comment: `// NOT part of this fix — cursor pagination remains unimplemented. See TASK-NOTIF-002-FIX-03 (not yet written) for that gap.` If your router's `listMine` procedure just calls this method as-is and returns whatever `nextCursor` it feels like producing, you'll either have to fabricate a cursor that doesn't actually work, or return `null` always — both fail the "verified by a test that pages through more results than fit in one page" acceptance criterion above. You need to implement real cursor pagination in this repository method (e.g. `createdAt`+`id` composite cursor, keyset-paginated) as part of this task. This is exactly the kind of foundational gap this task was quietly assuming away — don't inherit that assumption.
+>
+> 2. **`markAsRead` needs to distinguish "not found," "not yours," and "success," and the repository currently can't.** `repository.markNotificationRead(id, userId)` runs `UPDATE ... WHERE id = ? AND recipient_user_id = ?` and returns nothing — if zero rows match (because the notification belongs to someone else, or doesn't exist), the call still "succeeds" silently. The acceptance criterion requires the router to return `FORBIDDEN` — not a silent no-op — when the notification belongs to another user. To do this correctly, either: (a) change `markNotificationRead` to return the number of affected rows (Drizzle's `.update(...).returning()` or checking result metadata) so the router can branch on it, or (b) have the router first look up the notification's `recipient_user_id` via a small `findById`-style repository method, compare it to `ctx.auth.userId`, and only then call the update. Either is acceptable; document which you chose and why. Don't ship a router that just calls the existing method and always returns `{ success: true }` regardless of whether anything actually happened — that's the exact silent-no-op behavior the acceptance criteria explicitly rules out.
+>
+> 3. **`listDeliveryLogs` needs date-range filtering the repository doesn't have.** `repository.listDeliveryLogs` currently takes `{ limit, offset }` only — no `from`/`to`. The router's promised input schema (`paginationInput.extend({ ...dateRangeInput.shape })`) needs both cursor pagination and date filtering. Extend the repository method to accept and apply a date range against `deliveryLog.createdAt` (or `deliveredAt`, whichever is the more meaningful filter field for an admin auditing delivery attempts — `createdAt` is safer since `deliveredAt` is nullable on failed attempts and a date filter that silently excludes all failures would be a bad default for this specific admin-facing report).
+>
+> **`is_read` is already handled — no action needed here.** The original spec flagged `is_read` as possibly missing from `notification_events` and included instructions to add it via migration if absent. It's not absent: it was added in migration `0022_talented_zzzax.sql` (`ALTER TABLE notifications.notification_events ADD COLUMN is_read boolean DEFAULT false NOT NULL`), and it's present in the current Drizzle schema. Don't write a redundant migration for a column that already exists — just use it.
+>
+> **Shared fragment schemas (E1 "Shared Fragment Schemas" — these are just Zod, unaffected by the middleware corrections above):**
+> ```typescript
+> const paginationInput = z.object({
+>   cursor: z.string().nullish(),
+>   pageSize: z.number().int().min(1).max(100).default(20),
+> });
+> const dateRangeInput = z.object({
+>   from: z.coerce.date().nullish(),
+>   to: z.coerce.date().nullish(),
+> });
+> interface PaginatedOutput<T> { items: T[]; nextCursor: string | null; }
+> ```
+>
+> **`notifications.listMine`**
+> ```typescript
+> type = 'query'
+> input = paginationInput.extend({ unreadOnly: z.boolean().default(false) })
+> output = z.object({
+>   items: z.array(z.object({
+>     notificationId: z.string().uuid(), templateId: z.string(), renderedTitle: z.string(),
+>     renderedBody: z.string(), isRead: z.boolean(), createdAt: z.coerce.date(),
+>     relatedDocumentId: z.string().uuid().nullable(),
+>   })),
+>   nextCursor: z.string().nullable(),
+> })
+> callableBy = the 9 operational roles: 'records_officer','dept_encoder','dept_approver','sp_secretary','sp_member','sp_presiding_officer','mayor','brgy_encoder','brgy_captain' — check inline via ctx.auth.roles.includes(...) / effectiveRoles, following tracking.router.ts's Set<string> pattern; NOT sys_admin/plat_admin/auditor/citizen
+> abac = "WHERE recipient_user_id = ctx.auth.userId — enforce this inside the repository call, not by filtering an unscoped result set in the router"
+> ```
+> Note: `renderedTitle`/`renderedBody` in the output schema imply the stored `notification_events` row (or a joined `templates` row) needs to supply pre-rendered display text. Check `NotificationEventRecord`'s actual fields — from the schema, `notification_events` doesn't store a rendered title/body itself (only `templateData` as JSONB); you likely need to either join `templates` and re-render at read time using the stored `templateData`, or confirm whether `sendNotification` should be storing the rendered body somewhere it currently doesn't. Resolve this before finalizing the output shape — don't guess a field mapping that doesn't exist.
+>
+> **`notifications.markAsRead`**
+> ```typescript
+> type = 'mutation'
+> input = z.object({ notificationId: z.string().uuid() })
+> output = z.object({ success: z.literal(true) })
+> callableBy = same as listMine
+> abac = "notification.recipient_user_id = ctx.auth.userId — see repository correction #2 above for how to make FORBIDDEN actually distinguishable from success"
+> ```
+>
+> **`notifications.getOwnPreferences` / `notifications.updateOwnPreferences`**
+> ```typescript
+> type = 'query' / 'mutation'
+> inputUpdate = z.object({ channel: z.enum(['in_app']), templateCategory: z.string(), enabled: z.boolean() })
+>   // input enum is ['in_app'] only in Phase 1 — email/sms remain schema-valid elsewhere in the system
+>   // but this specific input constrains to in_app
+> output = z.object({ preferences: z.array(z.object({
+>   templateCategory: z.string(), channel: z.string(), enabled: z.boolean(),
+> })) })
+> callableBy = all authenticated internal roles
+> abac = "Own preferences only"
+> ```
+> Check whether a preferences table/column exists anywhere in the current schema before implementing this — if it doesn't (the `notifications.schema.ts` file I reviewed has only `templates`, `notification_events`, `delivery_log`, no preferences table), this procedure has no backing storage yet and needs one added as part of this task, not assumed to already exist.
+>
+> **`notifications.listDeliveryLogs`**
+> ```typescript
+> type = 'query'
+> input = paginationInput.extend({ ...dateRangeInput.shape })
+> output = z.object({
+>   items: z.array(z.object({
+>     deliveryLogId: z.string().uuid(), recipientUserId: z.string().uuid().nullable(),
+>     recipientEmail: z.string().nullable(), channel: z.string(), status: z.string(),
+>     sentAt: z.coerce.date(),
+>   })),
+>   nextCursor: z.string().nullable(),
+> })
+> callableBy = ['sys_admin', 'plat_admin'] — check via ctx.auth.roles.includes(...), throw FORBIDDEN before any repository call otherwise
+> abac = "None beyond role gate"
+> ```
+> Note: this output schema's fields (`recipientEmail`, `channel`) aren't directly on `deliveryLog` in the current schema (`deliveryLog` has `notificationEventId`, not a denormalized `recipientEmail`/`channel`) — you'll need to join against `notificationEvents` to produce this shape. Confirm the join before assuming a flat select will work.
+>
+> Before submitting this PR, confirm each item:
+> - [ ] `pnpm typecheck` passes
+> - [ ] `listMine` returns only the caller's own notifications, with real (non-fake) cursor pagination
+> - [ ] `markAsRead` on another user's notification returns `FORBIDDEN`, backed by an actual repository-level check, not an always-true response
+> - [ ] `listDeliveryLogs` is callable only by `sys_admin`/`plat_admin`, with working date-range filtering
+> - [ ] `updateOwnPreferences` accepts `in_app`; confirm whether backing storage for preferences exists and build it if not
+> - [ ] All role/ABAC checks are inline per the `tracking.router.ts` pattern, not calls to nonexistent `requireRole`/`requirePolicy` functions
+> A reviewer will verify each one independently.
 
 ---
 
