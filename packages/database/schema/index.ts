@@ -5,3 +5,4 @@ export * from './organization.schema.js';
 export * from './documents.schema.js';
 export * from './tracking.schema.js';
 export * from './workflow.schema.js';
+export * from './records.schema.js';
