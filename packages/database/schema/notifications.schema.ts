@@ -121,3 +121,32 @@ export const deliveryLog = notificationsSchema.table(
     index('idx_delivery_log_event').on(table.notificationEventId),
   ],
 );
+
+/**
+ * notifications.notification_preferences table
+ * Stores user-level opt-in/opt-out preferences for notifications.
+ */
+export const notificationPreferences = notificationsSchema.table(
+  'notification_preferences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cityId: uuid('city_id')
+      .notNull()
+      .default(sql`'00000000-0000-4000-8000-000000000001'::uuid`),
+    userId: uuid('user_id').notNull(),
+    templateCategory: text('template_category').notNull(),
+    channel: text('channel').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique('uq_notif_prefs_user_category_channel').on(table.userId, table.templateCategory, table.channel),
+    check(
+      'notif_prefs_channel_check',
+      sql`${table.channel} IN ('in_app','email','sms')`,
+    ),
+    index('idx_notif_prefs_user').on(table.userId),
+  ],
+);
+

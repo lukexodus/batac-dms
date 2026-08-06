@@ -1,14 +1,16 @@
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, or, lt, isNull, desc, gte, lte } from 'drizzle-orm';
 import {
   templates,
   notificationEvents,
   deliveryLog,
+  notificationPreferences,
 } from '@batac/database/schema/notifications.schema.js';
 import type { AppDb, TxOrDb } from '../../db.js';
 import type {
   TemplateRecord,
   NotificationEventRecord,
   DeliveryLogRecord,
+  NotificationPreferenceRecord,
 } from './notifications.types.js';
 
 export function createNotificationsRepository(db: AppDb | TxOrDb) {
@@ -90,8 +92,8 @@ export function createNotificationsRepository(db: AppDb | TxOrDb) {
 
     listNotificationsForUser: async (
       userId: string,
-      opts: { unreadOnly?: boolean; cursor?: Date; pageSize: number },
-    ): Promise<NotificationEventRecord[]> => {
+      opts: { unreadOnly?: boolean; cursor?: string; pageSize: number },
+    ): Promise<(NotificationEventRecord & { subjectTemplate: string | null; bodyTemplate: string; templateName: string })[]> => {
       const conditions = [
         eq(notificationEvents.recipientUserId, userId),
         isNull(notificationEvents.deletedAt),
@@ -101,24 +103,47 @@ export function createNotificationsRepository(db: AppDb | TxOrDb) {
         conditions.push(eq(notificationEvents.isRead, false));
       }
 
-      let query = db
-        .select()
-        .from(notificationEvents)
-        .where(and(...conditions))
-        .$dynamic();
-
       if (opts.cursor) {
-        // NOT part of this fix — cursor pagination remains unimplemented.
-        // See TASK-NOTIF-002-FIX-03 (not yet written) for that gap.
+        const parts = opts.cursor.split('_');
+        if (parts.length === 2 && parts[0] && parts[1]) {
+          const dateStr = parts[0];
+          const idStr = parts[1];
+          const cursorDate = new Date(parseInt(dateStr, 10));
+          const condition = or(
+            lt(notificationEvents.createdAt, cursorDate),
+            and(
+              eq(notificationEvents.createdAt, cursorDate),
+              lt(notificationEvents.id, idStr)
+            )
+          );
+          if (condition) conditions.push(condition);
+        }
       }
 
-      return query
-        .orderBy(desc(notificationEvents.createdAt))
+      let query = db
+        .select({
+          event: notificationEvents,
+          subjectTemplate: templates.subjectTemplate,
+          bodyTemplate: templates.bodyTemplate,
+          templateName: templates.name,
+        })
+        .from(notificationEvents)
+        .leftJoin(templates, eq(notificationEvents.templateId, templates.id))
+        .where(and(...conditions))
+        .orderBy(desc(notificationEvents.createdAt), desc(notificationEvents.id))
         .limit(opts.pageSize);
+
+      const rows = await query;
+      return rows.map((r) => ({
+        ...r.event,
+        subjectTemplate: r.subjectTemplate,
+        bodyTemplate: r.bodyTemplate!,
+        templateName: r.templateName!,
+      }));
     },
 
-    markNotificationRead: async (id: string, userId: string): Promise<void> => {
-      await db
+    markNotificationRead: async (id: string, userId: string): Promise<boolean> => {
+      const [updated] = await db
         .update(notificationEvents)
         .set({ isRead: true })
         .where(
@@ -126,19 +151,85 @@ export function createNotificationsRepository(db: AppDb | TxOrDb) {
             eq(notificationEvents.id, id),
             eq(notificationEvents.recipientUserId, userId),
           ),
-        );
+        )
+        .returning({ id: notificationEvents.id });
+      return !!updated;
     },
 
     listDeliveryLogs: async (opts: {
-      limit: number;
-      offset: number;
-    }): Promise<DeliveryLogRecord[]> => {
+      cursor?: string;
+      pageSize: number;
+      from?: Date;
+      to?: Date;
+    }) => {
+      const conditions: any[] = [];
+      if (opts.from) conditions.push(gte(deliveryLog.createdAt, opts.from));
+      if (opts.to) conditions.push(lte(deliveryLog.createdAt, opts.to));
+
+      if (opts.cursor) {
+        const parts = opts.cursor.split('_');
+        if (parts.length === 2 && parts[0] && parts[1]) {
+          const dateStr = parts[0];
+          const idStr = parts[1];
+          const cursorDate = new Date(parseInt(dateStr, 10));
+          const condition = or(
+            lt(deliveryLog.createdAt, cursorDate),
+            and(
+              eq(deliveryLog.createdAt, cursorDate),
+              lt(deliveryLog.id, idStr)
+            )
+          );
+          if (condition) conditions.push(condition);
+        }
+      }
+
+      const rows = await db
+        .select({
+          deliveryLogId: deliveryLog.id,
+          recipientUserId: notificationEvents.recipientUserId,
+          recipientEmail: notificationEvents.recipientEmail,
+          channel: notificationEvents.channel,
+          status: deliveryLog.status,
+          sentAt: deliveryLog.createdAt,
+          errorMessage: deliveryLog.errorMessage,
+        })
+        .from(deliveryLog)
+        .leftJoin(notificationEvents, eq(deliveryLog.notificationEventId, notificationEvents.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(deliveryLog.createdAt), desc(deliveryLog.id))
+        .limit(opts.pageSize);
+        
+      return rows;
+    },
+
+    getOwnPreferences: async (userId: string): Promise<NotificationPreferenceRecord[]> => {
       return db
         .select()
-        .from(deliveryLog)
-        .orderBy(desc(deliveryLog.createdAt))
-        .limit(opts.limit)
-        .offset(opts.offset);
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, userId));
+    },
+
+    updateOwnPreferences: async (
+      userId: string,
+      preferences: { templateCategory: string; channel: string; enabled: boolean }[],
+    ): Promise<void> => {
+      if (preferences.length === 0) return;
+      await db.transaction(async (tx) => {
+        for (const pref of preferences) {
+          await tx
+            .insert(notificationPreferences)
+            .values({
+              userId,
+              templateCategory: pref.templateCategory,
+              channel: pref.channel,
+              enabled: pref.enabled,
+            })
+            .onConflictDoUpdate({
+              target: [notificationPreferences.userId, notificationPreferences.templateCategory, notificationPreferences.channel],
+              set: { enabled: pref.enabled, updatedAt: new Date() }
+            });
+        }
+      });
     },
   };
 }
