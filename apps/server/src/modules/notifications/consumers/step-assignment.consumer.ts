@@ -1,24 +1,15 @@
 import type { FastifyInstance } from 'fastify';
-
-export interface WorkflowStepStartedPayload {
-  instanceId: string;      // uuid
-  stepInstanceId: string;  // uuid
-  stepType: 'action' | 'approval' | 'multi_referral' | 'decision' | 'notification' | 'termination' | 'parallel_split' | 'parallel_join';
-  stepKey: string;
-  assignedTo: string | null;   // uuid; null for system-executed steps
-  documentId: string;          // uuid — REQUIRED, always present
-  dueAt: string | null;        // ISO 8601 datetime; field always present, value nullable
-}
+import type { WorkflowStepStartedPayload } from '@batac/shared';
 
 export function registerStepAssignmentConsumer(fastify: FastifyInstance) {
   fastify.eventBus.on(
     'workflow.step.started',
     (event) => {
       const run = async () => {
-        const payload = event.payload as WorkflowStepStartedPayload;
+        const payload = event.payload;
 
-        // 1. If payload.assignedTo === null: return immediately. No notification for system-executed steps.
-        if (!payload.assignedTo) {
+        // 1. If payload.assignedTo is null or empty: return immediately. No notification for system-executed steps.
+        if (!payload.assignedTo || payload.assignedTo.length === 0) {
           return;
         }
 
@@ -27,35 +18,38 @@ export function registerStepAssignmentConsumer(fastify: FastifyInstance) {
         if (!document) {
           throw new Error(`Document not found for ID: ${payload.documentId}`);
         }
-        
-        // 3. Call sendNotification
-        await fastify.notificationsService.sendNotification({
-          recipientUserId: payload.assignedTo,
-          templateId: 'notif.workflow.step_assignment.in_app',
-          channel: 'in_app',
-          templateData: {
-            instanceId: payload.instanceId,
-            stepInstanceId: payload.stepInstanceId,
-            stepType: payload.stepType,
-            stepKey: payload.stepKey,
-            assignedTo: payload.assignedTo,
-            documentId: payload.documentId,
-            dueAt: payload.dueAt ?? '',
-            documentTitle: document.title,
-            documentSeriesNumber: document.finalNumber || document.preliminaryNumber || '', // whichever is set
-          },
-        });
+
+        // 3. Call sendNotification once per assignee — assignedTo is a multi-assignee array
+        //    (committee/role-based resolution can produce more than one concurrent assignee).
+        for (const assigneeUserId of payload.assignedTo) {
+          await fastify.notificationsService.sendNotification({
+            recipientUserId: assigneeUserId,
+            templateId: 'notif.workflow.step_assignment.in_app',
+            channel: 'in_app',
+            templateData: {
+              instanceId: payload.instanceId,
+              stepInstanceId: payload.stepInstanceId,
+              stepType: payload.stepType,
+              stepKey: payload.stepKey,
+              assignedTo: assigneeUserId,
+              documentId: payload.documentId,
+              dueAt: payload.dueAt ? payload.dueAt.toISOString() : '',
+              documentTitle: document.title,
+              documentSeriesNumber: document.finalNumber || document.preliminaryNumber || '',
+            },
+          });
+        }
       };
 
       // 4. Wrap in try/catch and log error locally
       run().catch((err) => {
-        const payload = event.payload as WorkflowStepStartedPayload;
+        const payload = event.payload;
         fastify.log.error(
-          { 
-            err, 
+          {
+            err,
             eventId: event.eventId,
             stepInstanceId: payload.stepInstanceId,
-            documentId: payload.documentId
+            documentId: payload.documentId,
           },
           'notifications: step-assignment consumer failed',
         );
