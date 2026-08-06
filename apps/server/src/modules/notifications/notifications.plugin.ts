@@ -12,6 +12,7 @@ import { registerSessionDisplacedConsumer } from './consumers/session-displaced.
 declare module 'fastify' {
   interface FastifyInstance {
     notificationsService: NotificationsPublicAPI;
+    notificationsRepository: ReturnType<typeof createNotificationsRepository>;
   }
 }
 
@@ -28,6 +29,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
     mailer: fastify.mailer,
   });
 
+  fastify.decorate('notificationsRepository', repository);
   fastify.decorate('notificationsService', notificationsService);
 
   // Register Event Bus Consumers
