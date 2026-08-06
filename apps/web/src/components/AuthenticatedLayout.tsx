@@ -230,7 +230,7 @@ export function AuthenticatedLayout() {
     }
 
     return items;
-  }, [roleCodes, identity]);
+  }, [identity]);
 
   const activeItemId = useMemo(() => {
     const match = [...navItems]

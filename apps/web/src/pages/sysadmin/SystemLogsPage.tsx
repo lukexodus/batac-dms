@@ -14,6 +14,8 @@ interface RuntimeLogEntry {
   [key: string]: unknown;
 }
 
+type RuntimeLogLevel = '' | 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'silent';
+
 // Client-side sys-admin gate.
 // NOTE: This is an approximation of the server's ctx.auth.isItAdmin,
 // see SystemAdminHomePage for the full divergence-risk comment.
@@ -36,7 +38,7 @@ export function SystemLogsPage() {
   const identity = useSessionStore((s) => s.identity);
   const isSysAdmin = !!identity?.roleCodes.includes('sys_admin');
   const [search, setSearch] = useState('');
-  const [level, setLevel] = useState<string>('');
+  const [level, setLevel] = useState<RuntimeLogLevel>('');
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +105,7 @@ export function SystemLogsPage() {
           <select
             className="flex h-10 w-40 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             value={level}
-            onChange={(e) => setLevel(e.target.value)}
+            onChange={(e) => setLevel(e.target.value as RuntimeLogLevel)}
           >
             <option value="">All Levels</option>
             <option value="trace">Trace</option>

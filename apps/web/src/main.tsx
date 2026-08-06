@@ -13,7 +13,6 @@ import { RequireAuth } from './components/RequireAuth';
 import { SessionHydrator } from './components/SessionHydrator';
 import { queryClient } from './lib/query-client.js';
 import { trpc, trpcClient } from './lib/trpc.js';
-
 import { PlatformAdminHomePage } from './pages/admin/PlatformAdminHomePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
