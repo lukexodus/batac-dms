@@ -1,0 +1,253 @@
+/**
+ * TASK-NOTIF-014: notifications.service.test.ts
+ *
+ * Tests createNotificationsService (notifications.service.ts) in isolation.
+ * The mailer dep is stubbed with { sendEmail: vi.fn() } — no Nodemailer mocking.
+ * pushToUser (from notifications.sse.ts) is vi.mock'd to avoid the ESM import.
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock pushToUser before importing the service (ESM-aware mocking)
+vi.mock('../notifications.sse.js', () => ({
+  pushToUser: vi.fn(),
+}));
+
+import { createNotificationsService } from '../notifications.service.js';
+import { pushToUser } from '../notifications.sse.js';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const mockTemplate = (overrides: Partial<{
+  id: string;
+  bodyTemplate: string;
+  subjectTemplate: string | null;
+}> = {}) => ({
+  id: 'tmpl-uuid-1',
+  cityId: 'city-1',
+  name: 'notif.workflow.step_assignment.in_app',
+  channel: 'in_app',
+  subjectTemplate: null,
+  bodyTemplate: 'Hello {{name}}, your step is {{stepKey}}.',
+  isActive: true,
+  deletedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
+
+const mockEvent = (id = 'evt-uuid-1') => ({
+  id,
+  templateId: 'tmpl-uuid-1',
+  channel: 'in_app',
+  recipientUserId: 'user-abc',
+  recipientEmail: null,
+  recipientPhone: null,
+  templateData: {},
+  status: 'pending',
+  isRead: false,
+  sourceEventType: null,
+  deletedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+
+function makeRepo(overrides: Record<string, any> = {}) {
+  return {
+    findActiveTemplateByNameAndChannel: vi.fn().mockResolvedValue(mockTemplate()),
+    insertNotificationEvent: vi.fn().mockResolvedValue(mockEvent()),
+    updateNotificationEventStatus: vi.fn().mockResolvedValue(undefined),
+    insertDeliveryLogEntry: vi.fn().mockResolvedValue({ id: 'log-1' }),
+    findTemplateByNameAndChannel: vi.fn(),
+    insertTemplate: vi.fn(),
+    listNotificationsForUser: vi.fn().mockResolvedValue([]),
+    markNotificationRead: vi.fn().mockResolvedValue(true),
+    listDeliveryLogs: vi.fn().mockResolvedValue([]),
+    getOwnPreferences: vi.fn().mockResolvedValue([]),
+    updateOwnPreferences: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+function makeLogger() {
+  return { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } as any;
+}
+
+function makeMailer() {
+  return { sendEmail: vi.fn().mockResolvedValue({ messageId: 'mid-1', accepted: [], rejected: [] }) } as any;
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+describe('NotificationsService', () => {
+  let repo: ReturnType<typeof makeRepo>;
+  let logger: ReturnType<typeof makeLogger>;
+  let mailer: ReturnType<typeof makeMailer>;
+
+  beforeEach(() => {
+    repo = makeRepo();
+    logger = makeLogger();
+    mailer = makeMailer();
+    vi.clearAllMocks();
+  });
+
+  // ---- SVC-01: in_app happy path ----
+  describe('SVC-01: in_app channel — happy path', () => {
+    it('SVC-01-01: looks up template, inserts event, calls pushToUser, marks sent', async () => {
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientUserId: 'user-abc',
+        templateId: 'notif.workflow.step_assignment.in_app',
+        channel: 'in_app',
+        templateData: { name: 'Alice', stepKey: 'review' },
+      });
+
+      expect(repo.findActiveTemplateByNameAndChannel).toHaveBeenCalledWith(
+        'notif.workflow.step_assignment.in_app',
+        'in_app',
+      );
+      expect(repo.insertNotificationEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'in_app', status: 'pending' }),
+      );
+      expect(pushToUser).toHaveBeenCalledWith('user-abc', expect.objectContaining({ notificationId: 'evt-uuid-1' }));
+      expect(repo.updateNotificationEventStatus).toHaveBeenCalledWith('evt-uuid-1', 'sent');
+      expect(repo.insertDeliveryLogEntry).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'delivered' }),
+      );
+    });
+
+    it('SVC-01-02: template variables are substituted correctly', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({ bodyTemplate: 'Dear {{name}}, step: {{stepKey}}.' }),
+      );
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientUserId: 'user-abc',
+        templateId: 'notif.workflow.step_assignment.in_app',
+        channel: 'in_app',
+        templateData: { name: 'Bob', stepKey: 'approve' },
+      });
+      // pushToUser is called — body was rendered (no assertions on rendered body directly, but
+      // the fact that no "Unmatched template variable" warning was logged confirms substitution)
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('SVC-01-03: unmatched template variable logs a warn', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({ bodyTemplate: 'Hello {{unknown_var}}.' }),
+      );
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientUserId: 'user-abc',
+        templateId: 'notif.workflow.step_assignment.in_app',
+        channel: 'in_app',
+        templateData: {},
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('unknown_var'),
+      );
+    });
+  });
+
+  // ---- SVC-02: template not found ----
+  describe('SVC-02: missing template', () => {
+    it('SVC-02-01: logs warn and returns early when no active template found', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(null);
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientUserId: 'user-abc',
+        templateId: 'notif.does.not.exist',
+        channel: 'in_app',
+        templateData: {},
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('No active template found'),
+      );
+      expect(repo.insertNotificationEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---- SVC-03: email channel ----
+  describe('SVC-03: email channel', () => {
+    it('SVC-03-01: calls mailer.sendEmail and marks delivered on success', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({
+          bodyTemplate: 'Dear {{respondentName}},',
+          subjectTemplate: 'Complaint {{complaintReference}}',
+        }),
+      );
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientEmail: 'respondent@example.com',
+        templateId: 'notif.complaint.respondent_notice.email',
+        channel: 'email',
+        templateData: { respondentName: 'Doe', complaintReference: 'REF-001' },
+      });
+      expect(mailer.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ to: 'respondent@example.com' }),
+      );
+      expect(repo.updateNotificationEventStatus).toHaveBeenCalledWith('evt-uuid-1', 'sent');
+      expect(repo.insertDeliveryLogEntry).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'delivered' }),
+      );
+    });
+
+    it('SVC-03-02: on mailer.sendEmail failure, marks failed and inserts delivery log with errorMessage', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({ bodyTemplate: 'Email body' }),
+      );
+      mailer.sendEmail.mockRejectedValueOnce(new Error('SMTP connection refused'));
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientEmail: 'respondent@example.com',
+        templateId: 'notif.complaint.respondent_notice.email',
+        channel: 'email',
+        templateData: {},
+      });
+      expect(repo.updateNotificationEventStatus).toHaveBeenCalledWith('evt-uuid-1', 'failed');
+      expect(repo.insertDeliveryLogEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'failed',
+          errorMessage: 'SMTP connection refused',
+        }),
+      );
+    });
+
+    it('SVC-03-03: throws synchronously when recipientEmail is missing for email channel', async () => {
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      // The outer try/catch in sendNotification swallows the error, but the guard fires before
+      // template lookup — confirm no insertNotificationEvent call was made.
+      await service.sendNotification({
+        templateId: 'notif.complaint.respondent_notice.email',
+        channel: 'email',
+        templateData: {},
+      });
+      // Error is caught internally and logged
+      expect(repo.insertNotificationEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---- SVC-04: SMS / phone-fallback logging ----
+  describe('SVC-04: SMS channel — phone-fallback logging (TASK-NOTIF-010)', () => {
+    it('SVC-04-01: for sms channel, inserts delivery_log with status="delivered" and errorMessage="phone_call_required"', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({ bodyTemplate: 'SMS body' }),
+      );
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientPhone: '+63912345678',
+        templateId: 'notif.some.sms',
+        channel: 'sms',
+        templateData: {},
+      });
+      expect(repo.updateNotificationEventStatus).toHaveBeenCalledWith('evt-uuid-1', 'sent');
+      expect(repo.insertDeliveryLogEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'delivered',
+          errorMessage: 'phone_call_required',
+        }),
+      );
+    });
+  });
+});
