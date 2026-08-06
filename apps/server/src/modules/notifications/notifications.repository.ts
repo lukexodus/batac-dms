@@ -1,0 +1,116 @@
+import { eq, and, isNull, desc } from 'drizzle-orm';
+import {
+  templates,
+  notificationEvents,
+  deliveryLog,
+} from '@batac/database/schema/notifications.schema.js';
+import type { AppDb, TxOrDb } from '../../db.js';
+import type {
+  TemplateRecord,
+  NotificationEventRecord,
+  DeliveryLogRecord,
+} from './notifications.types.js';
+
+export function createNotificationsRepository(db: AppDb | TxOrDb) {
+  return {
+    findActiveTemplateByNameAndChannel: async (
+      name: string,
+      channel: string,
+    ): Promise<TemplateRecord | null> => {
+      const [template] = await db
+        .select()
+        .from(templates)
+        .where(
+          and(
+            eq(templates.name, name),
+            eq(templates.channel, channel),
+            eq(templates.isActive, true),
+            isNull(templates.deletedAt),
+          ),
+        );
+      return template || null;
+    },
+
+    insertNotificationEvent: async (
+      data: typeof notificationEvents.$inferInsert,
+    ): Promise<NotificationEventRecord> => {
+      const [event] = await db
+        .insert(notificationEvents)
+        .values(data)
+        .returning();
+      return event!;
+    },
+
+    updateNotificationEventStatus: async (
+      id: string,
+      status: 'pending' | 'sent' | 'failed' | 'cancelled',
+    ): Promise<void> => {
+      await db
+        .update(notificationEvents)
+        .set({ status })
+        .where(eq(notificationEvents.id, id));
+    },
+
+    insertDeliveryLogEntry: async (
+      data: typeof deliveryLog.$inferInsert,
+    ): Promise<DeliveryLogRecord> => {
+      const [log] = await db
+        .insert(deliveryLog)
+        .values(data)
+        .returning();
+      return log!;
+    },
+
+    listNotificationsForUser: async (
+      userId: string,
+      opts: { unreadOnly?: boolean; cursor?: Date; pageSize: number },
+    ): Promise<NotificationEventRecord[]> => {
+      let query = db
+        .select()
+        .from(notificationEvents)
+        .where(
+          and(
+            eq(notificationEvents.recipientUserId, userId),
+            isNull(notificationEvents.deletedAt),
+          ),
+        )
+        .$dynamic();
+
+      if (opts.cursor) {
+        // If needed, cursor pagination logic can be added here
+      }
+
+      return query
+        .orderBy(desc(notificationEvents.createdAt))
+        .limit(opts.pageSize);
+    },
+
+    markNotificationRead: async (id: string, userId: string): Promise<void> => {
+      await db
+        .update(notificationEvents)
+        .set({ deletedAt: new Date() })
+        .where(
+          and(
+            eq(notificationEvents.id, id),
+            eq(notificationEvents.recipientUserId, userId),
+          ),
+        );
+    },
+
+    listDeliveryLogs: async (opts: {
+      limit: number;
+      offset: number;
+    }): Promise<DeliveryLogRecord[]> => {
+      return db
+        .select()
+        .from(deliveryLog)
+        .orderBy(desc(deliveryLog.createdAt))
+        .limit(opts.limit)
+        .offset(opts.offset);
+    },
+  };
+}
+
+export type NotificationsRepository = ReturnType<
+  typeof createNotificationsRepository
+>;
