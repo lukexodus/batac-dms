@@ -14,6 +14,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  RichTextEditor,
 } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';

@@ -18,6 +18,7 @@ import {
   Input,
   Checkbox,
   Label,
+  RichTextEditor,
 } from '@batac/ui';
 
 import { hasRole } from '@/lib/auth-helpers';
