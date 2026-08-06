@@ -80,7 +80,7 @@ export async function seedNotificationTemplates(db: any) {
       name: 'notif.iam.session_displaced.in_app',
       channel: 'in_app',
       subjectTemplate: null,
-      bodyTemplate: 'Your session {{sessionId}} was terminated for reason: {{reason}}. If you did not initiate a new login, please contact IT Admin immediately.',
+      bodyTemplate: 'Your previous session ({{oldSessionId}}) was terminated because a new login was detected from IP {{newIpAddress}} (new session: {{newSessionId}}). If you did not initiate this login, please contact IT Admin immediately.',
       isActive: true,
     }
   ];
