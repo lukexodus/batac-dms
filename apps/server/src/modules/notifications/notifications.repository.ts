@@ -31,6 +31,33 @@ export function createNotificationsRepository(db: AppDb | TxOrDb) {
       return template || null;
     },
 
+    findTemplateByNameAndChannel: async (
+      name: string,
+      channel: string,
+    ): Promise<TemplateRecord | null> => {
+      const [template] = await db
+        .select()
+        .from(templates)
+        .where(
+          and(
+            eq(templates.name, name),
+            eq(templates.channel, channel),
+            isNull(templates.deletedAt),
+          ),
+        );
+      return template || null;
+    },
+
+    insertTemplate: async (
+      data: typeof templates.$inferInsert,
+    ): Promise<TemplateRecord> => {
+      const [template] = await db
+        .insert(templates)
+        .values(data)
+        .returning();
+      return template!;
+    },
+
     insertNotificationEvent: async (
       data: typeof notificationEvents.$inferInsert,
     ): Promise<NotificationEventRecord> => {
