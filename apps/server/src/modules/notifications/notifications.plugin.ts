@@ -7,6 +7,7 @@ import { registerStepAssignmentConsumer } from './consumers/step-assignment.cons
 import { registerSlaEscalationConsumer } from './consumers/sla-escalation.consumer.js';
 import { registerDocumentStateChangedConsumer } from './consumers/document-state-changed.consumer.js';
 import { registerLegislativeLapseConsumer } from './consumers/legislative-lapse.consumer.js';
+import { registerSessionDisplacedConsumer } from './consumers/session-displaced.consumer.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -34,6 +35,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   registerSlaEscalationConsumer(fastify);
   registerDocumentStateChangedConsumer(fastify);
   registerLegislativeLapseConsumer(fastify);
+  registerSessionDisplacedConsumer(fastify);
 
   fastify.log.info('notifications plugin registered');
 };

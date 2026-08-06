@@ -76,7 +76,7 @@ export async function seedNotifications(db: any) {
       name: 'notif.iam.session_displaced.in_app',
       channel: 'in_app',
       subjectTemplate: null,
-      bodyTemplate: 'Your session {{sessionId}} was terminated due to a new device login. Reason: {{reason}}. If this was not you, please contact IT Support.',
+      bodyTemplate: 'A new login has replaced your previous session (from {{newIpAddress}}). If this wasn\'t you, please contact IT Admin immediately.',
       isActive: true,
     },
   ];
