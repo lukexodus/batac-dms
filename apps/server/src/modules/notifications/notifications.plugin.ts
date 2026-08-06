@@ -4,6 +4,7 @@ import { createNotificationsRepository } from './notifications.repository.js';
 import { createNotificationsPublicAPI } from './notifications.public-api.js';
 import type { NotificationsPublicAPI } from './notifications.types.js';
 import { registerStepAssignmentConsumer } from './consumers/step-assignment.consumer.js';
+import { registerSlaEscalationConsumer } from './consumers/sla-escalation.consumer.js';
 import { registerDocumentStateChangedConsumer } from './consumers/document-state-changed.consumer.js';
 
 declare module 'fastify' {
@@ -28,6 +29,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Register Event Bus Consumers
   registerStepAssignmentConsumer(fastify);
+  registerSlaEscalationConsumer(fastify);
   registerDocumentStateChangedConsumer(fastify);
 
   fastify.log.info('notifications plugin registered');
@@ -35,5 +37,5 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
 
 export default fp(notificationsPlugin, {
   name: 'notifications',
-  dependencies: ['database', 'event-bus', 'documents'], // depends on documentsService for document lookup
+  dependencies: ['database', 'event-bus', 'documents', 'workflow', 'organization'], // depends on other modules for document and assignee lookup
 });

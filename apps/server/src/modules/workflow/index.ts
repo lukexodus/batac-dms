@@ -30,6 +30,20 @@ export interface WorkflowPublicAPI {
    * fires, the originating transaction has already committed.
    */
   getStepKeyById(stepId: string, tx?: TxOrDb): Promise<string | null>;
+  /**
+   * Retrieves summary details of a step instance for event consumers.
+   * Added for TASK-NOTIF-008.
+   */
+  getStepInstanceSummary(
+    stepId: string,
+  ): Promise<{ instanceId: string; assignedTo: any } | null>;
+  /**
+   * Retrieves the escalation configuration from the definition snapshot of the
+   * specified workflow instance. Added for TASK-NOTIF-008.
+   */
+  getEscalationConfigForInstance(
+    instanceId: string,
+  ): Promise<{ supervisor_role: string; records_officer_role: string } | null>;
 }
 
 export interface WorkflowInstanceSummary {

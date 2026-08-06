@@ -14,6 +14,10 @@ import {
   assignments,
   delegationGrants,
 } from '@batac/database/schema/organization.schema.js';
+import {
+  roleAssignments,
+  roles,
+} from '@batac/database/schema/iam.schema.js';
 
 export function createOrgService(deps: OrgServiceDeps): OrgService {
   return {
@@ -440,6 +444,53 @@ export function createOrgService(deps: OrgServiceDeps): OrgService {
       }));
 
       return { items, nextCursor };
+    },
+
+    async listEmployeesByRoleAndOffice(
+      roleCode: string,
+      officeId: string,
+    ): Promise<EmployeeSummary[]> {
+      const db = deps.db;
+      const { roleAssignments, roles } = await import('@batac/database/schema/iam.schema.js');
+
+      // Join employees -> assignments -> roleAssignments -> roles
+      // We look for employees currently assigned to the given office
+      // whose userId also holds the specified roleCode.
+      const rows = await db
+        .select({
+          employee: employees,
+          assignment: assignments,
+          position: positions,
+        })
+        .from(employees)
+        .innerJoin(
+          assignments,
+          and(
+            eq(assignments.employeeId, employees.id),
+            eq(assignments.isActive, true),
+            eq(assignments.officeId, officeId),
+            isNull(assignments.deletedAt),
+          ),
+        )
+        .leftJoin(positions, eq(assignments.positionId, positions.id))
+        .innerJoin(roleAssignments, eq(roleAssignments.userId, employees.userId))
+        .innerJoin(roles, eq(roles.id, roleAssignments.roleId))
+        .where(
+          and(
+            eq(roles.code, roleCode),
+            isNull(roleAssignments.revokedAt),
+            isNull(employees.deletedAt),
+          ),
+        );
+
+      return rows.map(({ employee, assignment, position }) => ({
+        employeeId: employee.id,
+        userId: employee.userId!,
+        displayName: `${employee.firstName} ${employee.lastName}`.trim(),
+        positionId: assignment.positionId,
+        positionTitle: position?.title ?? null,
+        officeId: assignment.officeId,
+      }));
     },
   };
 }

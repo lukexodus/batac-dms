@@ -181,6 +181,7 @@ export interface OrgService {
     cursor?: string | null,
     search?: string,
   ): Promise<{ items: EmployeeSummary[]; nextCursor: string | null }>;
+  listEmployeesByRoleAndOffice(roleCode: string, officeId: string): Promise<EmployeeSummary[]>;
 }
 
 export interface DesignationView {

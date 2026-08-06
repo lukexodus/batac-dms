@@ -4,7 +4,7 @@ import { env } from './config/env.js';
 async function main() {
   const app = await buildApp();
 
-  let sendNotifCalled = 0;
+  let sendNotifCalled: number = 0;
   // Monkey-patch sendNotification to intercept
   const originalSendNotif = app.notificationsService.sendNotification;
   app.notificationsService.sendNotification = async (input) => {
