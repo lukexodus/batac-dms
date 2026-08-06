@@ -744,6 +744,11 @@ export function createOrgRouter(deps?: OrgRouterDeps) {
         }),
       );
     }),
+
+    listMyCommitteeIds: protectedProcedure.query(async ({ ctx }) => {
+      const { orgService } = getDeps(ctx);
+      return orgService.getCommitteeIdsForUser(ctx.auth.userId);
+    }),
   });
 }
 
