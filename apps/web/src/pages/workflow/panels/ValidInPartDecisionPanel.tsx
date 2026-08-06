@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -50,9 +50,9 @@ export function ValidInPartDecisionPanel({
       <CardContent className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Comment</label>
-          <Textarea
+          <RichTextEditor
             value={mandatoryComment}
-            onChange={(e) => setMandatoryComment(e.target.value)}
+            onChange={setMandatoryComment}
             placeholder="Enter a comment..."
           />
         </div>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -46,11 +46,10 @@ export function AmendmentsLoggingPanel({
         
         <div>
           <label className="mb-1 block text-sm font-medium">Amendments Detail <span className="text-danger-500">*</span></label>
-          <Textarea
+          <RichTextEditor
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={setComment}
             placeholder="Describe the amendments made to the document..."
-            rows={5}
           />
         </div>
         

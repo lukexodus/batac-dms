@@ -34,6 +34,7 @@ import StatCardPage from './pages/dev/StatCardPage';
 import StatusBadgePage from './pages/dev/StatusBadgePage';
 import TopbarPage from './pages/dev/TopbarPage';
 import WorkflowStepIndicatorPage from './pages/dev/WorkflowStepIndicatorPage';
+import { RichTextEditorPage } from './pages/dev/RichTextEditorPage';
 import ComplaintDetailPage from './pages/documents/ComplaintDetailPage';
 import { ComplaintIntakeClerkAssistedPage } from './pages/documents/ComplaintIntakeClerkAssistedPage';
 import { ComplaintsListPage } from './pages/documents/ComplaintsListPage';
@@ -326,6 +327,10 @@ const router = createBrowserRouter([
       {
         path: '/dev/all-components',
         element: <AllComponentsPage />,
+      },
+      {
+        path: '/dev/rich-text-editor',
+        element: <RichTextEditorPage />,
       },
     ],
   },

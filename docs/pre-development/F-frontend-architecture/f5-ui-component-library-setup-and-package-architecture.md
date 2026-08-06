@@ -78,7 +78,7 @@ After installation, each generated file must be inspected for two issues: (a) ha
 |---|---|---|---|
 | Card | `card` | `@batac/ui/components/ui/card` | `StatCard` base (Tier 3), `DocumentPreviewCard` base (Tier 3), generic panel wrappers throughout the SP Secretary and Mayor dashboards |
 | Input | `input` | `@batac/ui/components/ui/input` | All form text inputs: document title, routing notes, search fields, inline edit fields |
-| Textarea | `textarea` | `@batac/ui/components/ui/textarea` | Mandatory comment fields in workflow-advance dialogs; routing remarks; rejection rationale fields |
+| Textarea | `textarea` | `@batac/ui/components/ui/textarea` | Plain-text-only form fields where rich formatting is not needed. Mandatory comment fields in workflow-advance dialogs, routing remarks, and rejection rationale fields moved to `RichTextEditor` (Tier 3) per ADR-UI-017 and TASK-WF-FE-041; see §4.3. |
 | Label | `label` | `@batac/ui/components/ui/label` | All form field labels; required field marker `*` is applied as a `text-danger-500` sibling of the label element, not inside it |
 | Separator | `separator` | `@batac/ui/components/ui/separator` | Horizontal section dividers within drawers and multi-section forms; most page-level dividers use `border-b border-border-default` utility classes directly per DESIGN.md §6.1 |
 | Skeleton | `skeleton` | `@batac/ui/components/ui/skeleton` | Table row placeholders during initial load; stat card value placeholders; document thumbnail loading in `DocumentPreviewCard` (Tier 3) |
@@ -153,7 +153,7 @@ Full variant roster confirmed in `button.tsx`: `default`, `primary`, `secondary`
 
 ### 4.3 Tier 3 — Domain Compound Components
 
-Sixteen domain compound components encode batac-dms–specific visual logic that no Tier 1 primitive can express alone. None exists yet; all are built in Phase 1 feature PRs as they are needed. Each ships in the PR for the first Phase 1 feature that requires it.
+Seventeen domain compound components encode batac-dms–specific visual logic that no Tier 1 primitive can express alone. `RichTextEditor` was added after this document's original 16-component enumeration — see LOG entry for TASK-WF-FE-041 in `docs/development-findings-log.md` for the rationale. All are built in Phase 1 feature PRs as they are needed. Each ships in the PR for the first Phase 1 feature that requires it.
 
 **Construction rules for all Tier 3 components (non-negotiable):**
 
@@ -185,6 +185,7 @@ Sixteen domain compound components encode batac-dms–specific visual logic that
 | `Sidebar` | `@batac/ui/components/domain/Sidebar` | §6.1, §8 Rule 3 | `Tooltip` (T1), `AvatarName` (T2) | All authenticated views (foundation) |
 | `Topbar` | `@batac/ui/components/domain/Topbar` | §6.1, §6.2 | `Breadcrumb` (T1), `Tooltip` (T1), `AvatarName` (T2), `Popover` (T1) | All authenticated views (foundation) |
 | `PageHeader` | `@batac/ui/components/domain/PageHeader` | §6.1 | `Button` (T2) | All authenticated routed views (foundation) |
+| `RichTextEditor` | `@batac/ui/components/domain/RichTextEditor` | Not yet in DESIGN.md — see ADR-UI-017 | `Button` (T2) | Workflow action panel comment/remarks/report fields (13 panels, TASK-WF-FE-041) |
 
 **Per-component props interfaces:**
 
@@ -603,6 +604,31 @@ interface PageHeaderProps {
   subtitle?: string;
   /** Render slot for primary CTA and secondary action Buttons */
   actions?: React.ReactNode;
+  className?: string;
+}
+```
+
+---
+
+#### `RichTextEditor`
+
+Wraps TipTap (`@tiptap/react` + `@tiptap/pm` + `@tiptap/starter-kit`) as a
+headless-composed rich-text input, replacing plain `Textarea` for
+comment/remarks/report fields across workflow action panels. Added via
+ADR-UI-017 — see that ADR for the library selection rationale. No
+DESIGN.md section currently defines this component's visual behavior;
+this is a documented gap flagged in the same findings-log entry that
+introduced this component. [Confirmed — this task's implementation; not
+yet cross-referenced against a DESIGN.md section, since none exists for
+this component class as of this addition]
+
+```typescript
+interface RichTextEditorProps {
+  value: string;
+  onChange: (html: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  minHeight?: string;
   className?: string;
 }
 ```

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardHeader, CardTitle, CardContent, Button, Textarea } from '@batac/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -54,9 +54,9 @@ export function MayorDecisionPanel({
           <label className="mb-1 block text-sm font-medium">
             Objections <span className="text-muted-foreground">(required for veto)</span>
           </label>
-          <Textarea
+          <RichTextEditor
             value={objectionsText}
-            onChange={(e) => setObjectionsText(e.target.value)}
+            onChange={setObjectionsText}
             placeholder="Describe objections..."
           />
         </div>

@@ -3,6 +3,7 @@ import type { WorkflowRepository } from '../../workflow.repository.js';
 import type { TxOrDb } from '../../../../db.js';
 import { writeTimerContextIfTriggered } from '../context-writer.js';
 import { resolveNextStep, type StepResolutionDeps } from '../step-resolution.js';
+import { isRichTextEmpty, sanitizeRichText } from '../../rich-text.util.js';
 
 export interface ActionHandlerDeps extends StepResolutionDeps {
   workflowRepository: WorkflowRepository;
@@ -38,10 +39,12 @@ export async function submitStepAction(
   const config = (stepDef.config as Record<string, any>) || {};
 
   if (config['require_comment'] === true) {
-    if (!comment || comment.trim() === '') {
+    if (isRichTextEmpty(comment)) {
       throw new Error('VALIDATION_FAILED: comment is required');
     }
   }
+
+  const sanitizedComment = comment ? sanitizeRichText(comment) : null;
 
   const now = new Date();
 
@@ -66,7 +69,7 @@ export async function submitStepAction(
         stepId: stepDef.id,
         stepType: stepDef.stepType,
         outcome: 'DONE',
-        comment,
+        comment: sanitizedComment,
       },
     },
     trx,

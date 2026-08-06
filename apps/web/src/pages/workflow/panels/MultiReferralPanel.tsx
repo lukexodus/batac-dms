@@ -357,7 +357,7 @@ export function MultiReferralPanel({
                             )}
                             {submission.reportText && (
                               <p className="line-clamp-2 whitespace-pre-wrap">
-                                {submission.reportText}
+                                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: submission.reportText }} />
                               </p>
                             )}
                             {submission.reportDocumentUrl && (
@@ -420,9 +420,9 @@ export function MultiReferralPanel({
                 ))}
               </SelectContent>
             </Select>
-            <Textarea
+            <RichTextEditor
               value={reportText}
-              onChange={(e) => setReportText(e.target.value)}
+              onChange={setReportText}
               placeholder="Report text (or describe the attached document)…"
             />
             <div className="space-y-1">
@@ -536,9 +536,9 @@ export function MultiReferralPanel({
             <p className="text-muted-foreground text-xs">
               Use only when all committee reports have been received outside the system.
             </p>
-            <Textarea
+            <RichTextEditor
               value={mandatoryComment}
-              onChange={(e) => setMandatoryComment(e.target.value)}
+              onChange={setMandatoryComment}
               placeholder="Reason for manual advance (required)…"
             />
             <Button

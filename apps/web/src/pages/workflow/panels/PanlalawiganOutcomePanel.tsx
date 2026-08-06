@@ -98,9 +98,9 @@ export function PanlalawiganOutcomePanel({
               <SelectItem value="RETURNED">Returned</SelectItem>
             </SelectContent>
           </Select>
-          <Textarea
+          <RichTextEditor
             value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
+            onChange={setRemarks}
             placeholder="Remarks (optional)…"
           />
           <Button
@@ -140,9 +140,9 @@ export function PanlalawiganOutcomePanel({
               <SelectItem value="implement_directly">Implement Directly</SelectItem>
             </SelectContent>
           </Select>
-          <Textarea
+          <RichTextEditor
             value={mandatoryComment}
-            onChange={(e) => setMandatoryComment(e.target.value)}
+            onChange={setMandatoryComment}
             placeholder="Comment (required)…"
           />
           <Button

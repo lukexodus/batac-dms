@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Label, Textarea } from '@batac/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Input, Label, RichTextEditor } from '@batac/ui';
 
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
@@ -94,11 +94,10 @@ export function OrderOfBusinessSchedulingPanel({
 
         <div>
           <label className="mb-1 block text-sm font-medium">Comment (optional)</label>
-          <Textarea
+          <RichTextEditor
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={setComment}
             placeholder="Enter any comments..."
-            rows={3}
           />
         </div>
 
