@@ -7959,3 +7959,208 @@ repo upload — not `[Inference]` or `[Speculation]`.
 4. H4 (`docs/pre-development/H-domain-configuration-documents/h4-notification-event-and-template-catalog.md`, specifically §4.9's Triggering Domain Event row, and §8.3's gap description) also currently describes the required fix as adding `notifications` as a consumer of `session.terminated`, and still marks this as an open action item. Both documents need this premise corrected to reference `session.replaced` instead.
 5. `apps/server/src/modules/notifications/consumers/session-displaced.consumer.ts` (implemented under TASK-NOTIF-011) already subscribes to the correct event, `session.replaced` — the code-level fix is done; only the B3/H4 documentation still needs to be brought in line with it.
 6. Separately: `apps/server/src/modules/audit/audit.event-consumer.ts` (around its `makeHandler('session.terminated', ...)` registration) has an existing subscription to `session.terminated` that is consequently dead code, since nothing emits that event. This is a distinct issue from the notifications-module fix above, belongs to whoever owns the `audit` module, and should be flagged as a separate item rather than something this entry resolves.
+
+---
+
+### [LOG-0244] — F5 Tier 3 inventory gap: no entry for rich-text/WYSIWYG editor component
+
+**Date:** 2026-08-06
+**Module:** DOCS / FE (workflow action panels, packages/ui)
+**Related docs:** f5-ui-component-library-setup-and-package-architecture.md §4.3
+**Status:** proposed
+
+**Finding:** F5 §4.3 (`f5-ui-component-library-setup-and-package-architecture.md:154-187`)
+enumerates exactly 16 Tier 3 domain compound components and states at line 156
+"Sixteen domain compound components encode batac-dms–specific visual logic... None
+exists yet." No entry covers a rich-text/WYSIWYG editor. F5 §4.1 line 81 documents
+the plain shadcn `Textarea` as already covering "Mandatory comment fields in
+workflow-advance dialogs; routing remarks; rejection rationale fields" — i.e. F5 as
+written treats this need as satisfied by Tier 1 `Textarea` alone.
+
+**What was implemented:** A 17th Tier 3 component, `RichTextEditor`
+(`@batac/ui/components/domain/RichTextEditor`), added to satisfy a direct product
+requirement (workflow-panel comment/remarks/report fields need WYSIWYG input). Built
+per the same F5 §8 Procedure B runbook conventions as the other 16. New npm
+dependencies added to `packages/ui` per F5 §8 Procedure B step 4's ADR requirement:
+`@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit` (packages/ui), `dompurify` +
+`@types/dompurify` (apps/server, for sanitization at the trust boundary).
+
+**Label:** [Inference] — this is a reasoned response to a direct, explicit product
+requirement, not a guess at an undocumented behavior. Flagged per Section 4.5 because
+it changes a Group F document's stated component count and because F5 §8 Procedure B
+step 4 explicitly gates new `packages/ui` dependencies behind an ADR, which a human
+must confirm.
+
+**Human action needed:** Confirm whether F5 §4.1/§4.3 should be updated to add this
+17th component and mark `Textarea`'s "primary usage" note (line 81) as superseded for
+these specific fields, or whether this should remain a `packages/ui`-external
+component for some architectural reason not yet articulated. Confirm or reject
+ADR-UI-017 (drafted as part of the standalone prompt below).
+
+---
+
+### [LOG-0245] — Pre-existing bug: OrderOfBusinessSchedulingPanel comment field never sent to server
+
+**Date:** 2026-08-06
+**Module:** WF (frontend)
+**Related files:** `apps/web/src/pages/workflow/panels/OrderOfBusinessSchedulingPanel.tsx:28,48-57,96-103`
+**Status:** proposed
+
+**Finding:** `comment` state is declared, rendered in a `Textarea`, and can be typed
+into by the user, but `handleScheduleAndComplete` never includes it in the
+`scheduleMutation.mutateAsync({ documentId, sessionDate })` payload
+(`OrderOfBusinessSchedulingPanel.tsx:50-53`). The field is fully decorative — user
+input is silently discarded on submit. Pre-existing, unrelated to the rich-text-editor
+task; discovered while surveying this panel for the editor rollout.
+
+**What was implemented:** Folded into TASK-WF-FE-041 (see standalone prompt below) —
+wired `comment` into the `scheduleDocumentForFirstReading` mutation payload as part of
+the same PR that converts this field to the rich editor, since shipping the rich
+editor into a field that doesn't send its value would make the bug worse, not better.
+
+**Label:** [Confirmed] — directly verified against `OrderOfBusinessSchedulingPanel.tsx`
+in the current upload; not an inference.
+
+**Human action needed:** None required before proceeding — user confirmed "fix in the
+same prompt" as the resolution. Logged per Section 4.5 for traceability since it's a
+behavior change beyond the stated task (adding rich text), not because it's still
+open.
+
+---
+
+### [LOG-0246] Two divergent copies of notifications.seed.ts exist; only one is loaded by the seed orchestrator, and they disagree on the mayor_lapse/panlalawigan_deemed_approved legal-basis duplication question TASK-NOTIF-014 asked about
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-014
+- status: proposed
+- affects: H4, packages/database/src/seed/notifications.seed.ts, apps/server/src/database/seeds/notifications.seed.ts, apps/server/src/database/seeds/orchestrator.ts
+
+apps/server/src/database/seeds/orchestrator.ts (line 9) imports seedNotifications
+from ../../../../../packages/database/src/seed/notifications.seed.js — this is the
+only notifications seed file actually reachable via `pnpm db:seed`. A second file,
+apps/server/src/database/seeds/notifications.seed.ts, exists in the same
+directory tree as the orchestrator itself but is not imported by it or by
+anything else found in a repository-wide search for its path. The two files
+differ by 108 lines (full diff, not spot-checked).
+
+TASK-NOTIF-014's corrected AI Prompt specifically asked whoever writes the
+consumers.test.ts legal-basis tests to check the current seed file state
+for whether the mayor_lapse and panlalawigan_deemed_approved templates
+render the "RA 7160 Section 47"/"RA 7160 Section 56(d)" citations once or
+twice, since a prior draft of the seed data had them appearing twice
+(once via {{legalBasis}}, once as hardcoded suffix text).
+
+Confirmed directly: the orchestrator-loaded packages/database/src/seed/
+notifications.seed.ts (lines 52-63) has the citation appearing exactly
+once, via {{legalBasis}} only, for both templates — no duplication.
+The non-loaded apps/server/src/database/seeds/notifications.seed.ts
+(lines 56-59) still has the duplication for the mayor_lapse template
+specifically: 'Legal basis: {{legalBasis}} (RA 7160 Section 47)'.
+
+The test suite delivered under TASK-NOTIF-014 (consumers.test.ts,
+CONS-03-06) correctly avoided asserting either the single- or
+double-occurrence behavior as "correct" — it only checks that
+templateData carries the legalBasis field, not the final rendered
+string — which sidesteps this ambiguity rather than locking in one
+side of it. But the test's own comment does not specify which of the
+two seed files it checked against, so it's unclear whether "the
+current live state of notifications.seed.ts as of TASK-NOTIF-014"
+(the comment's phrasing) refers to the orchestrator-loaded file or
+the unloaded one.
+
+Not resolved here: whether apps/server/src/database/seeds/
+notifications.seed.ts is stale dead code that should be deleted, or
+whether it's meant to be an alternate/future seed source the
+orchestrator should be pointed at — and if the latter, which of the
+two divergent template bodies (single- vs double-citation) is the
+one that should ship.
+
+Note: [Confirmed] — both file paths, the orchestrator's import target,
+the 108-line diff count, and the exact differing bodyTemplate strings
+for notif.workflow.mayor_lapse.in_app in both files, all checked
+directly against the current repo upload.
+
+---
+
+### [LOG-0247] notifications.router.test.ts invokes procedures via internal `_def.procedures.X._def.query()`, bypassing tRPC's own input/output validation and the protectedProcedure middleware chain — cannot cover the UNAUTHORIZED-for-no-session case K1 §6.6 requires
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-014
+- status: proposed
+- affects: K1 (§6.6), notifications.router.test.ts, organization.router.test.ts, workflow.router.test.ts
+
+TASK-NOTIF-014's corrected AI Prompt instructed: "Structure your router
+tests the same way tracking.router.test.ts or organization.router.test.ts
+structure theirs — constructing a ctx with a given roles/effectiveRoles
+array and asserting the procedure throws TRPCError({ code: 'FORBIDDEN' })
+or succeeds."
+
+Confirmed: apps/server/src/modules/tracking/__tests__/ contains 6 test
+files, none named or shaped as a router test (tracking.service.test.ts,
+tracking.event-consumer.test.ts, tracking.qr-service.test.ts,
+tracking.plugin.test.ts, tracking.public-handler.test.ts,
+tracking.repository.test.ts — no tracking.router.test.ts anywhere in a
+repository-wide search). The prompt's reference to this file is
+inaccurate — it does not exist.
+
+Confirmed: apps/server/src/modules/organization/__tests__/
+organization.router.test.ts (the file that does exist) constructs its
+caller via t.createCallerFactory(t.router({ organization: orgRouter }))
+(line 200) and calls procedures as caller.organization.xyz(...) — a real
+tRPC caller exercising the full request pipeline. apps/server/src/modules/
+workflow/workflow.router.test.ts (line 107) uses the identical
+createCallerFactory pattern.
+
+The delivered notifications.router.test.ts instead reaches into
+notificationsRouter._def.procedures.listMine._def.query({ ctx, input })
+directly — an internal, non-public tRPC structure — for every one of its
+16 test cases. This does not match either real precedent file, despite
+an inline comment in the test itself (line 5-6) claiming it "follows
+organization.router.test.ts / tracking.router.test.ts," and despite a
+second inline comment (line 51-52) claiming it "mirrors how
+workflow.router.test.ts invokes procedures" — neither claim holds up
+against direct inspection of either file.
+
+Practical consequence, confirmed by reading apps/server/src/trpc/trpc.ts:
+protectedProcedure's UNAUTHORIZED-for-no-session check (lines 44-49) lives
+in tRPC middleware that only runs when a procedure is invoked through the
+real tRPC call path (a caller, or HTTP). Calling _def.query() directly
+bypasses this middleware entirely, meaning notifications.router.test.ts
+cannot exercise the unauthenticated-caller case at all — which K1 §6.6
+lists as one of exactly four minimum-required cases per ABAC-protected
+tRPC procedure ("Unauthenticated caller (no session) → UNAUTHORIZED").
+This case has zero coverage anywhere in the delivered test file.
+
+Whether _def.procedures.X._def.query({ ctx, input }) is even syntactically
+valid against the pinned @trpc/server@^11.18.0 was not independently
+confirmed — no node_modules was present in the reviewed upload to inspect
+tRPC's internal type shape directly. [Unverified] pending the human running
+the suite and reporting actual pass/fail/error output for this file.
+
+Separately and independent of the above: K1 §6.6 specifies ABAC-gated tRPC
+procedure tests as Layer 2 integration tests ("Use createCaller with a
+context containing a real user session record from the test database"),
+not Layer 1 unit tests with a fully mocked ctx and mocked repository. The
+delivered file is structured entirely as the latter (no Postgres
+dependency anywhere in the file). Whether this was a deliberate scope
+choice for TASK-NOTIF-014 or a layer-boundary miss was not resolved here.
+
+**What was implemented:** Nothing — this entry documents the finding.
+A standalone fix prompt was not written for this entry, since the
+question of "test-only createCallerFactory rewrite for the current
+notifications.router.ts (which has no deps-injecting factory, unlike
+organization.router.ts's createOrgRouter(deps))" vs. "K1-compliant Layer 2
+integration test rewrite" vs. "production-code change to add a deps
+parameter to notifications.router.ts first" is a real design choice
+that should be made by a human before an executor prompt is written for
+it, per this project's rule against silently resolving genuine design
+gaps.
+
+Note: [Confirmed] — the tracking module's actual file list, both real
+router test files' actual caller-construction code, and trpc.ts's
+protectedProcedure middleware location, all checked directly against the
+current repo upload. [Confirmed] — zero test cases in the delivered file
+assert an unauthenticated/no-session case, checked by direct read of all
+16 test cases in notifications.router.test.ts. [Unverified] — whether the
+_def.procedures access pattern executes successfully at all; requires
+running the suite to confirm.
