@@ -122,6 +122,8 @@ export async function evaluateMayorLapseTimers(
         payload: {
           instanceId: instance.id,
           stepInstanceId: stepInstance.id,
+          legalBasis: 'RA 7160 Section 47',
+          deadlineWas: deadlineStr,
         },
       });
     }
