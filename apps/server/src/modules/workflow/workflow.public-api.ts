@@ -202,6 +202,47 @@ export function createWorkflowPublicAPI(deps: WorkflowPublicAPIDeps): WorkflowPu
       return step?.stepKey ?? null;
     },
 
+    async getStepInstanceSummary(
+      stepId: string,
+    ): Promise<{ instanceId: string; assignedTo: any } | null> {
+      const step = await repository.getStepInstanceById(stepId);
+      if (!step) return null;
+      return {
+        instanceId: step.instanceId,
+        assignedTo: step.assignedTo,
+      };
+    },
+
+    async getEscalationConfigForInstance(
+      instanceId: string,
+    ): Promise<{ supervisor_role: string; records_officer_role: string } | null> {
+      const instance = await repository.getInstanceById(instanceId);
+      if (!instance) return null;
+
+      const versionRow = await db
+        .select({ snapshot: definitionVersions.snapshot })
+        .from(definitionVersions)
+        .where(eq(definitionVersions.id, instance.definitionVersionId))
+        .limit(1)
+        .then((res) => res[0]);
+
+      if (!versionRow) return null;
+
+      const snapshot = versionRow.snapshot as any;
+      if (snapshot?.escalation_config) {
+        return snapshot.escalation_config as {
+          supervisor_role: string;
+          records_officer_role: string;
+        };
+      }
+
+      // Return defaults if none configured
+      return {
+        supervisor_role: 'sp_presiding_officer',
+        records_officer_role: 'records_officer',
+      };
+    },
+
     async archiveStepForDocument(
       documentId: string,
       stepKey: string,
