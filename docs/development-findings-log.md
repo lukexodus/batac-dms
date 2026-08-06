@@ -7946,3 +7946,16 @@ repo upload — not `[Inference]` or `[Speculation]`.
 
 ---
 
+### [LOG-0243] `session.terminated` has no live emitters; `session.replaced` is the correct displacement event
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-011
+- status: proposed
+- affects: B3, H4
+
+1. `session.terminated` (declared as `IAM_EVENTS.SESSION_TERMINATED` in `apps/server/src/modules/iam/iam.events.ts`) has zero live emitters anywhere in `apps/server/src`. This was confirmed by full-tree grep for `eventBus.emit(IAM_EVENTS.SESSION_TERMINATED` and for the literal string `'session.terminated'` as an emit target — no results in either case.
+2. `session.replaced` (declared as `IAM_EVENTS.SESSION_REPLACED` in the same file) IS the live event carrying "new-device login displaced an existing session" information. It is emitted at `apps/server/src/modules/iam/iam.service.ts`, inside the login flow, in the branch handling an `oldSession` being replaced by a `newSession`. Its payload (confirmed matching the emit-site object literal exactly) is: `{ user_id: string; old_session_id: string; new_session_id: string; new_ip_address: string | null }`.
+3. B3's Master Event Registry (`docs/pre-development/B-architecture-documents/b3-internal-domain-event-catalog-v1.3.md`, row 3 of the registry table) currently lists `session.terminated` with `audit` as its only consumer, and does not list `session.replaced` at all.
+4. H4 (`docs/pre-development/H-domain-configuration-documents/h4-notification-event-and-template-catalog.md`, specifically §4.9's Triggering Domain Event row, and §8.3's gap description) also currently describes the required fix as adding `notifications` as a consumer of `session.terminated`, and still marks this as an open action item. Both documents need this premise corrected to reference `session.replaced` instead.
+5. `apps/server/src/modules/notifications/consumers/session-displaced.consumer.ts` (implemented under TASK-NOTIF-011) already subscribes to the correct event, `session.replaced` — the code-level fix is done; only the B3/H4 documentation still needs to be brought in line with it.
+6. Separately: `apps/server/src/modules/audit/audit.event-consumer.ts` (around its `makeHandler('session.terminated', ...)` registration) has an existing subscription to `session.terminated` that is consequently dead code, since nothing emits that event. This is a distinct issue from the notifications-module fix above, belongs to whoever owns the `audit` module, and should be flagged as a separate item rather than something this entry resolves.
