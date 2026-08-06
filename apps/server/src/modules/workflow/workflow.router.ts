@@ -436,7 +436,7 @@ function computePanelHint(
     return 'docketing';
   } else if (stepKey === 'panlalawigan_review') {
     return 'panlalawigan_outcome';
-  } else if (stepKey === 'newspaper_publication') {
+  } else if (stepKey === 'newspaper_publication' || stepKey === 'portal_publication') {
     return 'publication_date';
   } else if (stepKey === 'returned_review') {
     return 'returned_review_decision';
