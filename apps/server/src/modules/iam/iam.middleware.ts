@@ -133,7 +133,7 @@ function verifyJwt(token: string): JwtPrivateClaims {
  *
  * Source: B5 §10.1 Hook 1; TASK-IAM-005 Hook 1.
  */
-async function verifyAccessToken(
+export async function verifyAccessToken(
   this: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
