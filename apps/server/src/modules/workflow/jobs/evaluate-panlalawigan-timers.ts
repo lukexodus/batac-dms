@@ -127,6 +127,10 @@ export async function evaluatePanlalawiganTimers(
         payload: {
           instanceId: instance.id,
           documentId: instance.documentId,
+          stepInstanceId: stepInstance.id,
+          legalBasis: 'RA 7160 Section 56(d)',
+          transmissionDate: context['panlalawigan_transmission_date'],
+          deadlineWas: deadlineStr,
         },
       });
     }

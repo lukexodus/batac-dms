@@ -396,10 +396,16 @@ export interface EventPayloadMap {
   'workflow.approval.lapsed': {
     instanceId: string;
     stepInstanceId: string;
+    legalBasis: 'RA 7160 Section 47';
+    deadlineWas: string;
   };
   'workflow.panlalawigan.deemed_approved': {
     instanceId: string;
     documentId: string;
+    stepInstanceId: string;
+    legalBasis: 'RA 7160 Section 56(d)';
+    transmissionDate: string;
+    deadlineWas: string;
   };
 
   // Certification urgency events (B3 §8)
