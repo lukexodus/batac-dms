@@ -21,38 +21,14 @@ export function createNotificationsService(deps: NotificationsServiceDeps): Noti
         );
 
         if (!template) {
+          // No active template exists for this templateId/channel pair. Per
+          // project-owner decision, this case writes nothing to either
+          // notification_events or delivery_log — the missing-template
+          // condition is logged and dispatch is abandoned for this call.
+          // Do not attempt to synthesize a template row to satisfy any
+          // foreign key; notifications.templates is an administrator-managed
+          // table (H4 §8.1) and must not receive application-generated rows.
           logger.warn(`No active template found for name: ${input.templateId} and channel: ${input.channel}`);
-          
-          // Fallback to find any template (e.g. inactive) to satisfy the FK constraint for logging
-          let fallback = await repository.findTemplateByNameAndChannel(input.templateId, input.channel);
-          if (!fallback) {
-            // Create a system fallback template on the fly if it literally doesn't exist
-            // This is required because notification_events.template_id is NOT NULL
-            fallback = await repository.insertTemplate({
-              name: input.templateId,
-              channel: input.channel,
-              bodyTemplate: 'Fallback system template for missing template errors',
-              isActive: false,
-            });
-          }
-
-          const event = await repository.insertNotificationEvent({
-            templateId: fallback.id,
-            channel: input.channel,
-            recipientUserId: input.recipientUserId ?? null,
-            recipientEmail: input.recipientEmail ?? null,
-            recipientPhone: input.recipientPhone ?? null,
-            templateData: input.templateData,
-            status: 'failed',
-            sourceEventType: null, // As requested in the missing template case
-          });
-
-          await repository.insertDeliveryLogEntry({
-            notificationEventId: event.id,
-            status: 'failed',
-            errorMessage: `No active template for ${input.templateId}/${input.channel}`,
-          });
-
           return; // Do not throw
         }
 

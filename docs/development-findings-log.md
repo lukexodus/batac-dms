@@ -6990,3 +6990,86 @@ archive dispute; recorded here as a first-hand confirmation, not a new claim.
 
 ---
 
+### [LOG-0225] document-state-changed consumer's hardcoded fallback recipient is unreachable-by-design — getUserByOfficeRole does not exist on Organization's Published API
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-007-FIX-01
+- status: proposed
+- affects: LOG-0118, H4 (§4.2), assignee-resolution.ts
+
+**What was found:** apps/server/src/modules/notifications/consumers/document-state-changed.consumer.ts
+duck-types a call to `fastify.organizationService.getUserByOfficeRole(...)`, falling back to a hardcoded
+placeholder string when the method is absent. A repository-wide search confirms this method does not
+exist anywhere in the real OrganizationPublicAPI implementation — the only two references in the entire
+codebase are this consumer's own defensive check and a manual mock assigned in the scratch file
+apps/server/src/test-notif-007.ts for test purposes only. This means the duck-type check evaluates false
+unconditionally in every real environment today.
+
+This is a distinct gap from LOG-0118 (which covered `getUsersByRole`, a plain role-based lookup, since
+resolved by adding it to IamPublicAPI). `getUserByOfficeRole` is an office-scoped lookup and remains
+unimplemented. Independent corroboration: apps/server/src/modules/workflow/engine/assignee-resolution.ts
+(lines 70-74) has its own `office_role:` assignee-resolution branch that throws `NotImplemented` citing
+the same missing capability ("Gap 2"), with an active, non-skipped test
+(apps/server/src/modules/workflow/__tests__/designations.test.ts, lines 86-90) confirming that throw is
+current, intended behavior. Both the workflow module's assignee resolution and the notifications module's
+document-state-change recipient resolution are blocked on the same underlying Organization Published API
+gap.
+
+**What was implemented:** TASK-NOTIF-007-FIX-01 (standalone prompt produced) preserves the duck-type
+check as forward-compatible dead code (so the consumer will pick up the real implementation automatically
+once it ships) but replaces the hardcoded invalid-UUID fallback string with a skip-and-log-warning path —
+no notification is sent and no placeholder value is ever passed to sendNotification when no real recipient
+can be resolved. Building `getUserByOfficeRole` itself is out of scope for this fix and remains a Organization
+module task.
+
+**Note:** [Inference, not independently confirmed against a live database] — the prior behavior (hardcoded
+`'unknown-fallback-user'` string) is believed to fail at the Postgres insert layer due to invalid UUID
+syntax, based on a direct read of the notification_events.recipient_user_id column definition (a plain
+`uuid` type with no application-level format check anywhere in the call path) and the absence of any
+value-validation step between this consumer and the database insert. This was not tested against a running
+database in this investigation.
+
+### [LOG-0226] document-state-changed consumer's local DocumentStateChangedPayload type diverged from canonical DocumentStateChangedEvent — wrong-cased fromState/toState values, missing cityId/timestamp fields
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-007-FIX-01
+- status: proposed
+- affects: event-payload-map.ts, documents.types.ts, notifications.seed.ts
+
+**What was found:** apps/server/src/modules/notifications/consumers/document-state-changed.consumer.ts
+defined a local `DocumentStateChangedPayload` interface, used via an unchecked `as` cast, that diverged
+from the canonical `DocumentStateChangedEvent` (packages/shared/src/events/event-payload-map.ts, lines
+42-50) in two ways: (1) it was missing the `cityId` and `timestamp` fields, both of which are genuinely
+populated by the real emitter (apps/server/src/modules/documents/documents.service.ts, lines 158-159 and
+399-400); (2) its `fromState`/`toState` literal unions used PascalCase/hyphenated spelling with 9 members,
+while the actual authoritative type, `DocumentLifecycleState`
+(apps/server/src/modules/documents/documents.types.ts, lines 6-17), uses snake_case with 11 members and
+includes `'superseded'` — a value confirmed emitted on the document-supersession path
+(documents.service.ts line 396) with no equivalent in the local type at all. Because nothing in this
+consumer or any other current consumer of `document.state_changed` branches on the specific state values
+(confirmed by search — the only other consumer, audit.event-consumer.ts, does not reference these fields),
+the practical effect was that the seeded notification template
+(apps/server/src/database/seeds/notifications.seed.ts, line 27) would have displayed raw, wrongly-implied
+state text to end users once the separate hardcoded-fallback-recipient bug (LOG-0225) was fixed and this
+consumer actually started successfully sending notifications.
+
+This is the second confirmed instance of the same failure pattern in this module — the first being the
+`assignedTo` array-type mismatch in step-assignment.consumer.ts (fixed under TASK-NOTIF-006-FIX-01): a
+consumer-local, hand-maintained copy of a payload type silently drifts from its canonical source, hidden
+from the type checker by an `as` cast.
+
+**What was implemented:** TASK-NOTIF-007-FIX-01 removes the local interface entirely and imports
+`DocumentStateChangedEvent` from `@batac/shared` directly, removing the `as` cast — mirroring the pattern
+already proven correct by the step-assignment fix. `fromState`/`toState` are typed as plain `string`
+(matching canonical) rather than reintroducing a corrected literal union, since no current consumer
+branches on the specific values; a future task needing type-safe branching should add its own
+purpose-built type informed by that task's actual requirements rather than this fix speculatively
+reintroducing one.
+
+**Recommendation for a human reviewer:** given this is now a confirmed, repeated pattern (two instances),
+it may be worth a project-level check across any other consumer files for the same local-type-plus-cast
+shape before it recurs a third time. apps/server/src/modules/notifications/consumers/sla-escalation.consumer.ts
+was noted as containing structurally similar patterns (local payload interfaces, `as` casts, no import
+from event-payload-map.ts) during this session but was explicitly not opened for a full review pass, as it
+was outside the scope of both the original 5+1 task assignment and this NOTIF-007 fix. It is flagged here
+only as a candidate for a future dedicated review, not as a confirmed defect.
