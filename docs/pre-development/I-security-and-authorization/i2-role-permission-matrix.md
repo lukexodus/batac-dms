@@ -67,6 +67,7 @@ Audience: Development team — IAM configuration reference
 | 11 | Barangay Captain | Approve and sign barangay-originated documents |
 | 12 | Auditor | Read-only: finalized documents, audit logs, and own task inbox |
 | 13 | Citizen | Public portal; own submitted requests and complaints only |
+| 14 | Department Head | Escalation recipient for critical-tier SLA breaches within their office |
 
 ---
 

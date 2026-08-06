@@ -128,6 +128,14 @@ const ROLE_DEFINITIONS = [
     isPlatformAdmin: false,
     description: 'Public portal; own submitted requests and complaints only',
   },
+  {
+    code: 'department_head',
+    name: 'Department Head',
+    typeCode: 'auditor',
+    isSystemRole: false,
+    isPlatformAdmin: false,
+    description: 'Escalation recipient for critical-tier SLA breaches within their office',
+  },
 ];
 
 // ────────── PERMISSION MATRIX MAPPING RULES ────────────────────────────────────

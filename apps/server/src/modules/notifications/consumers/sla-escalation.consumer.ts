@@ -187,13 +187,12 @@ export function registerSlaEscalationConsumer(fastify: FastifyInstance) {
             officeData.officeId
           );
 
-          // Department head is typically the office's head. We could find the person with role 'department_head'
-          // However, for safety if 'department_head' is not defined, we could fallback, but we'll assume it exists or returns empty array.
-          // KNOWN GAP (see docs/development-findings-log.md LOG-0228): 'department_head' is not
-          // a registered role code in iam.seed.ts's ROLE_DEFINITIONS as of this snapshot. This
-          // lookup will resolve to zero results until that gap is resolved by a human decision
-          // (add the role, or map this lookup to an existing role code). This warning makes that
-          // fact visible in logs rather than leaving it silent — it does not change behavior.
+          // Department head is the office's head, resolved via the 'department_head' role code.
+          // RESOLVED (see docs/development-findings-log.md LOG-0228 and its resolution entry):
+          // 'department_head' is a registered role code as of TASK-IAM-054. This lookup returns
+          // any employee(s) holding that role in this office; it legitimately returns an empty
+          // array if no one in this office currently holds the role (not a bug — just means no
+          // Department Head is assigned there yet).
           const departmentHeads = await fastify.organizationService.listEmployeesByRoleAndOffice(
             'department_head',
             officeData.officeId
