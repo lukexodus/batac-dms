@@ -148,6 +148,13 @@
       "when": 1785986347351,
       "tag": "0020_dark_jack_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785988343255,
+      "tag": "0021_notifications_create_schema",
+      "breakpoints": true
     }
   ]
 }
