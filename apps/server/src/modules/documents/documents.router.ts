@@ -51,6 +51,8 @@ import type { DocumentsPublicAPI } from './documents.types.js';
 import { createPanlalawiganProcedures } from './panlalawigan.router.js';
 import { createSignatureProcedures } from './signatures.router.js';
 import { DesignationMetadataInvalidError } from './designation.handler.js';
+import { eq, and } from 'drizzle-orm';
+import { users, roleAssignments, roles } from '@batac/database/schema/iam.schema.js';
 
 /**
  * documents.router.ts -- general CRUD (TASK-DOCS-011)
@@ -362,8 +364,36 @@ export function createDocumentsRouter() {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Your role cannot create documents.' });
         }
 
+        let finalMetadata = { ...input.metadata } as Record<string, unknown>;
+
+        if (documentType.code === 'CERTIFICATION_OF_URGENCY') {
+          const db = ctx.req.server.db as any;
+          const [mayorAssignment] = await db
+            .select({
+              userId: users.id,
+              username: users.username,
+            })
+            .from(users)
+            .innerJoin(roleAssignments, eq(roleAssignments.userId, users.id))
+            .innerJoin(roles, eq(roles.id, roleAssignments.roleId))
+            .where(
+              and(
+                eq(users.cityId, subject.cityId),
+                eq(roles.code, 'mayor')
+              )
+            )
+            .limit(1);
+
+          if (mayorAssignment) {
+            finalMetadata['issuing_authority_user_id'] = mayorAssignment.userId;
+            const allUsers = await (ctx.req.server as any).iamService.listAllUsers(subject.cityId);
+            const mayorDetails = allUsers.find((u: any) => u.id === mayorAssignment.userId);
+            finalMetadata['issuing_authority_display_name'] = mayorDetails?.displayName || mayorAssignment.username;
+          }
+        }
+
         const metadataErrors = validateMetadataAgainstSchema(
-          input.metadata,
+          finalMetadata,
           documentType.metadataSchema as Record<string, unknown>,
         );
         if (metadataErrors.length > 0) {
@@ -442,7 +472,7 @@ export function createDocumentsRouter() {
           ownedByOfficeId,
           createdBy: subject.userId,
           versionNumber: 1,
-          metadata: input.metadata,
+          metadata: finalMetadata,
           retentionScheduleId: documentType.retentionScheduleId,
         });
 

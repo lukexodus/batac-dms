@@ -136,6 +136,85 @@ function SponsorsArrayField({
   );
 }
 
+function MeasurePickerArrayField({
+  name,
+  control,
+  label,
+  isRequired,
+}: Omit<BaseFieldProps, 'setValue'>) {
+  const { data: documentTypes } = trpc.documents.documentTypes.useQuery(undefined, {
+    staleTime: Infinity,
+  });
+
+  const measureTypeIds = documentTypes
+    ?.filter(t => ['SP_RESOLUTION', 'SP_ORDINANCE', 'SP_APPROPRIATION_ORDINANCE'].includes(t.code))
+    .map(t => t.id) || [];
+
+  const { data: searchResult, isLoading } = trpc.documents.search.useQuery(
+    {
+      queryText: '',
+      documentTypeIds: measureTypeIds,
+      limit: 100,
+    },
+    {
+      enabled: measureTypeIds.length > 0,
+    }
+  );
+
+  return (
+    <div className="space-y-4 border rounded-md p-4 bg-muted/10 mt-4">
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium text-sm">{label} {isRequired && <span className="text-danger-500">*</span>}</h4>
+      </div>
+      <Controller
+        name={name as Path<IntakeFormValues>}
+        control={control}
+        render={({ field }) => {
+          const values = Array.isArray(field.value) ? field.value : [];
+          return (
+            <div className="space-y-4 mt-4">
+              {values.length === 0 && <p className="text-sm text-muted-foreground">No measures selected.</p>}
+              {values.map((v: string, idx: number) => (
+                 <div key={idx} className="flex gap-2">
+                   <div className="flex-1">
+                     <Select
+                       onValueChange={(newVal) => {
+                         const next = [...values];
+                         next[idx] = newVal;
+                         field.onChange(next);
+                       }}
+                       value={v || ''}
+                       disabled={isLoading}
+                     >
+                       <SelectTrigger>
+                         <SelectValue placeholder="Select a measure..." />
+                       </SelectTrigger>
+                       <SelectContent>
+                         {searchResult?.items.map((doc) => (
+                           <SelectItem key={doc.documentId} value={doc.documentId}>
+                             {doc.finalNumber || 'No Number'} - {doc.title}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   <Button type="button" variant="ghost" size="sm" className="text-danger-500 hover:text-danger-600 h-9" onClick={() => {
+                     const next = values.filter((_, i) => i !== idx);
+                     field.onChange(next);
+                   }}>Remove</Button>
+                 </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={() => field.onChange([...values, ''])}>
+                Add Measure
+              </Button>
+            </div>
+          );
+        }}
+      />
+    </div>
+  );
+}
+
 function DynamicArrayField({
   name,
   prop,
@@ -408,6 +487,16 @@ function DynamicField({
   }
 
   if (prop.type === 'array') {
+    if (name === 'metadata.associated_measure_ids') {
+      return (
+        <MeasurePickerArrayField 
+          name={name as Path<IntakeFormValues>} 
+          control={control} 
+          label={label} 
+          isRequired={isRequired} 
+        />
+      );
+    }
     return (
       <div className="space-y-2">
         <Label htmlFor={`meta-${name}`}>
