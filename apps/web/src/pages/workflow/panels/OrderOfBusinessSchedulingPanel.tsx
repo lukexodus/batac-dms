@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Label, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 function getNextTuesdayFormatted(now: Date = new Date()): string {
@@ -50,6 +51,7 @@ export function OrderOfBusinessSchedulingPanel({
       await scheduleMutation.mutateAsync({
         documentId: instance.documentId,
         sessionDate: new Date(selectedDate),
+        comment: isRichTextEmpty(comment) ? undefined : comment,
       });
     } catch {
       // Handled by onError

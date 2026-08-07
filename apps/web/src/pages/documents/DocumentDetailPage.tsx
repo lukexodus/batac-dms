@@ -25,7 +25,7 @@
  */
 
 import {
-  AlertTriangle,
+  
   Archive,
   BadgeCheck,
   Ban,
@@ -45,6 +45,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { AllowedMimeTypeSchema, type AllowedMimeType } from '@batac/shared';
+
 import {
   StatusBadge,
   WorkflowStepIndicator,

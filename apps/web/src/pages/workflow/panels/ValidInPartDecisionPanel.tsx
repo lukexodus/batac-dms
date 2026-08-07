@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 export function ValidInPartDecisionPanel({
@@ -31,7 +32,7 @@ export function ValidInPartDecisionPanel({
   const mutate = (
     resolutionPath: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
   ) => {
-    if (!mandatoryComment) {
+    if (isRichTextEmpty(mandatoryComment)) {
       toast.error('A comment is required for this decision.');
       return;
     }

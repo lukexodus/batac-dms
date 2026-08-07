@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // mayorSign: { stepInstanceId } only.
@@ -70,7 +71,7 @@ export function MayorDecisionPanel({
           <Button
             variant="destructive"
             onClick={() => {
-              if (!objectionsText) {
+              if (isRichTextEmpty(objectionsText)) {
                 toast.error('Objections text is required to veto');
                 return;
               }

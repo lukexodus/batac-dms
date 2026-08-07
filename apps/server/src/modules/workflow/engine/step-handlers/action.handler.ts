@@ -3,7 +3,7 @@ import type { WorkflowRepository } from '../../workflow.repository.js';
 import type { TxOrDb } from '../../../../db.js';
 import { writeTimerContextIfTriggered } from '../context-writer.js';
 import { resolveNextStep, type StepResolutionDeps } from '../step-resolution.js';
-import { isRichTextEmpty, sanitizeRichText } from '../../rich-text.util.js';
+import { isRichTextEmpty } from '../../rich-text.util.js';
 
 export interface ActionHandlerDeps extends StepResolutionDeps {
   workflowRepository: WorkflowRepository;
@@ -44,8 +44,6 @@ export async function submitStepAction(
     }
   }
 
-  const sanitizedComment = comment ? sanitizeRichText(comment) : null;
-
   const now = new Date();
 
   await deps.workflowRepository.updateStepInstance(
@@ -69,7 +67,7 @@ export async function submitStepAction(
         stepId: stepDef.id,
         stepType: stepDef.stepType,
         outcome: 'DONE',
-        comment: sanitizedComment,
+        comment,
       },
     },
     trx,

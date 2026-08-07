@@ -9,7 +9,7 @@ import {
   CardTitle,
   CardContent,
   Button,
-  Textarea,
+  
   Select,
   SelectTrigger,
   SelectValue,
@@ -22,6 +22,7 @@ import {
 } from '@batac/ui';
 
 import { hasRole } from '@/lib/auth-helpers';
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { useSessionStore } from '@/stores';
 
@@ -229,7 +230,7 @@ export function MultiReferralPanel({
       toast.error('Select a committee');
       return;
     }
-    if (!reportText && !reportFile) {
+    if (isRichTextEmpty(reportText) && !reportFile) {
       toast.error('Provide report text and/or an uploaded report document');
       return;
     }
@@ -369,10 +370,11 @@ export function MultiReferralPanel({
                               <p className="truncate">{submission.reportDocumentTitle}</p>
                             )}
                             {submission.reportText && (
-                              <p className="line-clamp-2 whitespace-pre-wrap">
-                                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: submission.reportText }} />
-                              </p>
-                            )}
+  <div
+    className="line-clamp-2 text-sm text-muted-foreground [&_p]:m-0 [&_strong]:font-semibold [&_em]:italic"
+    dangerouslySetInnerHTML={{ __html: submission.reportText }}
+  />
+)}
                             {submission.reportDocumentUrl && (
                               <a
                                 href={submission.reportDocumentUrl}

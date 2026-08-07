@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 export function GenericApprovalPanel({
@@ -105,7 +106,7 @@ export function GenericApprovalPanel({
           <Button
             variant="destructive"
             onClick={() => {
-              if (!comment) {
+              if (isRichTextEmpty(comment)) {
                 toast.error('A comment is required for rejection');
                 return;
               }
@@ -118,7 +119,7 @@ export function GenericApprovalPanel({
           <Button
             variant="outline"
             onClick={() => {
-              if (!comment) {
+              if (isRichTextEmpty(comment)) {
                 toast.error('A comment is required when returning for revision');
                 return;
               }

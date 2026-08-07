@@ -8,7 +8,7 @@ import {
   CardTitle,
   CardContent,
   Button,
-  Textarea,
+  
   Select,
   SelectTrigger,
   SelectValue,
@@ -17,6 +17,7 @@ import {
   RichTextEditor,
 } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // recordPanlalawiganOutcome: { stepInstanceId, outcome, controlNumber?, panlalawiganResolutionNumber?, dateReferred?, remarks? }
@@ -149,7 +150,7 @@ export function PanlalawiganOutcomePanel({
           <Button
             variant="outline"
             onClick={() => {
-              if (!mandatoryComment) {
+              if (isRichTextEmpty(mandatoryComment)) {
                 toast.error('Comment is required');
                 return;
               }

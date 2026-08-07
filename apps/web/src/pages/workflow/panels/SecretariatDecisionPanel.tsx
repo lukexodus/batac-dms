@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 // logSecretariatDecision requires sp_secretary role + stepInstanceId.
@@ -36,7 +37,7 @@ export function SecretariatDecisionPanel({
   });
 
   const mutate = (decision: 'approve' | 'reject' | 'amended', requireRemarks = false) => {
-    if (requireRemarks && !remarks) {
+    if (requireRemarks && isRichTextEmpty(remarks)) {
       toast.error('Remarks are required for this decision.');
       return;
     }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+
 import { RichTextEditor, Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
+
 import { isRichTextEmpty } from '@/lib/rich-text';
 
 export function RichTextEditorPage() {
@@ -70,6 +72,19 @@ export function RichTextEditorPage() {
           <RichTextEditor
             value="<p>This is some <strong>initial</strong> content with <em>formatting</em>.</p><ul><li>List item 1</li><li>List item 2</li></ul>"
             onChange={() => {}}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Disabled / Read-Only Example</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RichTextEditor
+            value="<p>This is some <strong>initial</strong> content with <em>formatting</em>.</p><ul><li>List item 1</li><li>List item 2</li></ul>"
+            onChange={() => {}}
+            disabled={true}
           />
         </CardContent>
       </Card>

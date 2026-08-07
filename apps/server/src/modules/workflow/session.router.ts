@@ -22,6 +22,7 @@ import { documents } from '@batac/database/schema/documents.schema.js';
 import { eq, and, or, ilike, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
 import type { Context } from '../iam/iam.types.js';
 import { submitStepAction } from './engine/step-handlers/action.handler.js';
+import { sanitizeRichText } from './rich-text.util.js';
 import { workflowPolicy, type StepInstanceAttrs } from './workflow.policy.js';
 import { WorkflowRepository } from './workflow.repository.js';
 
@@ -771,6 +772,7 @@ export function createSessionRouter() {
         z.object({
           documentId: z.string().uuid(),
           sessionDate: z.coerce.date(),
+          comment: z.string().optional(),
         }),
       )
       .mutation(async ({ input, ctx }) => {
@@ -1007,11 +1009,12 @@ export function createSessionRouter() {
                 iamService: server.iamService,
               };
 
+              const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : null;
               await submitStepAction(
                 instance,
                 stepInstance,
                 ctx.auth.userId,
-                null,
+                sanitizedComment,
                 deps as any,
                 tx
               );

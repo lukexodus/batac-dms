@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 export function LegalOfficeReviewDecisionPanel({
@@ -29,7 +30,7 @@ export function LegalOfficeReviewDecisionPanel({
   });
 
   const mutate = (outcome: 'RESOLVED_IN_PLACE') => {
-    if (!remarks) {
+    if (isRichTextEmpty(remarks)) {
       toast.error('Remarks are required for this decision.');
       return;
     }

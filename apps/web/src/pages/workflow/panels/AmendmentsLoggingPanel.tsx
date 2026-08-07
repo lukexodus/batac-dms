@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { Card, CardHeader, CardTitle, CardContent, Button, RichTextEditor } from '@batac/ui';
 
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
 export function AmendmentsLoggingPanel({
@@ -60,7 +61,7 @@ export function AmendmentsLoggingPanel({
               comment: comment,
             })
           }
-          disabled={completeMutation.isPending || !comment.trim()}
+          disabled={completeMutation.isPending || isRichTextEmpty(comment)}
         >
           {completeMutation.isPending ? 'Completing...' : 'Log Amendments & Complete Task'}
         </Button>

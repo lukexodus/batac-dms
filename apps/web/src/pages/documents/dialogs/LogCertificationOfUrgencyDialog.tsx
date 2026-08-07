@@ -1,6 +1,6 @@
+import { AlertTriangle } from 'lucide-react';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle } from 'lucide-react';
 
 import {
   Dialog,

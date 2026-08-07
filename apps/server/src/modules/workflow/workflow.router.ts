@@ -1775,7 +1775,9 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const { stepInstanceId, outcome, comment = null } = input;
+        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const { stepInstanceId, outcome } = input;
+        const comment = sanitizedComment ?? null;
 
         const found = await fetchStepContext(stepInstanceId, ctx);
         if (!found) {
@@ -1939,16 +1941,14 @@ export function createWorkflowRouter() {
         }),
       )
       .mutation(async ({ input, ctx }) => {
-        if (input.reportText && isRichTextEmpty(input.reportText)) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Report text is required if provided.' });
-        if (input.reportText) input.reportText = sanitizeRichText(input.reportText);
-
         if (!ctx.auth) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
         const { stepInstanceId, committeeId } = input;
+        const sanitizedReportText = input.reportText ? sanitizeRichText(input.reportText) : undefined;
 
-        if (!input.reportText && !input.documentId) {
+        if (isRichTextEmpty(sanitizedReportText) && !input.documentId) {
           throw new TRPCError({
             code: 'BAD_REQUEST',
             message: 'Provide report text and/or an uploaded report document.',

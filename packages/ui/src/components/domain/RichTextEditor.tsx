@@ -39,7 +39,7 @@ export function RichTextEditor({
         role: 'textbox',
         'aria-multiline': 'true',
         class: cn(
-          'prose prose-sm max-w-none focus:outline-none w-full p-3',
+          'max-w-none focus:outline-none w-full p-3 [&_p]:m-0 [&_p+p]:mt-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_em]:italic',
           `min-h-[${minHeight}]`
         ),
       },
@@ -68,7 +68,7 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'flex flex-col border border-border-default rounded-md overflow-hidden bg-white',
+        'flex flex-col border border-border-default rounded-md overflow-hidden bg-surface-base',
         disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
