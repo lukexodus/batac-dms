@@ -778,11 +778,13 @@ export default function DocumentIntakePage() {
                       <SelectValue placeholder="Select document type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {documentTypes?.map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
+                      {documentTypes
+                        ?.filter((type) => type.code !== 'TRANSMITTAL_LETTER')
+                        .map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}
