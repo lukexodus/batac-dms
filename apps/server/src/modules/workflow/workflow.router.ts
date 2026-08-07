@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { sanitizeRichText, isRichTextEmpty } from './rich-text.util.js';
+import { parseRichTextForPdf } from './rich-text-pdf.util.js';
+import type { ParsedParagraph } from './rich-text-pdf.util.js';
 import { randomUUID } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../../trpc/trpc.js';
@@ -89,6 +91,93 @@ async function putS3Object(fileKey: string, body: Buffer, contentType: string): 
       ContentType: contentType,
     }),
   );
+}
+
+interface DrawableRunFragment {
+  text: string;
+  font: 'regular' | 'bold' | 'italic' | 'boldItalic' | 'code';
+}
+
+type DrawableLine = DrawableRunFragment[];
+
+/**
+ * Wraps a sequence of TextRuns (as produced by parseRichTextForPdf) into
+ * lines that fit within maxWidth, preserving which font each word belongs
+ * to. Mirrors the word-splitting approach of the existing wrapPdfText
+ * function, but operates across run boundaries rather than on a single
+ * plain string against a single font.
+ *
+ * fonts must supply widthOfTextAtSize for each of the four style variants
+ * (code uses the regular/non-bold font at the same size, per this pass's
+ * scope - no distinct monospace font is introduced).
+ */
+function wrapRunsForPdf(
+  paragraph: ParsedParagraph,
+  fonts: {
+    regular: { widthOfTextAtSize(text: string, size: number): number };
+    bold: { widthOfTextAtSize(text: string, size: number): number };
+    italic: { widthOfTextAtSize(text: string, size: number): number };
+    boldItalic: { widthOfTextAtSize(text: string, size: number): number };
+  },
+  size: number,
+  maxWidth: number,
+): DrawableLine[] {
+  if (paragraph.length === 0) return [[]];
+
+  const lines: DrawableLine[] = [];
+  let currentLine: DrawableLine = [];
+  let currentLineWidth = 0;
+  
+  const spaceWidths = {
+    regular: fonts.regular.widthOfTextAtSize(' ', size),
+    bold: fonts.bold.widthOfTextAtSize(' ', size),
+    italic: fonts.italic.widthOfTextAtSize(' ', size),
+    boldItalic: fonts.boldItalic.widthOfTextAtSize(' ', size),
+    code: fonts.regular.widthOfTextAtSize(' ', size),
+  };
+
+  for (const run of paragraph) {
+    const words = run.text.split(/\s+/).filter(Boolean);
+    let fontVariant: DrawableRunFragment['font'] = 'regular';
+    if (run.code) {
+      fontVariant = 'code';
+    } else if (run.bold && run.italic) {
+      fontVariant = 'boldItalic';
+    } else if (run.bold) {
+      fontVariant = 'bold';
+    } else if (run.italic) {
+      fontVariant = 'italic';
+    }
+
+    const fontMetric = fontVariant === 'code' ? fonts.regular : fonts[fontVariant];
+    const spaceW = spaceWidths[fontVariant];
+
+    for (const word of words) {
+      const wordWidth = fontMetric.widthOfTextAtSize(word, size);
+      const isFirstWordInLine = currentLine.length === 0;
+
+      if (!isFirstWordInLine && currentLineWidth + spaceW + wordWidth > maxWidth) {
+        lines.push(currentLine);
+        currentLine = [];
+        currentLineWidth = 0;
+      }
+
+      if (currentLine.length > 0 && currentLine[currentLine.length - 1]!.font === fontVariant) {
+        currentLine[currentLine.length - 1]!.text += ' ' + word;
+        currentLineWidth += spaceW + wordWidth;
+      } else {
+        const prefix = currentLine.length > 0 ? ' ' : '';
+        currentLine.push({ text: prefix + word, font: fontVariant });
+        currentLineWidth += (prefix ? spaceW : 0) + wordWidth;
+      }
+    }
+  }
+  
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines.length > 0 ? lines : [[]];
 }
 
 function wrapPdfText(
@@ -2185,6 +2274,8 @@ export function createWorkflowRouter() {
         const outPdf = await PDFDoc.create();
         const helveticaBold = await outPdf.embedFont(StandardFonts.HelveticaBold);
         const helvetica = await outPdf.embedFont(StandardFonts.Helvetica);
+        const helveticaOblique = await outPdf.embedFont(StandardFonts.HelveticaOblique);
+        const helveticaBoldOblique = await outPdf.embedFont(StandardFonts.HelveticaBoldOblique);
 
         const pageW = 595.28;
         const pageH = 841.89;
@@ -2283,6 +2374,20 @@ export function createWorkflowRouter() {
           const contentTopY = pageH - 100;
           const contentBottomY = 70;
 
+          const fontsForWrapping = {
+            regular: helvetica,
+            bold: helveticaBold,
+            italic: helveticaOblique,
+            boldItalic: helveticaBoldOblique,
+          };
+          const fontByVariant: Record<DrawableRunFragment['font'], typeof helvetica> = {
+            regular: helvetica,
+            bold: helveticaBold,
+            italic: helveticaOblique,
+            boldItalic: helveticaBoldOblique,
+            code: helvetica,
+          };
+
           for (const item of textOnlyContents) {
             let textPage = outPdf.addPage([pageW, pageH]);
             textReportPagesCount++;
@@ -2296,21 +2401,30 @@ export function createWorkflowRouter() {
               maxWidth: contentMaxWidth,
             });
             textY -= 24;
-            for (const line of wrapPdfText(item.text, helvetica, textSize, contentMaxWidth)) {
-              if (textY < contentBottomY) {
-                textPage = outPdf.addPage([pageW, pageH]);
-                textReportPagesCount++;
-                textY = contentTopY;
+
+            const paragraphs = parseRichTextForPdf(item.text);
+            for (const paragraph of paragraphs) {
+              const lines = wrapRunsForPdf(paragraph, fontsForWrapping, textSize, contentMaxWidth);
+              for (const line of lines) {
+                if (textY < contentBottomY) {
+                  textPage = outPdf.addPage([pageW, pageH]);
+                  textReportPagesCount++;
+                  textY = contentTopY;
+                }
+                let cursorX = 60;
+                for (const fragment of line) {
+                  const font = fontByVariant[fragment.font];
+                  textPage.drawText(fragment.text, {
+                    x: cursorX,
+                    y: textY,
+                    size: textSize,
+                    font,
+                    color: rgb(0, 0, 0),
+                  });
+                  cursorX += font.widthOfTextAtSize(fragment.text, textSize);
+                }
+                textY -= textLineHeight;
               }
-              textPage.drawText(line, {
-                x: 60,
-                y: textY,
-                size: textSize,
-                font: helvetica,
-                color: rgb(0, 0, 0),
-                maxWidth: contentMaxWidth,
-              });
-              textY -= textLineHeight;
             }
           }
         }
