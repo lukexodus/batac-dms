@@ -2791,7 +2791,7 @@ task; if a future task or human review finds another stale reference, it
 should get its own findings-log entry rather than assuming this entry
 covers it.
 
-### [LOG-0112] E3's LifecycleStateSchema corrected from 9 values to the authoritative 11-value set (TASK-DOCS-SHARED-002)
+### [LOG-0251] E3's LifecycleStateSchema corrected from 9 values to the authoritative 11-value set (TASK-DOCS-SHARED-002)
 
 - date: 2026-07-15
 - task_id: TASK-DOCS-SHARED-002
@@ -2849,7 +2849,7 @@ covers it.
 
 **Recommendation:** A human should review if `dateReferred` was intentionally tracking something distinct from `actionDeadline`/`responseDate`, or if it was an outdated naming alias. Any consumers still expecting `dateReferred` will need to be updated.
 
-### [LOG-0026] Password reset link TTL conservative default of 24 hours
+### [LOG-0250] Password reset link TTL conservative default of 24 hours
 
 - date: 2026-07-15
 - task_id: TASK-IAM-050
@@ -2869,7 +2869,7 @@ The password reset flow requires generating a token and sending a reset link. No
 - status: proposed
 - affects: none (implementation detail; no pre-dev document specifies reset TTL)
 - resolved_in: none
-- supersedes: the "Password reset link TTL conservative default of 24 hours" entry appended immediately above under the duplicate/incorrect number LOG-0026
+- supersedes: the "Password reset link TTL conservative default of 24 hours" entry appended immediately above under the duplicate/incorrect number LOG-0250
 
 The password reset flow requires generating a token and sending a reset link. No document specified the exact Time-To-Live (TTL) for this reset token. 
 
@@ -2882,7 +2882,7 @@ The password reset flow requires generating a token and sending a reset link. No
 - task_id: TASK-DOCS-SHARED-007
 - status: proposed
 - affects: docs/development-findings-log.md
-- supersedes: LOG-0112
+- supersedes: LOG-0251
 
 Two entries both numbered LOG-0112 exist in this file (currently at lines
 2755 and 2794), both titled "E3's LifecycleStateSchema
@@ -4977,7 +4977,7 @@ itself was deliberately scoped down from an initial broader ask).
 
 ---
 
-### [LOG-0177] step_instances.assigned_to never carries office_id — secretariat_decision panel branch and workflow.policy.ts office-authorization guard both structurally dead
+### [LOG-0252] step_instances.assigned_to never carries office_id — secretariat_decision panel branch and workflow.policy.ts office-authorization guard both structurally dead
 
 - date: 2026-07-29
 - task_id: none (planning-layer investigation, no A1 task dispatched)
@@ -5059,7 +5059,7 @@ entries rather than silent edits to this one).
 
 ---
 
-### [LOG-0178] E1's `resolveValidInPart` spec is accurate and already implemented — TASK-WF-FE-023's new `ValidInPartDecisionPanel` calls the wrong procedure and silently drops committee-chair resolution
+### [LOG-0253] E1's `resolveValidInPart` spec is accurate and already implemented — TASK-WF-FE-023's new `ValidInPartDecisionPanel` calls the wrong procedure and silently drops committee-chair resolution
 
 - date: 2026-07-29
 - task_id: none (planning-layer investigation, no A1 task dispatched)
@@ -5259,14 +5259,14 @@ in the file than `LOG-0160`–`LOG-0176`, meaning entries were not appended in
 strict numeric order at some point in this file's history. The true highest
 existing number in the file, confirmed by checking every header rather than
 assuming monotonic ordering, is **`LOG-0181`** — not `0177` as a simple tail-read
-would suggest. This entry is accordingly numbered `LOG-0182`, continuing from
+would suggest. This entry is accordingly numbered `LOG-0254`, continuing from
 that true highest number, not from `0179` as originally expected when this
 entry was being drafted. No code or document change made; flagging the
 duplicate `LOG-0177` and the out-of-sequence block for human review, in the
 same spirit as the pre-existing `LOG-0112` duplicate-entry note — this one is
 larger in scope (a block of four sequential numbers appended before a lower
 number continues) and was not previously logged anywhere.
-### [LOG-0182] apps/web/eslint.config.cjs turns off explicit-module-boundary-types for the whole app, undocumented in J3
+### [LOG-0254] apps/web/eslint.config.cjs turns off explicit-module-boundary-types for the whole app, undocumented in J3
 
 - date: 2026-07-29
 - task_id: none — discovered while investigating a repo-wide lint-error-fix request
@@ -6587,7 +6587,7 @@ inferred here.
 
 ---
 
-### [LOG-0216] sp_member bypass_office_isolation missing — committee chairs cannot see OoB items or SPS-owned documents
+### [LOG-0255] sp_member bypass_office_isolation missing — committee chairs cannot see OoB items or SPS-owned documents
 
 - date: 2026-08-04
 - task_id: none (found while investigating My Tasks / OoB visibility for committee chairs)
@@ -6646,11 +6646,11 @@ when `userRoles.has('sp_member') && row.stepType === 'multi_referral'`. It reads
 ### [LOG-0218] `workflow.getInstance` returns FORBIDDEN for sp_member — `checkWorkflowInstanceReadPermission` has no cross-office branch for sp_member
 
 - date: 2026-08-04
-- task_id: none (discovered during live testing of LOG-0216/LOG-0217 fixes)
+- task_id: none (discovered during live testing of LOG-0255/LOG-0217 fixes)
 - status: proposed
 - affects: I1 §5.1, workflow.router.ts `checkWorkflowInstanceReadPermission`
 
-**What was found:** After LOG-0216 and LOG-0217 fixes, `councilor.flojo` could see the
+**What was found:** After LOG-0255 and LOG-0217 fixes, `councilor.flojo` could see the
 `committee_referral` step in My Tasks. Clicking through to the step detail page triggers
 `workflow.getInstance` (line 329 of `workflow.router.ts`). This procedure calls
 `checkWorkflowInstanceReadPermission` (line 413), which has three branches:
@@ -6661,7 +6661,7 @@ when `userRoles.has('sp_member') && row.stepType === 'multi_referral'`. It reads
 
 `sp_member` is listed in `allowedRoles` (line 74) but it only qualifies via branch 1 (own-office),
 which fails for all SPS-owned documents. The application-level FORBIDDEN at line 415 was thrown
-even though the RLS layer now allows the document read (LOG-0216 fixed that).
+even though the RLS layer now allows the document read (LOG-0255 fixed that).
 
 Additionally, the existing `sp_secretary` branch at line 95–104 was checking `docOffice?.code === 'SP'`
 (the council chamber office code) instead of `'SPS'` (the secretariat office). SP Resolutions are
@@ -6909,7 +6909,7 @@ handling, which the codebase already uses.
 
 ---
 
-### [LOG-0223] LOG-0178 (second instance) contradicted by current code — ValidInPartDecisionPanel.tsx confirmed calling the correct procedure with committee-chair resolution intact
+### [LOG-0223] LOG-0253 contradicted by current code — ValidInPartDecisionPanel.tsx confirmed calling the correct procedure with committee-chair resolution intact
 
 - date: 2026-08-04
 - task_id: (verification pass, no task — surfaced during SP Resolution post-transmittal handoff review)
@@ -6918,7 +6918,7 @@ handling, which the codebase already uses.
 
 **What was found:**
 
-The second LOG-0178 entry (`docs/development-findings-log.md:5062-5175`, title referencing
+LOG-0253 (`docs/development-findings-log.md:5062-5175`, title referencing
 `ValidInPartDecisionPanel.tsx` calling the wrong procedure) does not match this snapshot.
 Direct verification:
 
@@ -6928,7 +6928,7 @@ Direct verification:
   outcome mapping at lines 3279-3283 is exact: `resolve_as_is` → `RESOLVED_IN_PLACE`,
   `route_to_legal` → `ROUTED_TO_LEGAL`, `route_to_committee` → `ROUTED_TO_COMMITTEE`,
   `implement_directly` → `REVISED_DIRECTLY`.
-- The specific side effect LOG-0178 described as silently dropped — committee-chair
+- The specific side effect LOG-0253 described as silently dropped — committee-chair
   resolution on the `ROUTED_TO_COMMITTEE` outcome — is present and correct: lines
   3291-3337 look up the originating `committee_referral` step instance's
   `assigned_committees` metadata, resolve the chair via `orgService.getCommitteeChair`,
@@ -6936,12 +6936,12 @@ Direct verification:
   `updateInstanceContext`, all inside the same `ctx.db.transaction(...)` block that then
   calls `submitStepApproval` (line 3347) with the correctly-mapped outcome.
 
-**Why this is being logged rather than silently dropped:** LOG-0178 was `status: proposed`,
-dated before this snapshot. This entry does not claim LOG-0178 was wrong when written — only
+**Why this is being logged rather than silently dropped:** LOG-0253 was `status: proposed`,
+dated before this snapshot. This entry does not claim LOG-0253 was wrong when written — only
 that the code it describes does not match the current repo. Either the underlying issue was
-fixed between LOG-0178's authoring and this snapshot, or LOG-0178's original read was
+fixed between LOG-0253's authoring and this snapshot, or LOG-0253's original read was
 mistaken. Which of those it was has not been determined and does not need to be — the
-current-state confirmation is what matters going forward. A human should mark LOG-0178
+current-state confirmation is what matters going forward. A human should mark LOG-0253
 resolved (or superseded by this entry) so it stops appearing as an open item in future
 reconnaissance passes over this log.
 
@@ -6959,7 +6959,7 @@ finding.
 
 **What was found:**
 
-The second LOG-0177 entry (`docs/development-findings-log.md:4980-5058`, `status: confirmed`)
+LOG-0252 (`docs/development-findings-log.md:4980-5058`, `status: confirmed`)
 establishes that `step_instances.assigned_to` never carries `office_id`, making the
 `office_id`-comparison branch of `computePanelHint` structurally dead for the steps that
 branch was scoped to (`second_reading_vote`, `second_reading_amended_vote`, both routing to
