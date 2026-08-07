@@ -184,4 +184,25 @@ describe('Certified Urgent Bypass Handler (CU)', () => {
       mockTrx,
     );
   });
+
+  it('CU-10: unhandled step status (failed/returned) emits unhandled_step_status and takes no bypass action', async () => {
+    const inst = buildMockInstance({ id: 'inst-1', status: 'active' });
+    const step = buildMockStepInstance({ status: 'failed', stepId: 'step-mref' });
+    mockRepo.getInstanceById.mockResolvedValue(inst);
+    mockRepo.updateInstanceContext.mockResolvedValue(undefined);
+    mockRepo.createWorkflowEvent.mockResolvedValue({ id: 'evt-1' });
+    mockRepo.getMultiReferralStepInstanceForInstance.mockResolvedValue(step);
+    await processCertificationUrgencyEvent(makePayload(['inst-1']), mockDeps);
+    expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'workflow.certification_urgency.unhandled_step_status',
+        payload: expect.objectContaining({
+          stepInstanceStatus: 'failed',
+        }),
+      }),
+      mockTrx,
+    );
+    expect(mockRepo.updateStepInstance).not.toHaveBeenCalled();
+    expect(mockRepo.createPendingBypass).not.toHaveBeenCalled();
+  });
 });

@@ -266,6 +266,44 @@ export async function processCertificationUrgencyEvent(
               certificationDocumentId,
             }
           });
+        } else {
+          // Defensive fallback: 'failed' or 'returned' status, or any
+          // future status value not covered by Cases A/B/C above.
+          // Presently unreachable for committee_referral (a multi_referral
+          // step) — see TASK-WF-062 for the reachability trace. Logs and
+          // emits explicitly rather than silently doing nothing, so a
+          // future reachable case is visible instead of a silent no-op.
+          console.error(
+            `Certified Urgent bypass: instance ${instanceId} step ${stepInstance.id} ` +
+            `has unhandled status '${stepInstance.status}' — no bypass action taken.`,
+          );
+
+          await deps.workflowRepository.createWorkflowEvent(
+            {
+              instanceId,
+              eventType: 'workflow.certification_urgency.unhandled_step_status',
+              actorType: 'system',
+              actorId: null,
+              payload: {
+                instanceId,
+                stepInstanceId: stepInstance.id,
+                stepInstanceStatus: stepInstance.status,
+                certificationDocumentId,
+              },
+            },
+            trx,
+          );
+
+          emittedEvents.push({
+            type: 'workflow.certification_urgency.unhandled_step_status',
+            cityId: instance.cityId,
+            payload: {
+              instanceId,
+              stepInstanceId: stepInstance.id,
+              stepInstanceStatus: stepInstance.status,
+              certificationDocumentId,
+            }
+          });
         }
       });
       

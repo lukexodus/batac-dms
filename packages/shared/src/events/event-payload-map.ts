@@ -414,6 +414,12 @@ export interface EventPayloadMap {
     stepInstanceId: string;
     certificationDocumentId: string;
   };
+  'workflow.certification_urgency.unhandled_step_status': {
+    instanceId: string;
+    stepInstanceId: string;
+    stepInstanceStatus: string;
+    certificationDocumentId: string;
+  };
   'workflow.certification_urgency.bypass_deferred': {
     instanceId: string;
     certificationDocumentId: string;

@@ -282,4 +282,49 @@ describe('Certified Urgent Bypass Handler', () => {
       mockTrx,
     );
   });
+
+  it('CU-06: unhandled step status (failed/returned) emits unhandled_step_status and takes no bypass action', async () => {
+    const instanceId = 'inst-6';
+    const stepInstanceId = 'step-inst-6';
+
+    mockDeps.workflowRepository.getInstanceById.mockResolvedValue({
+      id: instanceId,
+      status: 'active',
+      context: {},
+    });
+
+    mockDeps.workflowRepository.getMultiReferralStepInstanceForInstance.mockResolvedValue({
+      id: stepInstanceId,
+      status: 'failed',
+    });
+
+    await processCertificationUrgencyEvent(
+      {
+        certificationDocumentId: 'doc-cert-1',
+        associatedInstanceIds: [instanceId],
+        loggedBy: 'user-1',
+        loggedAt: new Date().toISOString(),
+      },
+      mockDeps,
+    );
+
+    // Context still updated (happens before the Case A/B/C branch)
+    expect(mockDeps.workflowRepository.updateInstanceContext).toHaveBeenCalled();
+
+    // unhandled_step_status emitted with the actual status value
+    expect(mockDeps.workflowRepository.createWorkflowEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'workflow.certification_urgency.unhandled_step_status',
+        payload: expect.objectContaining({
+          stepInstanceId,
+          stepInstanceStatus: 'failed',
+        }),
+      }),
+      mockTrx,
+    );
+
+    // No bypass action taken
+    expect(mockDeps.workflowRepository.updateStepInstance).not.toHaveBeenCalled();
+    expect(mockDeps.workflowRepository.createPendingBypass).not.toHaveBeenCalled();
+  });
 });
