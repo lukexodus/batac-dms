@@ -47,6 +47,10 @@ export function LegalOfficeReviewDecisionPanel({
         <CardTitle>Legal Office Review Decision</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>The Sangguniang Panlalawigan returned this document and it was routed to the Legal Office for review.</p>
+          <p>Provide the Legal Office's remarks or recommendations, then resolve this step to advance the workflow.</p>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Remarks</label>
           <RichTextEditor

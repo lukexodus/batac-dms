@@ -69,10 +69,11 @@ export function OrderOfBusinessSchedulingPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Select a session date to schedule this document for First Reading.
-          The system defaults to the upcoming Tuesday session.
-        </p>
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>Schedule this document to be included in the Order of Business for an upcoming Sangguniang Panlungsod session.</p>
+          <p>Once scheduled, it will be formally read on the floor on the selected date.</p>
+          <p>The system defaults to the upcoming Tuesday session.</p>
+        </div>
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="session-date-picker" className="text-xs">

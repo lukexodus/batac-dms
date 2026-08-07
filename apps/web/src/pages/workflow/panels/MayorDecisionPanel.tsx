@@ -51,6 +51,15 @@ export function MayorDecisionPanel({
         <CardTitle>Mayor Decision</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>
+            The Sangguniang Panlungsod has passed this document and transmitted it for the Mayor's decision.
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Sign & Approve:</strong> Enacts the document. It will advance to the next stage (e.g., Sangguniang Panlalawigan review for ordinances).</li>
+            <li><strong>Veto:</strong> Rejects the document. You must provide specific objections. It will be returned to the Sangguniang Panlungsod for a potential override vote.</li>
+          </ul>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">
             Objections <span className="text-muted-foreground">(required for veto)</span>

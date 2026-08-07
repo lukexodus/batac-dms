@@ -49,6 +49,15 @@ export function ValidInPartDecisionPanel({
         <CardTitle>VALID-IN-PART — Resolution Path</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>The Sangguniang Panlalawigan declared this document "Valid in Part". You must determine how to handle the invalidated provisions.</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Resolve In Place:</strong> Resolve the issue immediately with a mandatory comment.</li>
+            <li><strong>Route to Legal Office:</strong> Send to the Legal Office for legal opinion or review.</li>
+            <li><strong>Route to Committee:</strong> Send back to the originating committee to address the invalidated parts.</li>
+            <li><strong>Revise Directly:</strong> Proceed with implementation, excluding the invalidated provisions.</li>
+          </ul>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Comment</label>
           <RichTextEditor

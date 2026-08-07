@@ -47,6 +47,13 @@ export function ReturnedReviewDecisionPanel({
         <CardTitle>Returned Review Decision</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>This document was returned by the Sangguniang Panlalawigan.</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Repass to Drafting:</strong> Send the document back to the drafting stage for significant revisions.</li>
+            <li><strong>Resolve Directly:</strong> The issues have been addressed or clarified without needing a full repass. Provide remarks detailing the resolution.</li>
+          </ul>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Remarks</label>
           <RichTextEditor

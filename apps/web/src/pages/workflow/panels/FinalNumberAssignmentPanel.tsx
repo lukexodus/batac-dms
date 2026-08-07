@@ -93,9 +93,10 @@ export function FinalNumberAssignmentPanel({
           </div>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">
-              This document has passed all required approvals. Click below to generate its official final series number and advance the workflow.
-            </p>
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>The document has passed all required legislative readings and approvals.</p>
+              <p>Generating the official number will finalize the document's designation (e.g., from a Draft to an official Ordinance or Resolution number) before it is transmitted for final signatures.</p>
+            </div>
 
             <Button
               onClick={handleAssignAndComplete}

@@ -33,9 +33,10 @@ export function DocketingPanel({
         <CardTitle>Log Docketing Completion</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-muted-foreground text-sm">
-          Confirm that the document has been docketed (QR cover page printed, filed, and logged).
-        </p>
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>Docketing is the final step where the physical document is officially filed in the records.</p>
+          <p>Ensure the QR cover page has been printed and attached to the physical copy, and it has been stored in the designated filing cabinet.</p>
+        </div>
         <Button
           onClick={() => logMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })}
           disabled={logMutation.isPending}

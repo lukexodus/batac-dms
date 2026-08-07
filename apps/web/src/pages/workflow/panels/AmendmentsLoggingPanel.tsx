@@ -41,9 +41,10 @@ export function AmendmentsLoggingPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          This document was approved with amendments during the Second Reading. Please log the specifics of the amendments below.
-        </p>
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>This document was approved with amendments during its reading. Before it can advance, the specific amendments must be logged into the system.</p>
+          <p>Enter the exact text of the amendments below. This will be recorded in the document's history and applied to the final version.</p>
+        </div>
         
         <div>
           <label className="mb-1 block text-sm font-medium">Amendments Detail <span className="text-danger-500">*</span></label>

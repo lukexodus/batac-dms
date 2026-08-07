@@ -55,6 +55,14 @@ export function SecretariatDecisionPanel({
         <CardTitle>Secretariat Decision</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>Record the decision of the Sangguniang Panlungsod (SP) Secretariat regarding this document.</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Approve:</strong> The document is accepted and will proceed to the next stage.</li>
+            <li><strong>Reject:</strong> The document is rejected. Remarks are required.</li>
+            <li><strong>Approve with Amendments:</strong> The document is approved with required amendments. Remarks are required.</li>
+          </ul>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Remarks</label>
           <RichTextEditor

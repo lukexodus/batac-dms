@@ -36,11 +36,16 @@ export function GenericActionPanel({
         <CardTitle>{instance.currentStepName ? `Complete Task: ${instance.currentStepName}` : 'Complete Task'}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {instance.currentStepKey === 'final_number_assignment' && (
-          <p className="text-sm text-muted-foreground">
-            The final series number for this document has already been assigned automatically.
-            Complete this step to advance the workflow.
-          </p>
+        {instance.currentStepKey === 'final_number_assignment' ? (
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p>The final series number for this document has already been assigned automatically.</p>
+            <p>Complete this step to advance the workflow.</p>
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p>Please review the document and complete the required tasks for this step.</p>
+            <p>Completing this action will advance the document to the next stage of its workflow.</p>
+          </div>
         )}
         <div>
           <label className="mb-1 block text-sm font-medium">Comment (optional)</label>

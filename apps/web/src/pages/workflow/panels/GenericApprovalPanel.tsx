@@ -81,6 +81,15 @@ export function GenericApprovalPanel({
         <CardTitle>{instance.currentStepName ? `Decision: ${instance.currentStepName}` : 'Approval Decision'}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>Please review the document and provide your approval decision.</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Approve:</strong> Endorses the document and advances it to the next workflow step.</li>
+            <li><strong>Reject:</strong> Disapproves the document. This terminates the current workflow. A comment is required.</li>
+            <li><strong>Return for Revision:</strong> Sends the document back to the originator for necessary corrections. A comment is required.</li>
+            <li><strong>Approve with Amendments:</strong> Approves the document subject to the specified amendments in your comment.</li>
+          </ul>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">
             Comment <span className="text-muted-foreground">(required for reject/return)</span>

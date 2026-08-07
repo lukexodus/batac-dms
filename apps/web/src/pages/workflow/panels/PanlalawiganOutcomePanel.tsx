@@ -81,6 +81,15 @@ export function PanlalawiganOutcomePanel({
         <CardTitle>Panlalawigan Outcome</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="text-sm text-muted-foreground space-y-2 mb-4">
+          <p>Record the review outcome from the Sangguniang Panlalawigan (Provincial Board).</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Valid / Operative in its Entirety:</strong> The document is fully approved.</li>
+            <li><strong>Valid in Part:</strong> Some provisions were invalidated. You must select a resolution path (e.g., Route to Legal, Implement Directly).</li>
+            <li><strong>Returned:</strong> The document was returned for revisions.</li>
+            <li><strong>30-Day Deemed Approved:</strong> Under RA 7160 §56(d), if no action is taken within 30 days, it is deemed approved.</li>
+          </ul>
+        </div>
         {/* Record Outcome */}
         <div className="space-y-3 rounded-md border p-4">
           <h3 className="text-sm font-medium">Record Outcome</h3>
