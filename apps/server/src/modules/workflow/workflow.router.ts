@@ -2016,7 +2016,7 @@ export function createWorkflowRouter() {
             contributionDocId,
             { ...deps, db: tx, workflowRepository: txWorkflowRepo },
             tx,
-            input.reportText ?? null,
+            sanitizedReportText ?? null,
           );
 
           // After submitting, check if all committees have submitted.
