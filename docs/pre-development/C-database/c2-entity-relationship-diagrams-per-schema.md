@@ -12,21 +12,21 @@
 - [L100–L234] Schema: `iam` — User authentication, sessions, role/permission tables, and Multi-Factor Authentication records.
   - [L206–L211] Logical FK Index — `iam` — Cross-schema logical references targeting organization office scopes.
   - [L212–L234] Join Table Annotations — `iam` — ABAC policy rules, role-revocation checks, session limits, and refresh-token chain behavior.
-- [L235–L359] Schema: `organization` — Office hierarchies, positions, employee records, and active designation tracking.
-  - [L329–L336] Logical FK Index — `organization` — Outbound references targeting employees' user accounts, delegation documents, and revoking users.
-  - [L337–L359] Join Table Annotations — `organization` — Active designation time-bounds, single-active-delegation constraints, and singular position assignments.
-- [L360–L581] Schema: `documents` — Document state transitions, immutability rules, OCR processing metadata, sponsorships, and two-stage numbering.
-  - [L518–L534] Logical FK Index — `documents` — Outbound references for document types, offices, creators, sponsors, and signature metadata.
-  - [L535–L543] Bidirectional Optional Link: `document_types` ↔ `number_series` — Breaking circular dependency between document types and number series.
-  - [L544–L581] Join Table Annotations — `documents` — Two-stage draft/final numbering, Panlalawigan reviews, sponsorships, required steps, and OCR quality scores.
-- [L582–L711] Schema: `workflow` [Inference] — State-transition checks, definition versioning, SLA clocks, and step assignments.
-  - [L683–L692] Logical FK Index — `workflow` — Target endpoints for workflows, associated documents, cancelling users, and event actors.
-  - [L693–L711] Step Type Annotations — `workflow` — Assignee configs, multi-referral step structures, and version pinning for active instances.
-- [L712–L776] Schema: `tracking` [Inference] — Physical routing history, scan-to-lookup endpoints, and QR code generation sequences.
-- [L777–L859] Schema: `records` [Inference] — Retention schedules, archive entries, classification rules, and soft-delete disposition logs.
-- [L860–L919] Schema: `notifications` [Inference] — Event-triggered dispatch, delivery logs, templates, and SSE real-time push endpoints.
-- [L920–L968] Schema: `audit` [Inference] — Append-only event logs, tamper-evident HMAC chains, and monthly external TSA export rules.
-- [L969–L1047] Cross-Schema Reference Summary — Consolidated lookup tables grouping all logical foreign key columns by target schema.
+- [L235–L360] Schema: `organization` — Office hierarchies, positions, employee records, and active designation tracking.
+  - [L330–L337] Logical FK Index — `organization` — Outbound references targeting employees' user accounts, delegation documents, and revoking users.
+  - [L338–L360] Join Table Annotations — `organization` — Active designation time-bounds, single-active-delegation constraints, and singular position assignments.
+- [L361–L595] Schema: `documents` — Document state transitions, immutability rules, OCR processing metadata, sponsorships, and two-stage numbering.
+  - [L532–L548] Logical FK Index — `documents` — Outbound references for document types, offices, creators, sponsors, and signature metadata.
+  - [L549–L557] Bidirectional Optional Link: `document_types` ↔ `number_series` — Breaking circular dependency between document types and number series.
+  - [L558–L595] Join Table Annotations — `documents` — Two-stage draft/final numbering, Panlalawigan reviews, sponsorships, required steps, and OCR quality scores.
+- [L596–L725] Schema: `workflow` [Inference] — State-transition checks, definition versioning, SLA clocks, and step assignments.
+  - [L697–L706] Logical FK Index — `workflow` — Target endpoints for workflows, associated documents, cancelling users, and event actors.
+  - [L707–L725] Step Type Annotations — `workflow` — Assignee configs, multi-referral step structures, and version pinning for active instances.
+- [L726–L790] Schema: `tracking` [Inference] — Physical routing history, scan-to-lookup endpoints, and QR code generation sequences.
+- [L791–L873] Schema: `records` [Inference] — Retention schedules, archive entries, classification rules, and soft-delete disposition logs.
+- [L874–L933] Schema: `notifications` [Inference] — Event-triggered dispatch, delivery logs, templates, and SSE real-time push endpoints.
+- [L934–L982] Schema: `audit` [Inference] — Append-only event logs, tamper-evident HMAC chains, and monthly external TSA export rules.
+- [L983–L1061] Cross-Schema Reference Summary — Consolidated lookup tables grouping all logical foreign key columns by target schema.
 
 ---
 
@@ -364,7 +364,20 @@ erDiagram
 
 **Module responsibility:** Document lifecycle state machine, immutable version storage, two-stage series numbering (preliminary `Draft` → final), OCR-on-upload, QR cover sheet generation, Panlalawigan review log, scanned signature tracking.
 
-**Enums defined in this schema (TEXT CHECK strategy):** `lifecycle_state` (`draft`, `under_review`, `pending_mayor_action`, `pending_panlalawigan_review`, `approved`, `released`, `superseded`, `cancelled`, `rejected`) — post-ADR-013/ADR-014 authoritative set; `classification_level` (`public`, `internal`, `confidential`, `restricted`), `public_visibility_rule` (`title_and_first_page_public`, `not_public`, `complainant_restricted`, `requester_restricted`), `owning_module` (all 11 module names), `number_type` (`preliminary`, `final`), `attachment_type` (`certification_of_urgency`, `committee_report`, `transmittal_letter`, `scan`, `other`), `signature_type` (`presiding_officer`, `mayor`, `sp_secretary`, `vice_mayor`, `committee_chair`), `panlalawigan_outcome` (`valid`, `valid_in_part`, `returned`, `operative_in_its_entirety`, `deemed_approved`), `scan_quality_category` (`good`, `fair`, `poor`).
+**Enums defined in this schema (TEXT + CHECK strategy — see note below):** `lifecycle_state` (`draft`, `submitted`, `in_workflow`, `pending_mayor_action`, `pending_panlalawigan_review`, `completed`, `released`, `archived`, `disposed`, `cancelled`, `superseded`) — post-ADR-013/ADR-014 authoritative set, matching C1 §4.5 and E3 `LifecycleStateSchema` exactly `[Corrected — previously a fabricated 9-value set: under_review/approved/rejected don't exist anywhere in C1, E3, or the real deployed schema, and submitted/in_workflow/completed/archived/disposed were missing entirely]`; `classification_level` (`public`, `internal`, `confidential`, `restricted`), `public_visibility_rule` (`title_and_first_page_public`, `not_public`, `complainant_restricted`, `requester_restricted`), `owning_module` (all 11 module names), `number_type` (`preliminary`, `final`), `attachment_type` (`certification_of_urgency`, `committee_report`, `transmittal_letter`, `scan`, `other`), `signature_type` (`presiding_officer`, `mayor`, `sp_secretary`, `vice_mayor`, `committee_chair`), `panlalawigan_outcome` (`valid`, `valid_in_part`, `returned`, `operative_in_its_entirety`, `deemed_approved`), `scan_quality_category` (`good`, `fair`, `poor`).
+
+> **Storage-strategy note — now resolved:** this row previously labeled the whole list
+> "(TEXT CHECK strategy)," matching C1 §4.5 as C1 currently reads, then had that label removed
+> as an open question once migration `0011_lumpy_goblin_queen.sql` was found to have converted
+> every enum in this list — including `lifecycle_state` and `classification_level` — to native
+> Postgres ENUM types, with no corresponding update anywhere in C1, this document, or G1. This is
+> now definitively resolved: consolidated-architecture-and-requirements-reference-iteration-3.md
+> Part 11.9 explicitly lists "Check constraints for state transitions" as a PostgreSQL
+> non-negotiable — language that specifically describes TEXT + CHECK, since a native ENUM type
+> doesn't use a CHECK constraint at all. TEXT + CHECK is correct; C1 was right; migration 0011 is
+> the deviation and needs reverting at the source-code level (a new migration, not a doc fix — see
+> the accompanying standalone prompt). `[Confirmed — consolidated reference Part 11.9,
+> non-negotiables list; migration 0011 read directly]`
 
 **State-transition enforcement:** `documents.lifecycle_state` transitions are enforced by a `BEFORE UPDATE` trigger (`fn_enforce_document_lifecycle_transition`), not a plain `CHECK` constraint (plain CHECK cannot see `OLD` values). `FINAL` and `CONTROL` number immutability is enforced by a dedicated DB trigger (`check_number_immutability()`), not just application-layer logic. Valid transitions include `released → cancelled`.
 

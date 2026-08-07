@@ -315,7 +315,7 @@ This is the richest page in the route map — nearly every document lifecycle ac
 | Group | Procedures |
 |---|---|
 | Read | `documents.get`, `documents.getVersionHistory`, `documents.downloadVersion`, `documents.getOcrText` |
-| Lifecycle | `documents.update`, `documents.submit`, `documents.assignPreliminaryNumber`, `documents.assignFinalNumber`, `documents.cancel`, `documents.delete`, `documents.archive`, `documents.logCertificationOfUrgency`, `documents.logSecretariatDecision` |
+| Lifecycle | `documents.update`, `documents.submit`, `documents.assignPreliminaryNumber`, `documents.assignFinalNumber`, `documents.cancel`, `documents.delete`, `documents.archive`, `documents.logCertificationOfUrgency` `[Corrected — documents.logSecretariatDecision removed from this list; per ADR-B2-3 it does not exist as a callable Documents-router procedure. This same page's Secretariat Decision Panel section below already correctly routes this action through the Workflow Router's step-completion mechanism — this row previously contradicted that by listing it here unqualified]` |
 | Portal visibility | `documents.publishToPortal`, `documents.unpublishFromPortal` — the action that makes a document appear at `/portal/documents/:trackingNumber` (§14) |
 | File & OCR | `documents.requestUploadUrl`, `documents.confirmUpload`, `documents.getScanQualityIndicator`, `documents.triggerManualReOcr`, `documents.flagScannedBackForVerification`, `documents.acceptScannedBackAsOfficial` |
 | Tracking | `tracking.getTrackingRecord`, `tracking.printQrCoverSheet`, `tracking.getRoutingHistory`, `tracking.logRoutingEntry` |

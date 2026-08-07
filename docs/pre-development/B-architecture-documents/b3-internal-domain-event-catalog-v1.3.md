@@ -31,22 +31,22 @@
 - [L53–L89] §0 — Naming Discrepancies — Resolve Before Implementation — Conflict resolution tables for cross-document event names and B2/B4 workflow module discrepancies.
 - [L90–L109] §1 — Purpose and Scope — Coverage of the in-process event bus across phases and relationship to the B2 and B4 specifications.
 - [L110–L143] §2 — How to Read This Catalog — Event entry format, camelCase naming rules, Zod validators, and transaction-bound async emission mechanics.
-- [L144–L198] §3 — Common Types and Event Envelope — Shared Zod schemas for document states, step types, and the universal event envelope wrapper.
-- [L199–L327] §4 — IAM Module Events — Authentication and role management events for user identity, sessions, and permissions.
-- [L328–L421] §5 — Organization Module Events — Events for designation grants, natural expiries, and early revocations that trigger immediate workflow re-routing.
-- [L422–L576] §6 — Documents Module Events — Document lifecycle events, series numbering, and Secretariat decision integration.
-- [L577–L1418] §7 — Workflow Module Events — Custom domain-specific legislative workflow engine events for steps, context, and SLAs.
-  - [L587–L787] §7.A — Instance Lifecycle Events — Events tracking instance creation, completion, cancellations, suspensions, and stuck state snapshots.
-  - [L788–L869] §7.B — Instance Migration Events — Migration start, completion, and reversal events within the 24-hour safety window.
-  - [L870–L1017] §7.C — Step Lifecycle Events — Events for step start, completion, bypass, and engine-level execution failures.
-  - [L1018–L1046] §7.D — Context Events — Event carrying diff-style audit trail of workflow instance context JSONB updates.
-  - [L1047–L1177] §7.E — Multi-Referral Step Events — Committee submissions, Thursday cutoff misses, reading eligibility, and manual overrides.
-  - [L1178–L1233] §7.F — Timer and Lapse Events — pgboss job events for Mayor 10-day review and Panlalawigan 30-day review lapses.
-  - [L1234–L1333] §7.G — Certification of Urgency Events — Bypasses applied, deferred, or skipped for inactive or past-referral documents.
-  - [L1334–L1418] §7.H — SLA Events — Warning, breach, and critical escalation notifications for legislative step deadlines.
-- [L1419–L1471] §8 — Master Event Registry — Flat matrix listing consumer subscriptions, active phases, and sources for all 42 events.
-- [L1472–L1489] §9 — Mandatory Rules — Six non-negotiable architectural rules for event audit, packaging, and emission safety.
-- [L1490–L1516] §10 — Open Items — Resolution Status — Status registry documenting disposition of open requirements issues OI-1 through OI-15.
+- [L144–L207] §3 — Common Types and Event Envelope — Shared Zod schemas for document states, step types, and the universal event envelope wrapper.
+- [L208–L336] §4 — IAM Module Events — Authentication and role management events for user identity, sessions, and permissions.
+- [L337–L430] §5 — Organization Module Events — Events for designation grants, natural expiries, and early revocations that trigger immediate workflow re-routing.
+- [L431–L585] §6 — Documents Module Events — Document lifecycle events, series numbering, and Secretariat decision integration.
+- [L586–L1428] §7 — Workflow Module Events — Custom domain-specific legislative workflow engine events for steps, context, and SLAs.
+  - [L596–L796] §7.A — Instance Lifecycle Events — Events tracking instance creation, completion, cancellations, suspensions, and stuck state snapshots.
+  - [L797–L878] §7.B — Instance Migration Events — Migration start, completion, and reversal events within the 24-hour safety window.
+  - [L879–L1027] §7.C — Step Lifecycle Events — Events for step start, completion, bypass, and engine-level execution failures.
+  - [L1028–L1056] §7.D — Context Events — Event carrying diff-style audit trail of workflow instance context JSONB updates.
+  - [L1057–L1187] §7.E — Multi-Referral Step Events — Committee submissions, Thursday cutoff misses, reading eligibility, and manual overrides.
+  - [L1188–L1243] §7.F — Timer and Lapse Events — pgboss job events for Mayor 10-day review and Panlalawigan 30-day review lapses.
+  - [L1244–L1343] §7.G — Certification of Urgency Events — Bypasses applied, deferred, or skipped for inactive or past-referral documents.
+  - [L1344–L1428] §7.H — SLA Events — Warning, breach, and critical escalation notifications for legislative step deadlines.
+- [L1429–L1481] §8 — Master Event Registry — Flat matrix listing consumer subscriptions, active phases, and sources for all 42 events.
+- [L1482–L1499] §9 — Mandatory Rules — Six non-negotiable architectural rules for event audit, packaging, and emission safety.
+- [L1500–L1526] §10 — Open Items — Resolution Status — Status registry documenting disposition of open requirements issues OI-1 through OI-15.
 
 ---
 
@@ -62,8 +62,8 @@ Three source documents use different names for what appear to be the same events
 |`preliminary_number.assigned`|`document.number_assigned` with `numberType: 'preliminary'`|—|**[RESOLVED — OI-2]** Unified event with `numberType` discriminator ratified, per B2. Rationale: this is the form already drafted and used throughout this catalog (§6.3, §8 row 11); splitting would require two new payload schemas not specified anywhere in source material. If a consumer later needs to subscribe to preliminary-only or final-only assignment, that can be done by filtering on `numberType` inside the consumer's own handler — no event-bus-level split is required. No further action.|
 |`final_number.assigned`|`document.number_assigned` with `numberType: 'final'`|—|**[RESOLVED — OI-2]** Same resolution as row above.|
 |`certification_of_urgency.attached`|— (not listed in B2 emitted events for Documents)|`documents.certification_urgency.logged`|**[RESOLVED — OI-3, OI-12]** Name normalized to `document.certification_urgency.logged` (singular prefix, matching every other Documents-module event). B4's plural `documents.` is treated as an authoring inconsistency, not an intentional naming convention — no other Documents event uses a plural prefix. **Action required outside this document:** B2's Master Event Registry does not list this event at all (per the §6.5 note); it must be added there in the same PR that introduces this event on the bus. This action item cannot be closed from within B3 alone — it requires an edit to the B2 document, which is outside this catalog's authority.|
-|`panlalawigan_timer.expired`|`workflow.lapsed` with `lapseType: 'panlalawigan_30_day_deemed'`|`workflow.panlalawigan.deemed_approved`|**[Discrepancy]** B4 splits B2's unified `workflow.lapsed` into two separate events. This catalog adopts B4's two-event model. Team must confirm.|
-|—|`workflow.lapsed` with `lapseType: 'mayor_10_day_lapsed'`|`workflow.approval.lapsed`|**[Discrepancy]** Same row as above: the Mayor 10-day half of B2's unified event.|
+|`panlalawigan_timer.expired`|`workflow.lapsed` with `lapseType: 'panlalawigan_30_day_deemed'`|`workflow.panlalawigan.deemed_approved`|**[Resolved]** B4 splits B2's unified `workflow.lapsed` into two separate events. This catalog adopts B4's two-event model. Confirmed by consolidated reference Part 4.3/11.3: Mayor's 10-day lapse and Panlalawigan's 30-day deemed-approval are distinct real-world events with different actors, different timers, and different legal bases (RA7160 S47 vs S56(d)) — the same distinction B2's own `lapseType` discriminator field was already modeling with two values on one event.|
+|—|`workflow.lapsed` with `lapseType: 'mayor_10_day_lapsed'`|`workflow.approval.lapsed`|**[Resolved]** Same row as above: the Mayor 10-day half of B2's unified event.|
 |`designation.activated`|`delegation.granted`|—|**[Discrepancy]** Different conceptual framing (Designation document vs. delegation grant record). This catalog uses `delegation.granted` per B2 since the underlying DB entity is a `delegation_grant` record. Team must confirm.|
 |`designation.expired`|`delegation.expired`|—|**[Discrepancy]** Same framing conflict as above row. This catalog uses `delegation.expired`.|
 
@@ -150,16 +150,25 @@ import { z } from 'zod';
 
 // ─── Shared payload types referenced by multiple events ───────────────────────
 
+// Value set corrected to C1's real 11-value lifecycle_state CHECK constraint
+// (post-ADR-013/ADR-014, per D3) — matches E3's LifecycleStateSchema exactly.
+// Previously a stale 9-value set predating the split of 'Pending-Approval'
+// into 'pending_mayor_action'/'pending_panlalawigan_review' and the addition
+// of 'superseded'. This schema validates live document.state_changed payloads
+// (see fromState/toState below) — the stale set meant this validator could
+// never accept 5 of the 11 real states.
 export const DocumentLifecycleStateSchema = z.enum([
-  'Draft',
-  'Submitted',
-  'In-Workflow',
-  'Pending-Approval',
-  'Completed',
-  'Released',
-  'Archived',
-  'Disposed',
-  'Cancelled',   // Terminal; reachable from any active state by an authorized actor
+  'draft',
+  'submitted',
+  'in_workflow',
+  'pending_mayor_action',
+  'pending_panlalawigan_review',
+  'completed',
+  'released',
+  'archived',
+  'disposed',
+  'cancelled',
+  'superseded',   // Terminal; reachable only from pending_panlalawigan_review
 ]);
 export type DocumentLifecycleState = z.infer<typeof DocumentLifecycleStateSchema>;
 
@@ -891,7 +900,7 @@ export const WorkflowStepStartedPayloadSchema = z.object({
   stepInstanceId: z.string().uuid(),
   stepType:       WorkflowStepTypeSchema,
   stepKey:        z.string(),                                  // from B4; unique key within the definition
-  assignedTo:     z.string().uuid().nullable(),                // from B4; null for system-executed steps
+  assignedTo:     z.array(z.string().uuid()).nullable(),        // `[Corrected]` — array, not a single UUID; multi_referral steps assign to multiple committee members simultaneously (consolidated reference Part 8.3), and the real event-publishing code (apps/server/src/modules/workflow/engine/step-resolution.ts) already emits `assignees.map((a) => a.user_id)`, an array of ID strings. Empty/no assignees emit null, not `[]`. Previously specified as a single nullable UUID, which cannot represent a multi_referral step's assignee set at all.
   documentId:     z.string().uuid(),                           // from B2 equivalent; required — Notifications needs this to compose the notification body
   dueAt:          z.string().datetime({ offset: true }).nullable(), // from B2 equivalent; required field, nullable value — null for step types with no due date
 });
@@ -1192,7 +1201,7 @@ export type WorkflowMultiReferralSecretaryAdvancedPayload =
 
 **Business Reason:** RA 7160 Section 47 provides that if the Mayor takes no action within 10 calendar days of receiving a measure, it lapses into law. The timer is tracked from the date the Transmittal Letter (SPS format) is sent to the Mayor's Office. At lapse, the system transitions document status to "Lapsed into Law," records the RA 7160 legal basis phrase as the outcome comment, and notifies the SP Secretary. The SP Secretary must then proceed to docketing. Applies to both SP Resolutions and SP Ordinances.
 
-> **Note `[Discrepancy]`:** B2's `workflow.lapsed` unified Mayor and Panlalawigan lapse into one event with a `lapseType` discriminator. B4 uses two separate events. This catalog follows B4's two-event model.
+> **Note `[Resolved]`:** B2's `workflow.lapsed` unified Mayor and Panlalawigan lapse into one event with a `lapseType` discriminator. B4 uses two separate events; this catalog follows B4's two-event model. Confirmed by consolidated reference Part 4.3/11.3 — these are genuinely distinct events (different actor, timer, and legal basis), matching this section's own Business Reason text below.
 
 ```typescript
 export const WorkflowApprovalLapsedPayloadSchema = z.object({
@@ -1217,7 +1226,7 @@ export type WorkflowApprovalLapsedPayload = z.infer<typeof WorkflowApprovalLapse
 
 **Business Reason:** RA 7160 Section 56(d) provides that if the Sangguniang Panlalawigan takes no action within 30 calendar days of receiving a transmitted ordinance or resolution, it is deemed approved. The timer is tracked from the transmission date. At expiry, the system transitions status to "Deemed Approved per RA 7160 Section 56(d)," populates the remarks field with the statutory legal basis phrase, and notifies the SP Secretary.
 
-> **Note `[Discrepancy]`:** B3 Context Reference §18 names this `panlalawigan_timer.expired`. B4 names it `workflow.panlalawigan.deemed_approved`. This catalog uses the B4 name.
+> **Note `[Resolved]`:** B3 Context Reference §18 names this `panlalawigan_timer.expired`. B4 names it `workflow.panlalawigan.deemed_approved`. This catalog uses the B4 name, and the underlying two-event split is confirmed by consolidated reference Part 4.3/11.3.
 
 ```typescript
 export const WorkflowPanlalawiganDeemedApprovedPayloadSchema = z.object({

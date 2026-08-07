@@ -6,7 +6,7 @@
 
 - [L54–L91] Document Notes — Rules for confirmed/inferred content labels and lists of covered and out-of-scope security topics.
 - [L92–L229] 1. Token Architecture
-  - [L94–L154] 1.1 Access Token (JWT) — Specifications for RS256 signing, TTL configuration, cookie storage, registered/private claims, and immediate revocation rules. `[+2 lines, 2026-06-25 — added the cid claim row and an oid-nullable rationale note; see Module Summary cross-reference in iam.md]`
+  - [L94–L154] 1.1 Access Token (JWT)
   - [L155–L229] 1.2 Refresh Token — Requirements for opaque string format, SHA-256 server-side hashing, family-wide reuse-detection flow, and table schema.
 - [L230–L267] 2. Cookie Configuration — HttpOnly, Secure, and SameSite attributes, scoping access/refresh tokens, expiration behavior, and development environment config.
 - [L268–L312] 3. PKCE for the SPA — Client-side code verifier/challenge generation flow, token exchange protocol, and memory-only storage rules.
@@ -24,8 +24,8 @@
   - [L454–L475] 5.3 Resource Types — Reference table mapping core resource types to their key attributes used in authorization policies.
   - [L476–L505] 5.4 Actions — List of operational actions defining permissions for LGU workflows, document management, and administration.
   - [L506–L570] 5.5 Policy Evaluation Order — Sequence of the deny-first cascade checking tenant isolation, IT admin limits, RBAC, and ABAC scopes.
-  - [L571–L613] 5.6 Office Scoping — Office-scoped restriction mechanisms, cross-office read permissions, and multi-referral step logic. `[+9 lines, 2026-06-25 — flagged the unenforced "one active office assignment" assumption as an open question; not resolved here, see iam.md Module Summary and ADR-UI-012]`
-  - [L614–L661] 5.7 Delegation Scope in ABAC — Evaluation-time scope expansion, required JSONB schema structure, and single-active-delegation database index. `[2026-06-25 — noted the delegation-grant lookup's access mechanism is now resolved via Organization's Published API, not direct SQL]`
+  - [L571–L613] 5.6 Office Scoping
+  - [L614–L661] 5.7 Delegation Scope in ABAC
 - [L662–L846] 6. Row-Level Security
   - [L664–L678] 6.1 Principle — Dual-layer defense philosophy using PostgreSQL RLS as a database-level backstop behind application-level ABAC.
   - [L679–L690] 6.2 Database Roles — Purpose and key privileges for specific database accounts including runtime, audit, and IT admin.
@@ -33,21 +33,21 @@
   - [L706–L754] 6.4 Tables with RLS Enabled — Mapping of tables in all five schemas to their specific RLS policy intent.
   - [L755–L846] 6.5 Example RLS Policy Patterns [Inference] — SQL patterns for city isolation, office scope, IT admin block, and has_cross_office_read_grant logic.
 - [L847–L915] 7. IT Admin Data Isolation — Invariant blocking IT Admin access to Confidential/Restricted document content via three-layer enforcement.
-- [L916–L1024] 8. Platform Administrator Role Exclusion Invariant
+- [L916–L1026] 8. Platform Administrator Role Exclusion Invariant
   - [L920–L923] 8.1 Rule — Prohibition of combining the Platform Administrator role with any operational document-processing role on one account.
   - [L924–L927] 8.2 Rationale — Fraud prevention reasoning based on avoiding conflicts of interest between rule definitions and operational execution.
-  - [L928–L943] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05; see flag below] — Incompatible role categories, compatible technical roles, and seed data decisions.
-  - [L944–L1024] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
-- [L1025–L1098] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
-- [L1099–L1254] 10. Implementation Notes
-  - [L1101–L1135] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
-  - [L1136–L1163] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
-  - [L1164–L1190] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
-  - [L1191–L1206] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
-  - [L1207–L1227] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
-  - [L1228–L1254] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
-- [L1255–L1275] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for all tracked decisions including D-AUTH-11 (added and resolved 2026-06-26); open follow-ups are superseded by Section 12.
-- [L1276–L1291] 12. Remaining Open Items — Three follow-up items and one fully-open item not blocking IAM migration; the fifth item (office-assignment-uniqueness) was resolved on 2026-06-26 and moved to Section 11 as D-AUTH-11.
+  - [L928–L945] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05]
+  - [L946–L1026] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
+- [L1027–L1100] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
+- [L1101–L1256] 10. Implementation Notes
+  - [L1103–L1137] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
+  - [L1138–L1165] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
+  - [L1166–L1192] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
+  - [L1193–L1208] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
+  - [L1209–L1229] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
+  - [L1230–L1256] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
+- [L1257–L1276] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for all tracked decisions including D-AUTH-11 (added and resolved 2026-06-26); open follow-ups are superseded by Section 12.
+- [L1277–L1291] 12. Remaining Open Items — Three follow-up items and one fully-open item not blocking IAM migration; the fifth item (office-assignment-uniqueness) was resolved on 2026-06-26 and moved to Section 11 as D-AUTH-11.
 
 ---
 
@@ -243,7 +243,7 @@ Both the access token and refresh token are delivered exclusively as HTTP-only c
 **Attribute rationale:**
 
 - **`HttpOnly`** — Cookie is inaccessible from JavaScript. XSS attacks cannot read the token.
-- **`Secure`** — Cookie is transmitted only over HTTPS. Development environments may relax to HTTP on `localhost` only, controlled by `COOKIE_SECURE=false` env flag.
+- **`Secure`** — Cookie is transmitted only over HTTPS. Development environments may relax to HTTP on `localhost` only, controlled by `AUTH_COOKIE_SECURE=false` env flag.
 - **`SameSite=Strict`** — Cookie is not sent on cross-site requests. Provides CSRF protection without requiring a separate CSRF token on any endpoint.
 - **Refresh token path scoped to `/api/auth/refresh`** — The refresh token cookie is not sent to any other endpoint. If the access token expires mid-session, only the designated refresh endpoint receives the refresh cookie.
 
@@ -258,10 +258,10 @@ Both the access token and refresh token are delivered exclusively as HTTP-only c
 Development environments run on `http://localhost`. The `Secure` attribute blocks cookies over plain HTTP in most browsers. Controlled via:
 
 ```
-COOKIE_SECURE=false   # Only in development; never in staging or production
+AUTH_COOKIE_SECURE=false   # Only in development; never in staging or production
 ```
 
-Production and staging always have `COOKIE_SECURE=true`. This is enforced at startup via Zod config validation (fail-fast if `NODE_ENV=production` and `COOKIE_SECURE=false`).
+Production and staging always have `AUTH_COOKIE_SECURE=true`. This is enforced at startup via Zod config validation (fail-fast if `NODE_ENV=production` and `AUTH_COOKIE_SECURE=false`). `[Corrected — this section previously used the bare COOKIE_SECURE name; L1 §2 establishes a mandatory subsystem-prefix naming convention for every env var, and L1's own catalog already uses AUTH_COOKIE_SECURE]`
 
 ---
 
@@ -925,7 +925,7 @@ The Platform Administrator role cannot be combined with any document-processing 
 
 The Platform Administrator configures the rules that govern document workflows: role definitions, permission assignments, workflow step definitions, SLA thresholds, and numbering series. A user who both defines the rules and operates within them could configure their own permissions, modify workflow definitions to bypass steps on their own documents, or create gaps in the audit trail for their own actions. Separation is required.
 
-### 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05; see flag below]
+### 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05]
 
 The following role categories are incompatible with Platform Administrator:
 
@@ -933,13 +933,15 @@ The following role categories are incompatible with Platform Administrator:
 |---|---|
 |SP Office operational|SP Secretary, Administrative Officer II, Clerk III, Records Officer|
 |Legislative|Councilor, Committee Chair, Committee Member|
-|Executive|Mayor, Vice Mayor, Acting Mayor, OIC (any)|
+|Executive|Mayor, Vice Mayor|
 |Document handler|Encoder, Records Aide, Librarian|
 |Citizen-facing|Citizen (portal user)|
 
 **Platform Administrator may be combined with:** IT Admin-adjacent technical roles where no document-processing actions are involved. [Inference]
 
-**Seeding decision:** This list is confirmed for use, verbatim, as the mapping to `type_code = 'document_processor'` (Section 8.4) — see Remaining Open Items at the end of this document for one unresolved accuracy flag on "Acting Mayor" and "OIC (any)" that should be checked before the literal `iam.roles` seed insert is written.
+**Seeding decision — D-AUTH-05 now resolved, not just flagged:** "Acting Mayor" and "OIC (any)" are removed from this list entirely. They are not `iam.roles` rows and were never a role-modeling question — per the consolidated reference Part 11.13 and Architectural Invariant #16, acting/OIC authority is conferred through a `delegation_grant` record (one active designation per person, DB partial unique index), which temporarily reroutes the original authority's workflow-step assignments to the designated person. The designated person keeps their own existing role; they gain no new role row. Section 8.4's `type_code = 'document_processor'` trigger therefore only ever needs to know about `Mayor`/`Vice Mayor` as literal seeded rows — there is no separate "Acting Mayor" or "OIC" row to seed.
+
+**New follow-up this resolution surfaces, not yet addressed by any document:** Invariant #12 ("Platform Administrator role cannot be combined with any document-processing role") is enforced against a user's own seeded role. It is not yet defined whether `delegation_grant` creation checks that the *designated* person doesn't hold Platform Administrator — a Platform Admin could, as currently specified, become the routing target for Mayor's document-processing steps via delegation while keeping their Platform Admin role, since they'd never acquire a document-processing role row that Section 8.4's trigger would catch. Whether `delegation_grant` creation should validate against the designated person's role the same way direct role-assignment does is an open enforcement-design question. `[Speculation — surfaced by this fix, not resolved by it]`
 
 ### 8.4 Enforcement
 
@@ -1262,7 +1264,7 @@ POST /api/auth/login
 |D-AUTH-02|Argon2id parameters (m, t, p) for password hashing|**Resolved: `m=65536 (64 MB), t=2, p=1`**, exposed via environment variables (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`) rather than hardcoded, adopted as OWASP's published baseline. **Hardware benchmarking against target server hardware remains required before production** — this is not optional and is carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|[ADR-AUTH-002](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-002-argon2id-parameters.md) (no other body location exists for this parameter; password hashing is otherwise only referenced at Section 9.2)|
 |D-AUTH-03|Refresh token lifetime|**Resolved: 14 days.**|Section 1.2; [ADR-AUTH-003](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-003-refresh-token-lifetime.md)|
 |D-AUTH-04|Refresh token hash algorithm: Argon2id vs. SHA-256|**Resolved: SHA-256 with per-token salt** (not Argon2id) — token entropy makes a slow hash unnecessary; Argon2id is retained for password hashing (D-AUTH-02), which is unaffected.|Section 1.2; [ADR-AUTH-004](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-004-refresh-token-hash-algorithm.md)|
-|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|**Resolved for seeding: Section 8.3's list, used verbatim.** One accuracy flag on "Acting Mayor" / "OIC (any)" not fully closed — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 8.3|
+|D-AUTH-05|Full list of document-processing roles for Platform Admin exclusion trigger|**Resolved: Section 8.3's list.** "Acting Mayor"/"OIC (any)" removed — not roles, conferred via `delegation_grant` per consolidated reference Part 11.13/Invariant #16. Fully closed, not carried forward.|Section 8.3|
 |D-AUTH-06|`delegation_grant.scope` field schema|**Resolved:** `JSONB` with required `{ roles: [], office_ids: [], actions: [] }` shape.|Section 5.7; [ADR-AUTH-006](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-006-delegation_grant.scope-field-schema.md)|
 |D-AUTH-07|Account lockout policy on repeated login failures|**Resolved: progressive per-account delay, no hard lockout** (Section 10.4.1), alongside the existing per-IP limits. Alert threshold value not set — carried forward; see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md). MFA-tier escalation explicitly deferred to Phase 2.|Section 10.4.1; [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md)|
 |D-AUTH-08|External TSA provider for audit log timestamps|**Not resolved.** Vendor/procurement selection, out of architectural scope — see Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md).|Section 12; [ADR-AUTH-008](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-008-external-tsa-provider-for-audit-log-timestamps.md)|
@@ -1279,7 +1281,7 @@ One item is entirely unresolved, and three otherwise-resolved items each carry a
 | Item                | What's Open                                                                                                                                                                                                                                                                                                                                                                            | Why It Doesn't Block the IAM Migration                                                                                                                                                                                                                | Required Before                                                                                                                          |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | D-AUTH-02 follow-up | Argon2id parameters (`m=65536, t=2, p=1`) are set as a default, but have **not been benchmarked on actual target server hardware**.                                                                                                                                                                                                                                                    | The parameters are env-configurable (`ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`), so the migration can proceed with the default and the values adjusted later without a schema change.                                            | Production deployment                                                                                                                    |
-| D-AUTH-05 follow-up | "Acting Mayor" and "OIC (any)" in Section 8.3's role list read as role _categories_, not confirmed literal `iam.roles.name` rows — "OIC (any)" in particular may need to be several office-specific seeded roles rather than one literal row, or a different enforcement mechanism entirely. This was not resolved, only flagged; the list was used verbatim per explicit instruction. | The trigger logic (Section 8.4) operates on `type_code`, not on the specific role name — so the migration and trigger can be written now. This only affects the literal seed `INSERT` statements for `iam.roles`, not the schema or trigger function. | IAM seed data (i.e., before the seed `INSERT`s are written, not before the migration creating the tables/trigger)                        |
+| D-AUTH-05 follow-up | Whether `delegation_grant` creation validates that the *designated* person doesn't hold Platform Administrator — Invariant #12 is enforced against a user's own seeded role, and delegation doesn't grant a new role row, so a Platform Admin could become the routing target for Mayor's document-processing steps without ever acquiring a role Section 8.4's trigger would catch. | Delegation creation (Organization module) doesn't depend on this being resolved to be built — the `delegation_grant` table and one-active-per-person constraint (Invariant #16) are independent of this check. | Should be resolved before delegation creation is exposed to end users, so the validation (if needed) ships with the feature rather than as a later patch |
 | D-AUTH-07 follow-up | The administrator alert threshold for repeated account-level login failures (Section 10.4.1) has no value. No production traffic data exists yet to calibrate a number that distinguishes normal mistyped-password volume from an actual attack pattern, and no value should be guessed without that data.                                                                             | The counter, audit logging, and progressive-delay mechanism don't require the threshold to be set to be built — the threshold is a comparison value that can be added or changed via configuration after launch, using observed data.                 | Should be set using real post-launch data, or provisionally set conservatively high and tuned down — either way, not a schema dependency |
 | D-AUTH-08           | External RFC 3161 Time-Stamping Authority (TSA) provider for the monthly audit log export — entirely unresolved. This is a vendor/procurement decision requiring current research into provider offerings, pricing, and any government-procurement constraints; it is not an architectural design choice and was not researched as part of this resolution.                            | The audit export mechanism and schedule are already defined independently of which TSA is used; the provider is a configuration/integration detail at export time, not a schema or application-logic dependency.                                      | Pre-production (per original deadline, unchanged)                                                                                        |
 | Office-assignment uniqueness `[Resolved — 2026-06-26, ADR-AUTH-011]` | **Resolved.** An explicit `is_primary BOOLEAN NOT NULL DEFAULT false` column has been added to `organization.assignments`, with partial unique index `uq_assignments_one_primary_per_employee` as a DB-level safety net. `getPrimaryOfficeForUser` queries `WHERE is_primary = true AND is_active = true AND deleted_at IS NULL`. Moved to Section 11 as D-AUTH-11. | N/A — resolved before the ORG module's Step 2 pass. | Completed 2026-06-26 |

@@ -8,39 +8,38 @@
 
 ## Table of Contents
 
-- [L3–L73] B2 — Module Boundary and Internal API Contracts — Authoritative module communication boundaries and architectural contracts specification.
-- [L74–L91] Purpose — Scope of Architectural Law #2, cross-module communication rules, and the single allowed Phase 1 FTS read exception.
-- [L92–L101] Notation — Definitions of source fidelity labels, including inferred behaviors and phase boundaries used throughout the contracts.
-- [L102–L154] Enforcement Model — Implementation of Law #2, static analysis enforcement, sync vs. async decision rules, event envelope structure, and API versioning policy.
-- [L155–L229] Module 1 — IAM — ABAC engine authorization policy evaluation, display user summary retrieval, and authentication/role assignment audit events.
-- [L230–L388] Module 2 — Organization — Office hierarchy tree, designation logging, active delegation resolution for step routing and ABAC policy evaluation, and (added 2026-06-25) primary office, committee membership, and delegation-by-id resolution for IAM.
-  - [L234–L372] Published API
-  - [L373–L382] Events Emitted
-  - [L383–L388] Events Consumed
-- [L389–L565] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
-  - [L397–L542] Published API
-  - [L543–L558] Events Emitted
-  - [L559–L565] Events Consumed
-- [L566–L709] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
-  - [L580–L674] Published API
-  - [L675–L696] Events Emitted
-  - [L697–L709] Events Consumed
-- [L710–L781] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
-- [L782–L852] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
-- [L853–L912] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
-- [L913–L1022] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
-  - [L919–L989] Published API
-  - [L990–L993] Events Emitted
-  - [L994–L1022] Events Consumed
-- [L1023–L1092] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
-- [L1093–L1127] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
-- [L1128–L1155] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
-- [L1156–L1314] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
-  - [L1158–L1186] Master Event Bus Registry
-  - [L1187–L1221] Published API Call Matrix
-  - [L1222–L1314] Module Dependency Map
-- [L1315–L1336] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
-- [L1337–L1355] Resolved ADRs `[All seven resolved — see Version 1.1 Change Log at top of document]` — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
+- [L73–L90] Purpose — Scope of Architectural Law #2, cross-module communication rules, and the single allowed Phase 1 FTS read exception.
+- [L91–L100] Notation — Definitions of source fidelity labels, including inferred behaviors and phase boundaries used throughout the contracts.
+- [L101–L153] Enforcement Model — Implementation of Law #2, static analysis enforcement, sync vs. async decision rules, event envelope structure, and API versioning policy.
+- [L154–L228] Module 1 — IAM — ABAC engine authorization policy evaluation, display user summary retrieval, and authentication/role assignment audit events.
+- [L229–L387] Module 2 — Organization — Office hierarchy tree, designation logging, active delegation resolution for step routing and ABAC policy evaluation, and (added 2026-06-25) primary office, committee membership, and delegation-by-id resolution for IAM.
+  - [L233–L371] Published API
+  - [L372–L381] Events Emitted
+  - [L382–L387] Events Consumed
+- [L388–L569] Module 3 — Documents — Document state machine, draft and final numbering sequences, attachment upload presigning, and Secretariat decision integration.
+  - [L396–L546] Published API
+  - [L547–L562] Events Emitted
+  - [L563–L569] Events Consumed
+- [L570–L717] Module 4 — Workflow — Engine step types, multi-committee referral cutoffs, certified urgent bypass, version pinning, and SLA escalation monitors.
+  - [L584–L678] Published API
+  - [L679–L704] Events Emitted
+  - [L705–L717] Events Consumed
+- [L718–L789] Module 5 — Tracking — Immutable QR tracking number assignment, physical custody logging, append-only routing history, and public document blurring rules.
+- [L790–L860] Module 6 — Records — Permanent retention schedules, four-tier classification rules, legal holds, and audited Records Officer bulk operations.
+- [L861–L921] Module 7 — Notifications — SSE in-app, SMTP email, and Phase 3 SMS delivery channels, template engines, and respondent notice routing rules.
+- [L922–L1032] Module 8 — Audit — Append-only hash chain and HMAC cryptographics, monthly TSA export, and the global domain event auditing consumer.
+  - [L928–L998] Published API
+  - [L999–L1002] Events Emitted
+  - [L1003–L1032] Events Consumed
+- [L1033–L1102] Module 9 — Search Meta — Search provider abstraction, Phase 1 PostgreSQL FTS trigger, Phase 2 Meilisearch sync, and the temporary FTS query exception.
+- [L1103–L1137] Module 10 — Portal — OTP citizen authentication, public document lookup, citizen complaint channels, and three access modes for document requests.
+- [L1138–L1165] Module 11 — Reporting — On-demand and scheduled PDF/spreadsheet generation, and ARTA compliance reporting via the Workflow Published API.
+- [L1166–L1330] Cross-Module Reference — Master matrices for the internal event registry, synchronous call pathways, and direct module dependencies.
+  - [L1168–L1202] Master Event Bus Registry
+  - [L1203–L1237] Published API Call Matrix
+  - [L1238–L1330] Module Dependency Map
+- [L1331–L1352] Prohibited Patterns — Seven prohibited development patterns that violate modular boundaries, caught by compiler rules or static analysis.
+- [L1353–L1371] Resolved ADRs `[All seven resolved — see Version 1.1 Change Log at top of document]` — Historical log preserving the original requirements and final resolutions for ADR-B2-1 through ADR-B2-7.
 
 ---
 
@@ -488,16 +487,21 @@ interface DocumentsPublicAPI {
   ): Promise<AttachmentRef[]>;
 }
 
+// Value set corrected to C1's real 11-value lifecycle_state CHECK constraint
+// (post-ADR-013/ADR-014, per D3). Previously a stale 9-value set predating
+// the split of 'Pending-Approval' and the addition of 'superseded'.
 type DocumentLifecycleState =
-  | 'Draft'
-  | 'Submitted'
-  | 'In-Workflow'
-  | 'Pending-Approval'
-  | 'Completed'
-  | 'Released'
-  | 'Archived'
-  | 'Disposed'
-  | 'Cancelled'; // terminal; reachable from any active state by authorized actor
+  | 'draft'
+  | 'submitted'
+  | 'in_workflow'
+  | 'pending_mayor_action'
+  | 'pending_panlalawigan_review'
+  | 'completed'
+  | 'released'
+  | 'archived'
+  | 'disposed'
+  | 'cancelled'
+  | 'superseded'; // terminal; reachable only from pending_panlalawigan_review
 
 interface DocumentSummary {
   documentId: string;
@@ -676,23 +680,27 @@ interface WorkflowSLAData {
 
 |Event|Trigger|Key Payload Fields|
 |---|---|---|
-|`workflow.step_assigned`|Step routed to an assignee; delegation resolution applied|`instanceId`, `stepInstanceId`, `stepType`, `assigneeUserId`, `documentId`, `dueAt?`|
+|`workflow.step.started`|Step routed to an assignee; delegation resolution applied|`instanceId`, `stepInstanceId`, `stepType`, `assigneeUserId`, `documentId`, `dueAt?` `[FLAGGED — payload also redesigned in B3 §7.11, not just renamed; see payload-reconciliation note at end of this section]`|
 |`workflow.step.completed`|User or system action completes a step|`instanceId`, `stepInstanceId`, `stepType`, `completedBy`, `outcome`, `documentId`|
-|`workflow.lapsed`|Mayor 10-day or Panlalawigan 30-day timer fires with no action|`instanceId`, `lapseType`, `documentId`, `lapsedAt`, `legalBasis: 'RA7160_S47' \| 'RA7160_S56D'`|
-|`workflow.escalated`|ARTA SLA breach; supervisor and Records Officer to be notified|`instanceId`, `stepInstanceId`, `documentId`, `slaType`, `escalatedToUserIds: string[]`, `breachedAt`|
-|`workflow.certified_urgent_applied`|Secretariat logs a Certification of Urgency; `multi_referral` step bypassed on each associated measure|`certificationDocumentId`, `affectedDocumentIds: string[]`, `bypassedStepType: 'multi_referral'`, `actorId`|
-|`workflow.manually_advanced`|SP Secretary overrides a blocked `multi_referral` step|`instanceId`, `stepInstanceId`, `documentId`, `advancedBy`, `mandatoryComment`, `fromStep`, `toStep`|
-|`workflow.completed`|Workflow reaches terminal step|`instanceId`, `documentId`, `documentTypeId`, `finalOutcome`, `completedAt`|
+|`workflow.approval.lapsed`|Mayor 10-day timer fires with no action; RA 7160 §47|`stepInstanceId`, `legalBasis: 'RA 7160 Section 47'`, `deadlineWas`|
+|`workflow.panlalawigan.deemed_approved`|Panlalawigan 30-day timer fires with no action; RA 7160 §56(d)|`stepInstanceId`, `legalBasis: 'RA 7160 Section 56(d)'`, `deadlineWas` `[Inference — exact field names/types mirrored from workflow.approval.lapsed's B3 §7.21 schema, since B3 §7.22 defines the same shape for this sibling event]`|
+|`workflow.sla.breached`|ARTA SLA breach; supervisor and Records Officer to be notified|`instanceId`, `stepInstanceId`, `documentId`, `slaType`, `escalatedToUserIds: string[]`, `breachedAt` `[FLAGGED — payload also redesigned in B3 §7.28, not just renamed; see payload-reconciliation note at end of this section]`|
+|`workflow.certification_urgency.bypass_applied`|Secretariat logs a Certification of Urgency; `multi_referral` step bypassed on each associated measure|`certificationDocumentId`, `affectedDocumentIds: string[]`, `bypassedStepType: 'multi_referral'`, `actorId` `[FLAGGED — payload also redesigned in B3 §7.23, not just renamed; see payload-reconciliation note at end of this section]`|
+|`workflow.multi_referral.secretary_advanced`|SP Secretary overrides a blocked `multi_referral` step|`instanceId`, `stepInstanceId`, `documentId`, `advancedBy`, `mandatoryComment`, `fromStep`, `toStep` `[FLAGGED — payload also redesigned in B3 §7.20, not just renamed; see payload-reconciliation note at end of this section]`|
+|`workflow.instance.completed`|Workflow reaches terminal step|`instanceId`, `documentId`, `documentTypeId`, `finalOutcome`, `completedAt` `[FLAGGED — payload also redesigned in B3 §7.2, not just renamed; see payload-reconciliation note at end of this section]`|
 
 Consumers by event:
 
-- `workflow.step_assigned` → **Notifications** (notifies assignee), **Audit**
+- `workflow.step.started` → **Notifications** (notifies assignee), **Audit**
 - `workflow.step.completed` → **Tracking** (appends routing entry), **Audit**
-- `workflow.lapsed` → **Notifications** (notifies SP Secretary), **Audit**
-- `workflow.escalated` → **Notifications** (notifies supervisor and Records Officer), **Audit**
-- `workflow.certified_urgent_applied` → **Audit**
-- `workflow.manually_advanced` → **Audit**
-- `workflow.completed` → **Records** [Phase 2] (triggers record creation), **Portal** [Phase 3] (updates public document visibility), **Audit**
+- `workflow.approval.lapsed` → **Notifications** (notifies SP Secretary), **Audit**
+- `workflow.panlalawigan.deemed_approved` → **Notifications** (notifies SP Secretary), **Audit**
+- `workflow.sla.breached` → **Notifications** (notifies supervisor and Records Officer), **Audit**
+- `workflow.certification_urgency.bypass_applied` → **Audit**
+- `workflow.multi_referral.secretary_advanced` → **Audit**
+- `workflow.instance.completed` → **Records** [Phase 2] (triggers record creation), **Portal** [Phase 3] (updates public document visibility), **Audit**
+
+`[Corrected — names updated to B3's ratified set per B3 §0.2, including workflow.lapsed, now confirmed and split into workflow.approval.lapsed / workflow.panlalawigan.deemed_approved per consolidated reference Part 4.3/11.3 (previously excluded pending confirmation — see B3's now-resolved discrepancy note). Also not included: workflow.sla.warning and workflow.sla.critical (B3 §7.27/§7.29), two entirely new SLA-tier events B4 defines that don't exist in B2 at all under any name — adding these is a net-new addition, not a rename, and is covered in the accompanying write-up rather than silently inserted here.]`
 
 ### Events Consumed
 
@@ -840,13 +848,13 @@ interface RetentionSchedule {
 
 ### Events Emitted
 
-None. Records does not publish domain events. It writes to its own schema in response to `workflow.completed` and exposes read APIs for external callers. `[Inference]`
+None. Records does not publish domain events. It writes to its own schema in response to `workflow.instance.completed` and exposes read APIs for external callers. `[Inference]`
 
 ### Events Consumed
 
 |Event|Source|Action Taken|
 |---|---|---|
-|`workflow.completed`|Workflow|Creates a `record` entry and initial `archive_entry` for the completed document. Calls `Documents.getDocumentById()` to retrieve document metadata for the record. Calls `Documents.getDocumentType()` to retrieve the retention schedule linkage for the archive entry.|
+|`workflow.instance.completed`|Workflow|Creates a `record` entry and initial `archive_entry` for the completed document. Calls `Documents.getDocumentById()` to retrieve document metadata for the record. Calls `Documents.getDocumentType()` to retrieve the retention schedule linkage for the archive entry.|
 
 ---
 
@@ -903,9 +911,10 @@ None. Notifications is a sink module for notification triggers.
 
 |Event|Source|Action Taken|
 |---|---|---|
-|`workflow.step_assigned`|Workflow|Selects the step-assignment template; delivers in-app and email notification to the step assignee.|
-|`workflow.lapsed`|Workflow|Delivers lapse notification to the SP Secretary; includes legal basis and document reference.|
-|`workflow.escalated`|Workflow|Delivers ARTA SLA breach notification to the designated supervisor and Records Officer.|
+|`workflow.step.started`|Workflow|Selects the step-assignment template; delivers in-app and email notification to the step assignee.|
+|`workflow.approval.lapsed`|Workflow|Delivers lapse notification to the SP Secretary; includes legal basis (RA 7160 §47) and document reference.|
+|`workflow.panlalawigan.deemed_approved`|Workflow|Delivers deemed-approved notification to the SP Secretary; includes legal basis (RA 7160 §56(d)) and document reference.|
+|`workflow.sla.breached`|Workflow|Delivers ARTA SLA breach notification to the designated supervisor and Records Officer.|
 |`document.state_changed`|Documents|Delivers status-change notification to relevant parties as configured in the template for the new state. `[Inference]`|
 
 ---
@@ -1008,13 +1017,14 @@ The Audit module subscribes to **all** domain events from all other modules via 
 |`document.created`|Documents||
 |`document.state_changed`|Documents||
 |`document.number_assigned`|Documents|Both preliminary and final assignment events|
-|`workflow.step_assigned`|Workflow||
+|`workflow.step.started`|Workflow||
 |`workflow.step.completed`|Workflow|`[UPDATED — ADR-B2-3]` Now also carries Approve / Reject / Amended outcomes for Secretariat decisions, in its `outcome` field. `document.secretariat_decision` no longer exists as a separate event — see ADR-B2-3.|
-|`workflow.lapsed`|Workflow||
-|`workflow.escalated`|Workflow||
-|`workflow.certified_urgent_applied`|Workflow||
-|`workflow.manually_advanced`|Workflow||
-|`workflow.completed`|Workflow||
+|`workflow.approval.lapsed`|Workflow||
+|`workflow.panlalawigan.deemed_approved`|Workflow||
+|`workflow.sla.breached`|Workflow||
+|`workflow.certification_urgency.bypass_applied`|Workflow||
+|`workflow.multi_referral.secretary_advanced`|Workflow||
+|`workflow.instance.completed`|Workflow||
 
 **Rule:** Any new domain event added to the bus **must** be registered with the Audit Event Consumer in the same PR that introduces the event. No event may ship without an Audit subscription. `[Inference — required by Law #2 spirit; not stated verbatim in source]`
 
@@ -1120,7 +1130,7 @@ None.
 
 |Event|Source|Action Taken|
 |---|---|---|
-|`workflow.completed`|Workflow|Updates `public_documents` visibility: when an approved legislative document reaches the publication step, the document becomes publicly listed with title and first-page reference.|
+|`workflow.instance.completed`|Workflow|Updates `public_documents` visibility: when an approved legislative document reaches the publication step, the document becomes publicly listed with title and first-page reference.|
 |`document.state_changed`|Documents|Synchronizes relevant state changes to the `public_documents` table (e.g. a released document becoming listed; a cancelled document being delisted). `[Inference]`|
 
 ---
@@ -1174,13 +1184,19 @@ Every new event must be added to this table before implementation. Audit subscri
 |`document.created`|Documents|Tracking, Workflow, Search Meta [Ph1 no-op; Ph2 indexing], Audit|B1 Appendix A; Search Meta row updated `[ADR-B2-5]`|
 |`document.state_changed`|Documents|Tracking, Notifications, Search Meta [Ph1 no-op; Ph2 sync], Portal [Ph3], Audit|B1 Appendix A; Search Meta row updated `[ADR-B2-5]`|
 |`document.number_assigned`|Documents|Audit|B1 Appendix A|
-|`workflow.step_assigned`|Workflow|Notifications, Audit|B1 Appendix A|
+|`document.certification_urgency.logged`|Documents|Workflow, Audit|`[Added]` B3 §6.5 — required follow-up per B3 OI-12/OI-3, this event previously existed nowhere in B2's registry under any name. Consumers per B3: Workflow (executes the multi_referral bypass sequence per affected instance), Audit `[Inference per B2 mandatory rule, per B3]`.|
+|`workflow.step.started`|Workflow|Notifications, Audit|B1 Appendix A|
 |`workflow.step.completed`|Workflow|Tracking, Audit|B1 Appendix A — also now carries Secretariat Approve/Reject/Amended outcomes; `document.secretariat_decision` removed `[ADR-B2-3]`|
-|`workflow.lapsed`|Workflow|Notifications, Audit|B1 Appendix A|
-|`workflow.escalated`|Workflow|Notifications, Audit|B1 Appendix A|
-|`workflow.certified_urgent_applied`|Workflow|Audit|B1 Appendix A|
-|`workflow.manually_advanced`|Workflow|Audit|B1 Appendix A|
-|`workflow.completed`|Workflow|Records [Ph2], Portal [Ph3], Audit|B1 Appendix A|
+|`workflow.approval.lapsed`|Workflow|Notifications, Audit|B1 Appendix A|
+|`workflow.panlalawigan.deemed_approved`|Workflow|Notifications, Audit|B1 Appendix A|
+|`workflow.sla.breached`|Workflow|Notifications, Audit|B1 Appendix A|
+|`workflow.sla.warning`|Workflow|Notifications, Audit|`[Added]` B3 §7.27 — net-new event, not a rename; B4 defines this SLA-warning tier (80% elapsed) with no B2 equivalent under any name.|
+|`workflow.sla.critical`|Workflow|Notifications, Audit|`[Added]` B3 §7.29 — net-new event, not a rename; B4 defines this second SLA-escalation tier (150% elapsed) with no B2 equivalent under any name. `[Unverified — the 150% threshold itself is sourced only from B4 per B3's own note; the existence of a third escalation tier is team-confirmed (OI-11), the specific number is not]`|
+|`workflow.certification_urgency.bypass_applied`|Workflow|Audit|B1 Appendix A|
+|`workflow.multi_referral.secretary_advanced`|Workflow|Audit|B1 Appendix A|
+|`workflow.instance.completed`|Workflow|Records [Ph2], Portal [Ph3], Audit|B1 Appendix A|
+
+`[Corrected — 5 events renamed to B3's ratified names (§0.2), plus workflow.lapsed split into workflow.approval.lapsed / workflow.panlalawigan.deemed_approved (now confirmed, see Events Emitted section above); 3 rows added (1 missing event B3 explicitly requires here, 2 net-new SLA-tier events). Payload shapes for the 5 renamed events are NOT reconciled in this table — B3's versions differ substantively from B2's old payloads for all five, not just cosmetically. See the accompanying payload-reconciliation write-up.]`
 
 ---
 
@@ -1266,19 +1282,19 @@ Tracking
                   Documents (getDocumentById — public scan handler + cover sheet PDF generator)
                             [RESOLVED — SPEC-GAP-TRACK-03, 2026-06-30]
   Emits to:       (none)
-  Consumes from:  Documents (created), Workflow (step_completed)
+  Consumes from:  Documents (created), Workflow (step.completed)
 
 Records
   Calls:          IAM       (evaluatePolicy)
                   Documents (getDocumentById, getDocumentType)
                   Audit     (writeEvent — synchronous; bulk ops and dispositions)
   Emits to:       (none)
-  Consumes from:  Workflow (completed)
+  Consumes from:  Workflow (instance.completed)
 
 Notifications
   Calls:          IAM (getUserById — recipient addressing)
   Emits to:       (none)
-  Consumes from:  Workflow (step_assigned, lapsed, escalated)
+  Consumes from:  Workflow (step.started, approval.lapsed, panlalawigan.deemed_approved, sla.breached)
                   Documents (state_changed)
 
 Audit
@@ -1300,7 +1316,7 @@ Portal
                   Notifications (sendNotification — respondent notices)
                   Tracking      (getTrackingRecordForDocument — public scan)
   Emits to:       (none)
-  Consumes from:  Workflow  (completed)
+  Consumes from:  Workflow  (instance.completed)
                   Documents (state_changed)
 
 Reporting

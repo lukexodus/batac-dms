@@ -24,8 +24,8 @@
   - [L508–L544] Module 9 — Search Meta [Phase 2] — Search abstraction details, Phase 1 PostgreSQL FTS, Phase 2 Meilisearch sync queue, and typo-tolerant search rules.
   - [L545–L592] Module 10 — Portal [Phase 3] — Next.js portal REST endpoints, citizen OTP authentication, document blurring logic, and complaint intake access channels.
   - [L593–L628] Module 11 — Reporting [Phase 2] — Configurable templates, React-PDF/SheetJS generation engines, and automated ARTA compliance reporting using live SLA details.
-- [L629–L656] Appendix A — Cross-Module Event Reference [Inference] — Tabulated catalog of in-process event contracts defining publishers, subscribers, and side-effects across all 11 modules.
-- [L657–L675] Appendix B — Architectural Invariants Affecting This Document — Twelve rigid architectural rules mapping system-wide invariants to specific diagram implementations and database constraints.
+- [L629–L659] Appendix A — Cross-Module Event Reference [Inference] — Tabulated catalog of in-process event contracts defining publishers, subscribers, and side-effects across all 11 modules.
+- [L660–L677] Appendix B — Architectural Invariants Affecting This Document — Twelve rigid architectural rules mapping system-wide invariants to specific diagram implementations and database constraints.
 
 ---
 
@@ -269,9 +269,9 @@ C4Component
     title Level 3 - Documents Module
 
     Container_Boundary(docs, "Documents Module - schema: documents") {
-        Component(docRouter, "Document Router", "tRPC", "Document CRUD, version history, attachment upload and download, number assignment actions, Secretariat decision logging: Approve, Reject, Amended.")
+        Component(docRouter, "Document Router", "tRPC", "Document CRUD, version history, attachment upload and download, number assignment actions. Secretariat decision routing moved to Workflow Router per ADR-B2-3 — this Router no longer logs it directly.")
         Component(docTypeSvc, "Document Type Registry", "Service", "Admin-configurable type definitions: required fields, workflow template reference, retention schedule link, public visibility rules. Retention schedule must exist before type can be activated.")
-        Component(docSvc, "Document Service", "Service", "Lifecycle state machine: Draft, Submitted, In-Workflow, Pending Approval, Completed, Released, Archived, Disposed. Cancelled is terminal from any active state. Soft-delete only - no hard deletes.")
+        Component(docSvc, "Document Service", "Service", "Lifecycle state machine (C1/D3 post-ADR-013/ADR-014): Draft, Submitted, In-Workflow, Pending Mayor Action, Pending Panlalawigan Review, Completed, Released, Archived, Disposed, Superseded. Cancelled is terminal from any active state. Soft-delete only - no hard deletes.")
         Component(numberSeriesSvc, "Number Series Service", "Service", "Preliminary number at secretariat logging using Draft prefix and space delimiter. Final number after last reading vote. Separate PostgreSQL sequence per document type per year. Final numbers immutable after Draft prefix is removed.")
         Component(versionMgr, "Version Manager", "Service", "Immutable version history. No overwrites. Physical-to-digital copies flagged for Records Officer verification before being accepted as the official copy.")
         Component(attachmentSvc, "Attachment Service", "Service", "Generates S3 presigned URLs for direct client-to-storage transfer. UUID key generation. Triggers OCR on successful upload. Files never touch application server disk.")
@@ -279,7 +279,7 @@ C4Component
         Component(signatureSvc, "Signature Record Service", "Service", "Stores scanned signature image references linked to document versions. Provides authentication trail; not cryptographic non-repudiation. PKI upgrade path reserved for post-Phase 1.")
         Component(coverSheetGen, "Cover Sheet Generator", "Service", "Auto-generates compact QR cover page from document metadata. Contains only three fields: QR code, Tracking Number, Series Number. Compact layout - multiple cover pages per printed sheet configurable.")
         Component(docsRepo, "Documents Repository", "Drizzle ORM", "Data access for all documents schema tables.")
-        Component(docsEventPub, "Documents Event Publisher", "Internal Event Bus", "Publishes: document.created, document.state_changed, document.number_assigned, document.secretariat_decision.")
+        Component(docsEventPub, "Documents Event Publisher", "Internal Event Bus", "Publishes: document.created, document.state_changed, document.number_assigned. (document.secretariat_decision removed — never existed as a published event per ADR-B2-3; the decision flows through Workflow calling Documents.transitionState() synchronously instead.)")
     }
 
     ContainerDb(db, "PostgreSQL", "documents schema")
@@ -325,12 +325,12 @@ C4Component
         Component(lapseTimerCoord, "Lapse Timer Coordinator", "Service", "Enqueues Mayor 10-day lapse timers and Panlalawigan 30-day review timers via pgboss. On expiry: transitions status, logs RA 7160 legal basis in Remarks field, notifies SP Secretary.")
         Component(artaMonitor, "ARTA SLA Monitor", "Service", "Tracks SLA clock from workflow initiation per RA 11032. Warning at 80% of SLA elapsed. Automatic escalation at breach: notifies supervisor and Records Officer. System outage does not pause ARTA obligation.")
         Component(wfRepo, "Workflow Repository", "Drizzle ORM", "Data access for all workflow schema tables.")
-        Component(wfEventPub, "Workflow Event Publisher", "Internal Event Bus", "Publishes: workflow.step_assigned, workflow.step_completed, workflow.lapsed, workflow.escalated, workflow.certified_urgent_applied, workflow.manually_advanced, workflow.completed.")
+        Component(wfEventPub, "Workflow Event Publisher", "Internal Event Bus", "Publishes: workflow.step.started, workflow.step.completed, workflow.approval.lapsed, workflow.panlalawigan.deemed_approved, workflow.sla.breached, workflow.certification_urgency.bypass_applied, workflow.multi_referral.secretary_advanced, workflow.instance.completed. `[Corrected — this list previously used pre-B3 names throughout (step_assigned, escalated, certified_urgent_applied, manually_advanced, completed, unsplit lapsed); same reconciliation already applied to B2's event registry]`")
     }
 
     ContainerDb(db, "PostgreSQL", "workflow schema")
     Container(pgbossCont, "pgboss", "Durable lapse and SLA escalation timers")
-    Container(notifMod, "Notifications Module", "Consumes step_assigned and escalated events")
+    Container(notifMod, "Notifications Module", "Consumes step.started and sla.breached events")
     Container(auditMod, "Audit Module", "Receives all workflow events")
     Container(orgMod, "Organization Module", "Provides delegation context for step routing")
 
@@ -369,15 +369,15 @@ C4Component
         Component(physCustodyTracker, "Physical Custody Tracker", "Service", "Tracks physical document location separately from digital workflow status. Allows Secretariat to log physical hand-offs independently of workflow step completion.")
         Component(publicLookupHandler, "Public Lookup Handler", "Service", "Processes QR scan for public display: document type, remarks, full routing history from draft. First page only visible - all other pages blurred. Get-a-Copy link to Document Request Form.")
         Component(trackRepo, "Tracking Repository", "Drizzle ORM", "Data access for all tracking schema tables.")
-        Component(trackEventConsumer, "Tracking Event Consumer", "Internal Event Bus", "Consumes document.created to trigger QR generation and tracking record creation. Consumes workflow.step_completed to append routing entry.")
+        Component(trackEventConsumer, "Tracking Event Consumer", "Internal Event Bus", "Consumes document.created to trigger QR generation and tracking record creation. Consumes workflow.step.completed to append routing entry.")
     }
 
     ContainerDb(db, "PostgreSQL", "tracking schema")
     Container(docsMod, "Documents Module", "Emits document.created")
-    Container(wfMod, "Workflow Module", "Emits workflow.step_completed")
+    Container(wfMod, "Workflow Module", "Emits workflow.step.completed")
 
     Rel(trackEventConsumer, docsMod, "Subscribes to document.created")
-    Rel(trackEventConsumer, wfMod, "Subscribes to workflow.step_completed")
+    Rel(trackEventConsumer, wfMod, "Subscribes to workflow.step.completed")
     Rel(trackEventConsumer, qrCodeSvc, "Triggers QR generation on document.created")
     Rel(trackEventConsumer, routingHistorySvc, "Appends routing entry on step completion")
     Rel(trackRouter, publicLookupHandler, "Public QR scan route")
@@ -408,14 +408,14 @@ C4Component
         Component(dispositionSvc, "Disposition Service", "Service", "Authorized disposition requires Records Officer action with mandatory comment. No automated disposal. Validates legal hold before proceeding. Creates an audit record rather than deleting data. RA 10173 erasure requests require formal legal review by City Legal or DPO before action.")
         Component(bulkOpHandler, "Bulk Operation Handler", "Service", "Bulk archive, search, and export for Records Officers only. Dry-run preview then confirmation dialog required. Each individual item logged separately in audit. No bulk-delete permitted. Exports limited by classification level of requestor.")
         Component(recRepo, "Records Repository", "Drizzle ORM", "Data access for all records schema tables.")
-        Component(recEventConsumer, "Records Event Consumer", "Internal Event Bus", "Consumes workflow.completed terminal events to trigger record creation and initial archive entry.")
+        Component(recEventConsumer, "Records Event Consumer", "Internal Event Bus", "Consumes workflow.instance.completed terminal events to trigger record creation and initial archive entry.")
     }
 
     ContainerDb(db, "PostgreSQL", "records schema")
-    Container(wfMod, "Workflow Module", "Emits terminal workflow.completed events")
+    Container(wfMod, "Workflow Module", "Emits terminal workflow.instance.completed events")
     Container(auditMod, "Audit Module", "Receives disposition and bulk operation events")
 
-    Rel(recEventConsumer, wfMod, "Subscribes to terminal workflow.completed events")
+    Rel(recEventConsumer, wfMod, "Subscribes to terminal workflow.instance.completed events")
     Rel(recEventConsumer, archiveSvc, "Triggers record creation on workflow completion")
     Rel(recRouter, retentionMgr, "Retention schedule management")
     Rel(recRouter, archiveSvc, "Archive actions")
@@ -445,7 +445,7 @@ C4Component
         Component(emailDeliverySvc, "Email Delivery Service", "Nodemailer and react-email", "Delivers via LGU SMTP. Covers step-assignment emails, overdue alerts, and formal respondent notices when respondent has an email address on file.")
         Component(smsDlvInterface, "SMS Delivery Interface", "Reserved - Phase 3", "Phase 3: delivers via SMS gateway for respondents with only a contact number. Phase 1 and 2: respondent is called by phone; formal written notice must be claimed in person from LGU.")
         Component(notifRepo, "Notifications Repository", "Drizzle ORM", "Data access for notifications schema tables. delivery_log records all delivery attempts and their outcomes.")
-        Component(notifEventConsumer, "Notification Event Consumer", "Internal Event Bus", "Subscribes to: workflow.step_assigned, workflow.escalated, workflow.lapsed, document.state_changed. Routes each event to Notification Service for processing.")
+        Component(notifEventConsumer, "Notification Event Consumer", "Internal Event Bus", "Subscribes to: workflow.step.started, workflow.sla.breached, workflow.approval.lapsed, workflow.panlalawigan.deemed_approved, document.state_changed. Routes each event to Notification Service for processing. `[Corrected — pre-B3 names updated; workflow.lapsed split into its two ratified successor events per B3 §0.2, both routed here since both notify the SP Secretary]`")
     }
 
     Container(sseEndpoint, "SSE Endpoint", "Fastify SSE plugin")
@@ -565,11 +565,11 @@ C4Component
         Component(announcementSvc, "Announcement Service", "Service", "Manages and serves public announcements visible on the citizen portal.")
         Component(citizenAuthSvc, "Citizen Auth Service", "Service", "Citizen registration requires name, birthdate, phone, and email. OTP verification required on both phone and email. Annual re-verification. PhilSys feature-flagged and assumed unavailable until integration is confirmed.")
         Component(portalRepo, "Portal Repository", "Drizzle ORM", "Data access for all portal schema tables.")
-        Component(portalEventConsumer, "Portal Event Consumer", "Internal Event Bus", "Consumes workflow.completed and document.state_changed events. Updates public_documents visibility when SP Secretary action publishes an approved legislative document.")
+        Component(portalEventConsumer, "Portal Event Consumer", "Internal Event Bus", "Consumes workflow.instance.completed and document.state_changed events. Updates public_documents visibility when SP Secretary action publishes an approved legislative document.")
     }
 
     ContainerDb(db, "PostgreSQL", "portal schema")
-    Container(wfMod, "Workflow Module", "Emits workflow.completed events")
+    Container(wfMod, "Workflow Module", "Emits workflow.instance.completed events")
     Container(docsMod, "Documents Module", "Emits document.state_changed events")
     System_Ext(smtpServer, "LGU SMTP Server", "Respondent formal notice email delivery")
     Container(nextjsPortal, "Citizen Portal", "Next.js with SSG")
@@ -582,7 +582,7 @@ C4Component
     Rel(portalRestRouter, citizenAuthSvc, "Citizen authentication routes")
     Rel(complaintIngester, respondentNoticeSvc, "Triggers respondent notification after routing")
     Rel(respondentNoticeSvc, smtpServer, "Sends formal email notice when email address on file")
-    Rel(portalEventConsumer, wfMod, "Subscribes to workflow.completed")
+    Rel(portalEventConsumer, wfMod, "Subscribes to workflow.instance.completed")
     Rel(portalEventConsumer, docsMod, "Subscribes to document.state_changed")
     Rel(portalEventConsumer, publicDocSvc, "Updates public document visibility on publication event")
     Rel(portalRepo, db, "Reads and writes")
@@ -643,14 +643,17 @@ All events travel via the in-process event bus. Event names and subscriptions li
 |`document.created`|Documents|Tracking, Workflow, Audit|QR generation and workflow instance creation|
 |`document.state_changed`|Documents|Tracking, Notifications, Search Meta, Portal, Audit||
 |`document.number_assigned`|Documents|Audit|Both preliminary and final assignment events|
-|`document.secretariat_decision`|Documents|Workflow, Audit|Approve, Reject, or Amended actions|
-|`workflow.step_assigned`|Workflow|Notifications, Audit|Triggers notification to new assignee|
-|`workflow.step_completed`|Workflow|Tracking, Audit|Appends routing entry to routing history|
-|`workflow.lapsed`|Workflow|Notifications, Audit|Mayor 10-day or Panlalawigan 30-day timer expired|
-|`workflow.escalated`|Workflow|Notifications, Audit|ARTA SLA breach escalation|
-|`workflow.certified_urgent_applied`|Workflow|Audit|Committee step bypassed on associated measures|
-|`workflow.manually_advanced`|Workflow|Audit|SP Secretary override — mandatory comment logged|
-|`workflow.completed`|Workflow|Records, Portal, Audit|Triggers record creation and public visibility update|
+|`document.certification_urgency.logged`|Documents|Workflow, Audit|`[Added]` Was absent from this list entirely; see B2 Master Event Bus Registry fix|
+|`workflow.step.started`|Workflow|Notifications, Audit|Triggers notification to new assignee|
+|`workflow.step.completed`|Workflow|Tracking, Audit|Appends routing entry to routing history. `[UPDATED — ADR-B2-3]` Also now carries Approve/Reject/Amended Secretariat decision outcomes in its `outcome` field — `document.secretariat_decision` never existed as a published event; this row previously listed it a third time in this same document (see the Document Router and Documents Event Publisher fixes elsewhere in this file)|
+|`workflow.approval.lapsed`|Workflow|Notifications, Audit|Mayor 10-day timer expired, RA 7160 §47|
+|`workflow.panlalawigan.deemed_approved`|Workflow|Notifications, Audit|Panlalawigan 30-day timer expired, RA 7160 §56(d)|
+|`workflow.sla.breached`|Workflow|Notifications, Audit|ARTA SLA breach escalation|
+|`workflow.sla.warning`|Workflow|Notifications, Audit|`[Added]` Was absent from this list entirely; SLA warning tier at 80% elapsed|
+|`workflow.sla.critical`|Workflow|Notifications, Audit|`[Added]` Was absent from this list entirely; second SLA escalation tier|
+|`workflow.certification_urgency.bypass_applied`|Workflow|Audit|Committee step bypassed on associated measures|
+|`workflow.multi_referral.secretary_advanced`|Workflow|Audit|SP Secretary override — mandatory comment logged|
+|`workflow.instance.completed`|Workflow|Records, Portal, Audit|Triggers record creation and public visibility update|
 
 ---
 

@@ -16,18 +16,18 @@
 - [L168–L237] Part 2 — Extensions, Roles, and Schemas — pgcrypto extension, trigger function, schema creation, and database roles.
 - [L238–L476] Part 3 — Schema `iam` — Users, credentials, sessions, refresh tokens, permissions, assignments, and MFA records.
 - [L477–L746] Part 4 — Schema `organization` — Offices, positions, employees, assignments, delegation grants, committees, committee memberships, and cross-office grants (security config).
-- [L747–L1239] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
-- [L1240–L1577] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
-- [L1578–L1714] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
-- [L1715–L1834] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
-- [L1835–L1920] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
-- [L1921–L1966] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
-- [L1967–L1995] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
-- [L1996–L2110] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
-- [L2111–L2122] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
-- [L2123–L2157] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
-- [L2158–L2178] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
-- [L2179–L2194] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
+- [L747–L1251] Part 5 — Schema `documents` — DDL for document types, numbers ledger, versions, attachments, signatures, sponsorships, and reviews.
+- [L1252–L1589] Part 6 — Schema `workflow` — DDL for workflow definitions, steps, transitions, events, sessions, attendances, and business order.
+- [L1590–L1726] Part 7 — Schema `tracking` — QR codes, tracking records, and routing entries.
+- [L1727–L1846] Part 8 — Schema `records` — Retention schedules, classification rules, records, archives, and dispositions.
+- [L1847–L1932] Part 9 — Schema `notifications` — Templates, notification events, and delivery log.
+- [L1933–L1978] Part 10 — Schema `audit` — Append-only, hash-chained, HMAC-signed audit events with denormalized office ID for ABAC.
+- [L1979–L2007] Part 11 — 2026 Numbering Sequences — Integer sequences for series, migration pattern, and helper function.
+- [L2008–L2122] Part 12 — Roles, Grants, and Row-Level Security — Role privileges, grant scripts, and row-level security policies enforcing audit separation.
+- [L2123–L2134] Part 13 — Reserved Phase 2/3 Schemas — Namespaces reserved for search_meta, portal, and reporting.
+- [L2135–L2169] Part 13.5 — Schema `shared` — Infrastructure/operational schema for cross-cutting tables not owned by any domain module; Phase 1: event_bus_dead_letters.
+- [L2170–L2190] Part 14 — Invariant and Non-Negotiable Compliance Checklist — Compliance matrix mapping each architectural invariant to its DDL enforcement.
+- [L2191–L2206] Part 15 — Open Items Requiring Confirmation — Status of open/resolved database items, including classifications, roles, and pending validations.
 
 ---
 
@@ -853,6 +853,18 @@ ALTER TABLE documents.document_types
 -- pending_panlalawigan_review, superseded.
 -- [Discovered Issue #2] superseded_by, superseded_at, closure_reason columns
 -- added per D3 L121 (ADR-014: 'Superseded' terminal state requires these).
+--
+-- [FLAG — this file's TEXT + CHECK strategy on lifecycle_state, classification_level, and every
+-- other enum-shaped column below was, at some point after this DDL was written, deployed
+-- differently: migration 0011_lumpy_goblin_queen.sql converts all of them to native Postgres
+-- ENUM types instead, with no ADR or update recorded anywhere referencing this file. This DDL's
+-- TEXT + CHECK strategy is confirmed correct and current per
+-- consolidated-architecture-and-requirements-reference-iteration-3.md Part 11.9, which lists
+-- "Check constraints for state transitions" as a non-negotiable — a native ENUM type doesn't use
+-- a CHECK constraint at all, so that language specifically describes what this file already
+-- specifies. Migration 0011 is the deviation and needs reverting; this file does not need to
+-- change. [Confirmed — consolidated reference Part 11.9, non-negotiables list #16 context;
+-- migration 0011 read directly]
 CREATE TABLE documents.documents (
     id                     UUID        NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     city_id                UUID        NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001'::uuid,

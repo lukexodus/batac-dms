@@ -264,9 +264,9 @@ Argon2id is used for all password hashing per OWASP recommendations. These tunin
 
 | Variable | Class | Required | Secret | Default | Example | Description |
 |---|---|---|---|---|---|---|
-| `ARGON2_MEMORY_COST` | OPT | No | No | `65536` | `65536` | Memory cost in KiB. OWASP minimum is 64 MiB (65,536 KiB). Increase in production if server RAM permits. |
-| `ARGON2_TIME_COST` | OPT | No | No | `3` | `3` | Number of iterations. OWASP minimum for Argon2id is 3. Increase to raise CPU cost. |
-| `ARGON2_PARALLELISM` | OPT | No | No | `1` | `1` | Degree of parallelism (threads). Set to the number of available CPU cores for maximum throughput. |
+| `ARGON2_MEMORY_COST` | OPT | No | No | `65536` | `65536` | Memory cost in KiB. OWASP minimum is 19 MiB (19,456 KiB); this default (64 MiB) is more conservative, matching B5 ADR-AUTH-002. Increase in production if server RAM permits. |
+| `ARGON2_TIME_COST` | OPT | No | No | `2` | `2` | Number of iterations. OWASP's published minimum for Argon2id is 2, not 3 — corrected to match B5 ADR-AUTH-002 and current OWASP Password Storage Cheat Sheet guidance. `[Corrected — this row previously defaulted to 3 with an incorrect inline claim that 3 is the OWASP minimum; it is not]` |
+| `ARGON2_PARALLELISM` | OPT | No | No | `1` | `1` | Degree of parallelism (threads). OWASP recommends `p=1` specifically — increasing parallelism speeds up hashing but reduces Argon2's memory-hardness advantage against parallel/GPU attacks, so this should not be set to the number of CPU cores. `[Corrected — description previously suggested maximizing to available cores, which weakens the memory-hardness guarantee this algorithm is chosen for]` |
 | `ARGON2_HASH_LENGTH` | OPT | No | No | `32` | `32` | Output hash length in bytes. 32 bytes (256 bits) is the recommended default. |
 
 ### 6.5 MFA Configuration (Phase 1 Ready; Enforced in Phase 2)
@@ -693,7 +693,7 @@ export const serverEnvSchema = z.object({
 
   // ─── Argon2id ─────────────────────────────────────────────────────────────
   ARGON2_MEMORY_COST: positiveInt.default(65536),
-  ARGON2_TIME_COST: positiveInt.default(3),
+  ARGON2_TIME_COST: positiveInt.default(2),
   ARGON2_PARALLELISM: positiveInt.default(1),
   ARGON2_HASH_LENGTH: positiveInt.default(32),
 
@@ -1346,7 +1346,7 @@ The following table is the complete catalog of all environment variables defined
 | `AUTH_MFA_TOTP_ISSUER` | Auth | No | No | `Batac City LGU` | 1 | All |
 | `AUTH_MFA_TOTP_WINDOW` | Auth | No | No | `1` | 1 | All |
 | `ARGON2_MEMORY_COST` | Auth | No | No | `65536` | 1 | All |
-| `ARGON2_TIME_COST` | Auth | No | No | `3` | 1 | All |
+| `ARGON2_TIME_COST` | Auth | No | No | `2` | 1 | All |
 | `ARGON2_PARALLELISM` | Auth | No | No | `1` | 1 | All |
 | `ARGON2_HASH_LENGTH` | Auth | No | No | `32` | 1 | All |
 | `AUDIT_HMAC_SECRET` | Audit | Yes | Yes | — | 1 | All |

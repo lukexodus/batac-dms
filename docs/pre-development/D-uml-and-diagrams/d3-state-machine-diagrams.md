@@ -17,7 +17,7 @@
 - [L330–L341] Appendix A: Terminal State Summary — Summary of terminal states for all machines and the soft-delete invariant rule.
 - [L342–L372] Appendix B: B4 Reconciliation — Required Changes — Required enum name, casing, and schema changes to align the B4 specification with D3 authority.
 - [L373–L392] Appendix C: Open Items — Resolution Record — Historical resolution record of the seven open architecture items settled by ADR-013 through ADR-016.
-- [L393–L456] Appendix D: Proposed PostgreSQL Enum Stubs — PostgreSQL DDL enum stubs and new column definitions required on the documents table.
+- [L393–L457] Appendix D: Proposed PostgreSQL Enum Stubs — PostgreSQL DDL enum stubs and new column definitions required on the documents table.
 
 ---
 
@@ -29,7 +29,7 @@ Three state machines govern the core domain objects. They operate at distinct le
 
 |#|Machine|DB Location|Cardinality per document|
 |---|---|---|---|
-|1|Document Lifecycle|`documents.documents.lifecycle_status`|Exactly one state at all times|
+|1|Document Lifecycle|`documents.documents.lifecycle_state`|Exactly one state at all times|
 |2|Workflow Instance|`workflow.instances.status`|Zero or one active instance|
 |3|Workflow Step Instance|`workflow.step_instances.status`|Zero or more; at most one in `Active` in Phase 1|
 
@@ -396,9 +396,10 @@ These are the D3-authoritative enum definitions, revised to reflect [ADR-013](d3
 
 ```sql
 -- Machine 1: Document lifecycle
--- Column: documents.documents.lifecycle_status
+-- Column: documents.documents.lifecycle_state
 -- Revised per [ADR-013](d3-state-machine-diagrams-adrs/ADR-WFL-003-split-pending-approval.md) (Pending Approval split) and [ADR-014](d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md) (Superseded added)
-CREATE TYPE document_lifecycle_status AS ENUM (
+-- [Corrected — column/type previously named lifecycle_status throughout this stub; C1's real column is lifecycle_state]
+CREATE TYPE document_lifecycle_state AS ENUM (
     'Draft',
     'Submitted',
     'In-Workflow',

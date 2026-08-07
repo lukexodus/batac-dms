@@ -22,42 +22,41 @@
 
 ## Table of Contents
 
-- [L62–L393] Section 1 — Shared Type Definitions {#section-1} — Exhaustive types for document states, SLAs, routing history, and component props consumed by packages/ui and apps/web.
-  - [L74–L133] `DocumentState` — String literal union representing every possible state a document can occupy across SP legislative and citizen complaint lifecycles.
-  - [L134–L147] `NumberVariant` — Indicates whether a document's number is a draft preliminary format or an enacted final format for visual styling.
-  - [L148–L161] `SLAStatus` — Defines visual urgency tiers (on-track, at-risk, breached) for Mayor review and Panlalawigan review timeline clocks.
-  - [L162–L175] `ScanQualityLevel` — Converts numerical scan quality scores into named semantic bands (excellent, good, fair, poor) for visual indicators.
-  - [L176–L216] `RoutingAction` — Exhaustive list of all tracking actions logged during document flow to drive timeline dot colors and labels.
-  - [L217–L237] `CommitteeReportStatus` — States of committee engagement (submitted, pending, absent) to determine status chip colors in referral components.
-  - [L238–L265] `RoutingEntry` — Data contract for one timeline node in the document routing history, including actor, action, and physical custody.
-  - [L266–L291] `WorkflowStep` — Model for a step in the visual workflow indicator, adding assignee and completion timestamp to the basic step.
-  - [L292–L311] `CommitteeReferral` — Represents referral of a document to a committee, tracking the report status, submitter, and submission timestamp.
-  - [L312–L343] `OrderOfBusinessItem` — Data model representing a single row in the session agenda, including reading type, referrals, and urgency flags.
-  - [L344–L373] `DocumentPreview` — Data structure containing fields needed to display a document card preview, including embedded SLA details.
-  - [L374–L393] `StatusMetaEntry` — Visual styling properties (colors, borders, text styles) mapped to each document state in the status badge constant.
-- [L394–L751] Section 2 — STATUS_META Constant {#section-2} — Mapping of each DocumentState to its Tailwind classes and text styles for badge rendering.
-  - [L715–L751] STATUS_META Completeness Validation — Audit checklist verifying that all 26 states in the DocumentState type are mapped in STATUS_META.
-- [L752–L1960] Section 3 — Per-Component Specifications {#section-3} — Detailed prop interfaces, visual behaviors, dependencies, ARIA rules, and anti-patterns for 16 Tier 3 components.
-  - [L763–L829] 3.1 PageHeader — Structural top header displaying title, subtitle, and action slot with strict h1 heading hierarchy.
-  - [L830–L917] 3.2 Sidebar — Primary navigation container with dark background, width transitions, badge pills, and collapsed tooltip labels.
-  - [L918–L996] 3.3 Topbar — Fixed top header with breadcrumbs, notification bell dropdown, user menu popover, and sidebar width offset transition.
-  - [L997–L1068] 3.4 AppShell — Overall page layout container managing scroll regions and responsive spacing offsets for Sidebar and Topbar.
-  - [L1069–L1127] 3.5 DocumentNumberBadge — Signature component rendering document numbers in monospace font with distinct styling for final and preliminary variants.
-  - [L1128–L1190] 3.6 StatCard — Data display card showing large bold metrics and optional colored trend indicators with comparison labels.
-  - [L1191–L1257] 3.7 EmptyState — Centered illustrative layout displaying directive copy and a call-to-action button when content is missing.
-  - [L1258–L1320] 3.8 ScanQualityIndicator — Colored status indicator displaying OCR scan quality levels and full score details within an interactive tooltip.
-  - [L1321–L1396] 3.9 SLATimer — Progress bar displaying elapsed time and urgency status for Mayor or Panlalawigan document review deadlines.
-  - [L1397–L1483] 3.10 RoutingHistoryTimeline — Vertical timeline displaying document movements, actor details, action dot colors, and optional routing remarks.
-  - [L1484–L1554] 3.11 QRCodeDisplay — Square QR code display component with centered document info, optimized for digital screens or print layouts.
-  - [L1555–L1622] 3.12 CommitteeReferralBlock — List displaying standing committees referred to a document, their report statuses, and submitter avatar badges.
-  - [L1623–L1684] 3.13 StatusBadge — Single-responsibility status chip mapping DocumentState to STATUS_META styling with dashed borders and line-through styles.
-  - [L1685–L1774] 3.14 WorkflowStepIndicator — Linear progress track displaying sequential workflow steps with status-based ring rings and vertical/horizontal responsive layouts.
-  - [L1775–L1857] 3.15 DocumentPreviewCard — Grid/list card displaying a document thumbnail, status badges, timestamp, and optional embedded SLA timer.
-  - [L1858–L1960] 3.16 OrderOfBusinessRow — Horizontal agenda item displaying urgent flags, reading type chips, status badges, and red-flagged missing reports.
-- [L1961–L2036] Section 4 — DESIGN.md Delta {#section-4} — Pending updates to DESIGN.md covering missing states, mislabeled color tokens, and props changes.
+- [L61–L395] Section 1 — Shared Type Definitions {#section-1} — Exhaustive types for document states, SLAs, routing history, and component props consumed by packages/ui and apps/web.
+  - [L73–L135] `DocumentState` — String literal union representing every possible state a document can occupy across SP legislative and citizen complaint lifecycles.
+  - [L136–L149] `NumberVariant` — Indicates whether a document's number is a draft preliminary format or an enacted final format for visual styling.
+  - [L150–L163] `SLAStatus` — Defines visual urgency tiers (on-track, at-risk, breached) for Mayor review and Panlalawigan review timeline clocks.
+  - [L164–L177] `ScanQualityLevel` — Converts numerical scan quality scores into named semantic bands (excellent, good, fair, poor) for visual indicators.
+  - [L178–L218] `RoutingAction` — Exhaustive list of all tracking actions logged during document flow to drive timeline dot colors and labels.
+  - [L219–L239] `CommitteeReportStatus` — States of committee engagement (submitted, pending, absent) to determine status chip colors in referral components.
+  - [L240–L267] `RoutingEntry` — Data contract for one timeline node in the document routing history, including actor, action, and physical custody.
+  - [L268–L293] `WorkflowStep` — Model for a step in the visual workflow indicator, adding assignee and completion timestamp to the basic step.
+  - [L294–L313] `CommitteeReferral` — Represents referral of a document to a committee, tracking the report status, submitter, and submission timestamp.
+  - [L314–L345] `OrderOfBusinessItem` — Data model representing a single row in the session agenda, including reading type, referrals, and urgency flags.
+  - [L346–L375] `DocumentPreview` — Data structure containing fields needed to display a document card preview, including embedded SLA details.
+  - [L376–L395] `StatusMetaEntry` — Visual styling properties (colors, borders, text styles) mapped to each document state in the status badge constant.
+- [L396–L777] Section 2 — STATUS_META Constant {#section-2} — Mapping of each DocumentState to its Tailwind classes and text styles for badge rendering.
+  - [L732–L777] STATUS_META Completeness Validation — Audit checklist verifying that all 26 states in the DocumentState type are mapped in STATUS_META.
+- [L778–L1986] Section 3 — Per-Component Specifications {#section-3} — Detailed prop interfaces, visual behaviors, dependencies, ARIA rules, and anti-patterns for 16 Tier 3 components.
+  - [L789–L855] 3.1 PageHeader — Structural top header displaying title, subtitle, and action slot with strict h1 heading hierarchy.
+  - [L856–L943] 3.2 Sidebar — Primary navigation container with dark background, width transitions, badge pills, and collapsed tooltip labels.
+  - [L944–L1022] 3.3 Topbar — Fixed top header with breadcrumbs, notification bell dropdown, user menu popover, and sidebar width offset transition.
+  - [L1023–L1094] 3.4 AppShell — Overall page layout container managing scroll regions and responsive spacing offsets for Sidebar and Topbar.
+  - [L1095–L1153] 3.5 DocumentNumberBadge — Signature component rendering document numbers in monospace font with distinct styling for final and preliminary variants.
+  - [L1154–L1216] 3.6 StatCard — Data display card showing large bold metrics and optional colored trend indicators with comparison labels.
+  - [L1217–L1283] 3.7 EmptyState — Centered illustrative layout displaying directive copy and a call-to-action button when content is missing.
+  - [L1284–L1346] 3.8 ScanQualityIndicator — Colored status indicator displaying OCR scan quality levels and full score details within an interactive tooltip.
+  - [L1347–L1422] 3.9 SLATimer — Progress bar displaying elapsed time and urgency status for Mayor or Panlalawigan document review deadlines.
+  - [L1423–L1509] 3.10 RoutingHistoryTimeline — Vertical timeline displaying document movements, actor details, action dot colors, and optional routing remarks.
+  - [L1510–L1580] 3.11 QRCodeDisplay — Square QR code display component with centered document info, optimized for digital screens or print layouts.
+  - [L1581–L1648] 3.12 CommitteeReferralBlock — List displaying standing committees referred to a document, their report statuses, and submitter avatar badges.
+  - [L1649–L1710] 3.13 StatusBadge — Single-responsibility status chip mapping DocumentState to STATUS_META styling with dashed borders and line-through styles.
+  - [L1711–L1800] 3.14 WorkflowStepIndicator — Linear progress track displaying sequential workflow steps with status-based ring rings and vertical/horizontal responsive layouts.
+  - [L1801–L1883] 3.15 DocumentPreviewCard — Grid/list card displaying a document thumbnail, status badges, timestamp, and optional embedded SLA timer.
+  - [L1884–L1986] 3.16 OrderOfBusinessRow — Horizontal agenda item displaying urgent flags, reading type chips, status badges, and red-flagged missing reports.
+- [L1987–L2062] Section 4 — DESIGN.md Delta {#section-4} — Pending updates to DESIGN.md covering missing states, mislabeled color tokens, and props changes.
 
 ---
-
 
 ## Section 1 — Shared Type Definitions {#section-1}
 
@@ -91,6 +90,9 @@ export type DocumentState =
   | 'ARCHIVED'           // Permanent historical record; read-only
   | 'DISPOSED'           // Records-managed disposal (no document destroyed — audit only)
   | 'CANCELLED'          // Withdrawn/cancelled; terminal; no further action possible
+  | 'SUPERSEDED'         // Panlalawigan review returned this document and a replacement was
+                          // subsequently passed; this record is terminal, superseded by that
+                          // replacement // [Added — see LOG-0070; C1 lifecycle_state real 11th value]
   // ── Reading and workflow-step states (Parts 4.1, 4.2) ────────────────────────
   | 'FIRST_READING'      // Vice Mayor has referred document at First Reading session
   | 'SECOND_READING'     // Document before the body at Second Reading session
@@ -527,6 +529,21 @@ export const STATUS_META: Record<DocumentState, StatusMetaEntry> = {
     // SOURCE: DESIGN.md §7 CANCELLED row.
   },
 
+  SUPERSEDED: {
+    label: 'Superseded',
+    bg: 'bg-neutral-100',            // neutral-100 ✓
+    text: 'text-neutral-600',        // neutral-600 ✓
+    borderLeft: 'border-l-2 border-l-neutral-400', // neutral-400 ✓
+    borderStyle: 'solid',
+    textStyle: 'line-through',
+    // [Not in DESIGN.md §7 — DESIGN.md predates C1's post-ADR-013/ADR-014 lifecycle_state
+    //  revision and has no SUPERSEDED row at all. Derived from CANCELLED, not ARCHIVED/DISPOSED:
+    //  a superseded document did not complete the normal released → archived path, it was
+    //  diverted at Panlalawigan review and never became law under its own record — the same
+    //  "exceptional, non-standard termination" category CANCELLED represents, hence line-through.
+    //  DESIGN.md update required — add SUPERSEDED row to §7. See LOG-0070.]
+  },
+
   // ── Reading and workflow-step states ────────────────────────────────────
 
   FIRST_READING: {
@@ -744,8 +761,17 @@ Every member of `DocumentState` has a corresponding key in STATUS_META:
 | `RECEIVED_SEEN` | ✗ | ✓ (derived from PENDING_HEARING) |
 | `DISMISSED` | ✓ | ✓ |
 | `RESOLVED` | ✓ | ✓ |
+| `SUPERSEDED` | ✗ | ✓ (derived from CANCELLED) |
 
-**Result: 26/26 states covered. No state is missing.**
+**Result: 27/27 states covered. No state is missing.**
+
+> **Methodology note (added with the SUPERSEDED fix):** this table only checks internal
+> consistency — that every member of *this document's own* `DocumentState` union has a
+> `STATUS_META` entry. It does not check `DocumentState` itself against C1's real
+> `documents.lifecycle_state` CHECK constraint (11 values), which is the actual authoritative
+> source for the 9 "core lifecycle" members of this union. That gap is what let `SUPERSEDED`
+> go missing silently — the union was internally complete but externally incomplete. `[Confirmed
+> — C1 §4.5 lifecycle_state CHECK constraint, line ~861; D3 post-ADR-013/ADR-014]`
 
 ---
 

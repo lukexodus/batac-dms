@@ -16,19 +16,22 @@ This document does not independently re-review `tech-stack.md` or the consolidat
 
 ## Table of Contents
 
-- [L37–L51] Notation — Defines tags for source confirmation, external verification status, and inconsistencies between source documents.
-- [L52–L89] Part 1 — Stack Decisions and Structure — Technology stack choices, monorepo directory layout, and the hybrid tRPC/REST architectural boundaries.
-- [L90–L115] Part 2 — The Chain at a Glance — Visual data flow from PostgreSQL DDL down to React components and shared schema enforcement rules.
-- [L116–L215] Part 3 — Layer 1→2: From a DDL Column to a Drizzle Table to a Zod Schema — Authoritative DDL, Drizzle mapping examples, and generated drizzle-zod schema output for the documents table.
-- [L216–L297] Part 4 — Nullable Fields: Handling Them Correctly at Each Layer — Rules for handling optional/nullable fields, the drizzle-zod refinement function trap, and cross-column database constraints.
-- [L298–L359] Part 5 — Extending drizzle-zod Schemas with Application-Layer Validation — Techniques for narrowing sensitive fields, widening schemas with joined fields, and applying business-rule constraints.
-- [L360–L409] Part 6 — Flowing Into a tRPC Procedure — tRPC input/output schema validation patterns, specific observed schema inconsistencies, and the export-name convention.
-- [L410–L453] Part 7 — REST Validation via `fastify-type-provider-zod` — Registration of Fastify Zod type providers and route validation using shared schema definitions.
-- [L454–L524] Part 8 — TanStack Query via tRPC v11 in React Components — tRPC v11 TanStack Query setup, query/mutation hook integrations, and client-server validation sequence.
-- [L525–L549] Part 9 — `@hookform/resolvers/zod` for Forms — React Hook Form integration using shared Zod schemas for client-side validation.
-- [L550–L583] Part 10 — The One-Way Rule — The strict database-to-frontend direction for type propagation and anti-patterns to avoid.
-- [L584–L597] Part 11 — Quick Reference Checklist — Pull request review checklist for verifying schema design and end-to-end compliance.
-- [L598–L613] Sources Checked for This Document — References to internal architecture catalog documents and external library documentation.
+- [L40–L54] Notation — Defines tags for source confirmation, external verification status, and inconsistencies between source documents.
+- [L55–L92] Part 1 — Stack Decisions and Structure — Technology stack choices, monorepo directory layout, and the hybrid tRPC/REST architectural boundaries.
+- [L93–L118] Part 2 — The Chain at a Glance — Visual data flow from PostgreSQL DDL down to React components and shared schema enforcement rules.
+- [L119–L254] Part 3 — Layer 1→2: From a DDL Column to a Drizzle Table to a Zod Schema — Authoritative DDL, Drizzle mapping examples, and generated drizzle-zod schema output for the documents table.
+  - [L121–L168] 3.1 The DDL (already authoritative — C1 §4.5)
+  - [L169–L237] 3.2 The Drizzle table (illustrative — `[Verified — external docs]` for the Drizzle API surface used)
+  - [L238–L254] 3.3 The raw drizzle-zod output
+- [L255–L336] Part 4 — Nullable Fields: Handling Them Correctly at Each Layer — Rules for handling optional/nullable fields, the drizzle-zod refinement function trap, and cross-column database constraints.
+- [L337–L398] Part 5 — Extending drizzle-zod Schemas with Application-Layer Validation — Techniques for narrowing sensitive fields, widening schemas with joined fields, and applying business-rule constraints.
+- [L399–L448] Part 6 — Flowing Into a tRPC Procedure — tRPC input/output schema validation patterns, specific observed schema inconsistencies, and the export-name convention.
+- [L449–L492] Part 7 — REST Validation via `fastify-type-provider-zod` — Registration of Fastify Zod type providers and route validation using shared schema definitions.
+- [L493–L563] Part 8 — TanStack Query via tRPC v11 in React Components — tRPC v11 TanStack Query setup, query/mutation hook integrations, and client-server validation sequence.
+- [L564–L588] Part 9 — `@hookform/resolvers/zod` for Forms — React Hook Form integration using shared Zod schemas for client-side validation.
+- [L589–L622] Part 10 — The One-Way Rule — The strict database-to-frontend direction for type propagation and anti-patterns to avoid.
+- [L623–L636] Part 11 — Quick Reference Checklist — Pull request review checklist for verifying schema design and end-to-end compliance.
+- [L637–L652] Sources Checked for This Document — References to internal architecture catalog documents and external library documentation.
 
 ---
 
@@ -123,8 +126,8 @@ CREATE TABLE documents.documents (
     city_id                     UUID NOT NULL,
     document_type_id            UUID NOT NULL,
     title                       TEXT NOT NULL,
-    lifecycle_state              documents.lifecycle_state_enum NOT NULL DEFAULT 'draft',
-    classification_level        documents.classification_level_enum NOT NULL,
+    lifecycle_state              TEXT NOT NULL DEFAULT 'draft',
+    classification_level        TEXT NOT NULL,
     qr_tracking_number           UUID NOT NULL,
     preliminary_number           TEXT NULL,
     final_number                TEXT NULL,
@@ -143,9 +146,25 @@ CREATE TABLE documents.documents (
     deleted_by                  UUID NULL,
     superseded_by               UUID NULL,
     superseded_at               TIMESTAMPTZ NULL,
-    closure_reason              TEXT NULL
+    closure_reason              TEXT NULL,
+    CONSTRAINT documents_lifecycle_state_check CHECK (lifecycle_state IN (
+        'draft','submitted','in_workflow','pending_mayor_action','pending_panlalawigan_review',
+        'completed','released','archived','disposed','cancelled','superseded'
+    )),
+    CONSTRAINT documents_classification_level_check CHECK (classification_level IN (
+        'public','internal','confidential','restricted'
+    ))
 );
 ```
+
+`[Corrected — this block previously modeled lifecycle_state/classification_level as references to
+documents.lifecycle_state_enum/classification_level_enum native Postgres types, with lifecycle_state
+also carrying a fabricated 9-value set. Neither matches C1 §4.5, which this heading claims to
+reproduce authoritatively: C1 declares both columns as TEXT with a table-level CHECK constraint,
+not a native enum type. Fixed to TEXT + CHECK, matching C1 verbatim, real 11-value lifecycle_state
+set. See Section 3.2 immediately below for why the Drizzle translation of this same DDL currently
+looks different — that's not an inconsistency introduced by this fix, it reflects a real divergence
+between this DDL section and the actually-deployed schema. [Confirmed — C1 §4.5 DDL lines ~830-864]`
 
 ### 3.2 The Drizzle table (illustrative — `[Verified — external docs]` for the Drizzle API surface used)
 
@@ -153,25 +172,30 @@ Drizzle represents a PostgreSQL schema with `pgSchema()`, and a schema-scoped en
 
 ```typescript
 // /packages/database/src/schema/documents.ts
-import { uuid, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { uuid, text, integer, jsonb, timestamp, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { documentsSchema } from "./_schema"; // pgSchema("documents"), shared across this file's tables
+```
 
-export const lifecycleStateEnum = documentsSchema.enum("lifecycle_state_enum", [
-  "draft", "under_review", "pending_mayor_action", "pending_panlalawigan_review",
-  "approved", "released", "superseded", "cancelled", "rejected",
-]);
-
-export const classificationLevelEnum = documentsSchema.enum("classification_level_enum", [
-  "public", "internal", "confidential", "restricted",
-]);
+`[Corrected — this section previously kept lifecycleStateEnum/classificationLevelEnum as native
+Postgres ENUM declarations via documentsSchema.enum(), deliberately diverging from Section 3.1's
+TEXT + CHECK to match what migration 0011_lumpy_goblin_queen.sql actually deployed, since at the
+time neither C1 nor this document had a definitive answer for which strategy was correct going
+forward. That is now resolved: consolidated-architecture-and-requirements-reference-iteration-3.md
+Part 11.9 explicitly lists "Check constraints for state transitions" as a PostgreSQL non-negotiable
+— language that only describes the TEXT + CHECK pattern, since a native ENUM type doesn't use a
+CHECK constraint at all (the type itself restricts the value set). Section 3.1 and this section now
+agree: TEXT + CHECK is correct. Migration 0011 is the deviation, and needs reverting — that's a
+source-code change (schema migration), not a doc fix; see the accompanying standalone prompt.
+[Confirmed — consolidated reference Part 11.9, non-negotiables list]`
 
 export const documents = documentsSchema.table("documents", {
   id:                  uuid("id").primaryKey().defaultRandom(),
   cityId:              uuid("city_id").notNull(),
   documentTypeId:      uuid("document_type_id").notNull(), // same-schema FK in the real file — .references() omitted here for brevity
   title:               text("title").notNull(),
-  lifecycleState:      lifecycleStateEnum("lifecycle_state").notNull().default("draft"),
-  classificationLevel: classificationLevelEnum("classification_level").notNull(),
+  lifecycleState:      text("lifecycle_state").notNull().default("draft"),
+  classificationLevel: text("classification_level").notNull(),
   qrTrackingNumber:    uuid("qr_tracking_number").notNull(),
   preliminaryNumber:   text("preliminary_number"),
   finalNumber:         text("final_number"),
@@ -191,8 +215,23 @@ export const documents = documentsSchema.table("documents", {
   supersededBy:        uuid("superseded_by"),
   supersededAt:        timestamp("superseded_at", { withTimezone: true }),
   closureReason:       text("closure_reason"),
-});
+}, (table) => [
+  check("documents_lifecycle_state_check", sql`${table.lifecycleState} IN (
+    'draft','submitted','in_workflow','pending_mayor_action','pending_panlalawigan_review',
+    'completed','released','archived','disposed','cancelled','superseded'
+  )`),
+  check("documents_classification_level_check", sql`${table.classificationLevel} IN (
+    'public','internal','confidential','restricted'
+  )`),
+]);
 ```
+
+`[Corrected — lifecycleState/classificationLevel columns changed from the enum column constructors
+(lifecycleStateEnum(...)/classificationLevelEnum(...)) to text(...) with table-level check()
+constraints, matching Section 3.1's DDL and the real check() pattern already used extensively
+elsewhere in packages/database/schema/documents.schema.ts for this project's other constrained
+columns. Every nullability/default annotation is unchanged — this edit only changes the storage
+strategy, not the shape.]`
 
 Every nullability decision here is a direct, mechanical reading of the DDL: a column gets no Drizzle modifier if and only if its DDL has no `NOT NULL`. There is no judgment call at this layer — that's deliberate, and it's why the next layer (drizzle-zod) can derive correct types automatically instead of requiring someone to re-decide nullability by hand.
 
