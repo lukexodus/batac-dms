@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Italic, List, ListOrdered } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Underline, Strikethrough, Heading3, Heading4, Quote, Minus, Link } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 
@@ -73,7 +73,7 @@ export function RichTextEditor({
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-1 border-b border-border-default p-1 bg-neutral-50">
+      <div role="toolbar" aria-label="Formatting toolbar" className="flex flex-wrap items-center gap-1 border-b border-border-default p-1 bg-neutral-50">
         <Button
           type="button"
           variant="ghost"
@@ -82,6 +82,7 @@ export function RichTextEditor({
           disabled={disabled || !editor.can().chain().focus().toggleBold().run()}
           className={cn(editor.isActive('bold') && 'bg-neutral-200')}
           aria-label="Bold"
+          aria-pressed={editor.isActive('bold')}
         >
           <Bold className="h-4 w-4" />
         </Button>
@@ -93,6 +94,7 @@ export function RichTextEditor({
           disabled={disabled || !editor.can().chain().focus().toggleItalic().run()}
           className={cn(editor.isActive('italic') && 'bg-neutral-200')}
           aria-label="Italic"
+          aria-pressed={editor.isActive('italic')}
         >
           <Italic className="h-4 w-4" />
         </Button>
@@ -104,6 +106,7 @@ export function RichTextEditor({
           disabled={disabled || !editor.can().chain().focus().toggleBulletList().run()}
           className={cn(editor.isActive('bulletList') && 'bg-neutral-200')}
           aria-label="Bullet List"
+          aria-pressed={editor.isActive('bulletList')}
         >
           <List className="h-4 w-4" />
         </Button>
@@ -115,8 +118,100 @@ export function RichTextEditor({
           disabled={disabled || !editor.can().chain().focus().toggleOrderedList().run()}
           className={cn(editor.isActive('orderedList') && 'bg-neutral-200')}
           aria-label="Ordered List"
+          aria-pressed={editor.isActive('orderedList')}
         >
           <ListOrdered className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          disabled={disabled || !editor.can().chain().focus().toggleUnderline().run()}
+          className={cn(editor.isActive('underline') && 'bg-neutral-200')}
+          aria-label="Underline"
+          aria-pressed={editor.isActive('underline')}
+        >
+          <Underline className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          disabled={disabled || !editor.can().chain().focus().toggleStrike().run()}
+          className={cn(editor.isActive('strike') && 'bg-neutral-200')}
+          aria-label="Strikethrough"
+          aria-pressed={editor.isActive('strike')}
+        >
+          <Strikethrough className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          disabled={disabled || !editor.can().chain().focus().toggleHeading({ level: 3 }).run()}
+          className={cn(editor.isActive('heading', { level: 3 }) && 'bg-neutral-200')}
+          aria-label="Heading 3"
+          aria-pressed={editor.isActive('heading', { level: 3 })}
+        >
+          <Heading3 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+          disabled={disabled || !editor.can().chain().focus().toggleHeading({ level: 4 }).run()}
+          className={cn(editor.isActive('heading', { level: 4 }) && 'bg-neutral-200')}
+          aria-label="Heading 4"
+          aria-pressed={editor.isActive('heading', { level: 4 })}
+        >
+          <Heading4 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          disabled={disabled || !editor.can().chain().focus().toggleBlockquote().run()}
+          className={cn(editor.isActive('blockquote') && 'bg-neutral-200')}
+          aria-label="Blockquote"
+          aria-pressed={editor.isActive('blockquote')}
+        >
+          <Quote className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          disabled={disabled || !editor.can().chain().focus().setHorizontalRule().run()}
+          aria-label="Horizontal Rule"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => {
+            if (editor.isActive('link')) {
+              editor.chain().focus().unsetLink().run();
+            } else {
+              const url = window.prompt('Enter URL:');
+              if (url) {
+                editor.chain().focus().setLink({ href: url }).run();
+              }
+            }
+          }}
+          disabled={disabled}
+          className={cn(editor.isActive('link') && 'bg-neutral-200')}
+          aria-label="Link"
+          aria-pressed={editor.isActive('link')}
+        >
+          <Link className="h-4 w-4" />
         </Button>
       </div>
       <div className="relative flex-grow">

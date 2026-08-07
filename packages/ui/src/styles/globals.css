@@ -1,3 +1,4 @@
+@plugin '@tailwindcss/typography';
 /* =============================================================
    packages/ui/src/styles/globals.css
    batac-dms Design System — Tailwind CSS v4 + shadcn/ui

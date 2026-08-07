@@ -371,7 +371,7 @@ export function MultiReferralPanel({
                             )}
                             {submission.reportText && (
   <div
-    className="line-clamp-2 text-sm text-muted-foreground [&_p]:m-0 [&_strong]:font-semibold [&_em]:italic"
+    className="line-clamp-2 text-sm text-muted-foreground [&_p]:m-0 [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_u]:underline [&_s]:line-through [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_blockquote]:italic [&_h3]:font-semibold [&_h3]:text-sm [&_h4]:font-semibold [&_h4]:text-sm [&_a]:underline [&_a]:text-text-link"
     dangerouslySetInnerHTML={{ __html: submission.reportText }}
   />
 )}

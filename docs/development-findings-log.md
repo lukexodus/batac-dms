@@ -8526,3 +8526,144 @@ current upload.
 
 ---
 
+---
+
+### [LOG-0263] `logCertificationOfUrgency` writes `certificationDocumentId` into measure metadata instead of the schema-declared `certification_of_urgency_document_id` — confirmed latent, zero current readers, fix dispatched as TASK-WF-061
+
+- date: 2026-08-07
+- task_id: TASK-WF-061 (fix dispatched same session)
+- status: proposed → fix in flight
+- affects: documents.router.ts (logCertificationOfUrgency), document-types.seed.ts (SP_RESOLUTION_SCHEMA / SP_ORDINANCE_SCHEMA / APPROPRIATION_ORDINANCE_SCHEMA — schema unaffected, is the source of truth), documents.router.transactions.test.ts (asserts the bug as correct, needs update in same fix)
+- supersedes: none
+
+`documents.router.ts:1459` (`updateDocumentMetadata(measureId, { ...,
+certifiedUrgent: true, certificationDocumentId: input.certifyingDocumentId
+})`) writes a key that does not match any of the three metadata schemas'
+declared `certification_of_urgency_document_id` field
+(document-types.seed.ts:72, :128, :215), despite the schema's own
+description explicitly stating this exact handler is responsible for
+setting it. `updateDocumentMetadata`
+(documents.repository.ts:170-180) performs a raw Drizzle update with no
+JSON-schema validation — the two call sites that DO validate
+(`validateMetadataAgainstSchema`, documents.router.ts:365 and :683) are
+document-creation and generic-update, neither on this path — so
+`additionalProperties: false` on the schema never catches the mismatch.
+
+Exhaustive repo-wide search (both field-name variants, apps/web + apps/server
++ packages, source only) confirms zero current readers of this FK under
+either name — the bug is fully latent, no live UI or backend behavior
+depends on it today. Existing test
+(documents.router.transactions.test.ts:208-209) uses `.toEqual()` and
+currently asserts the WRONG key name as correct behavior; this will need
+updating in the same change as the fix, not treated as a regression when
+it starts failing.
+
+Traced two other similar-looking field names to confirm they are NOT part
+of this bug, each self-consistent within its own domain: (1)
+`certificationDocumentId` used ~30x across the workflow engine's event
+payloads, EventPayloadMap, and its own `certification_document_id` DB
+column (workflow.schema.ts:422) — correct, unrelated to document metadata;
+(2) `certified_urgent_document_id` on the workflow INSTANCE's own context
+JSONB (certified-urgent-bypass.handler.ts:71-72, 84, 86-87) — also correct,
+a different storage location (workflow_instances.context, not
+documents.metadata).
+
+Note: [Confirmed] — every file/line cited above read directly against the
+current upload. Repo-wide grep for both `certificationDocumentId` and
+`certification_of_urgency_document_id` run across apps/web/src,
+apps/server/src, and packages/, source files only (dist/ excluded),
+confirmed exhaustive at time of writing.
+
+---
+
+### [LOG-0264] `associated_measure_ids` upper-bound mismatch between CERTIFICATION_OF_URGENCY_SCHEMA (unbounded) and LogCertificationOfUrgencyInputSchema (max 10) — open design question, not resolved
+
+- date: 2026-08-07
+- task_id: none (surfaced during TASK-WF-061 investigation)
+- status: proposed — awaiting human decision
+- affects: document-types.seed.ts (CERTIFICATION_OF_URGENCY_SCHEMA, associated_measure_ids property), packages/shared/src/schemas/documents.ts (LogCertificationOfUrgencyInputSchema)
+- supersedes: none
+
+`document-types.seed.ts:272` (`associated_measure_ids`, within
+CERTIFICATION_OF_URGENCY_SCHEMA) has `minItems: 1` and no `maxItems`.
+`packages/shared/src/schemas/documents.ts:679`
+(`LogCertificationOfUrgencyInputSchema.associatedMeasureIds`) has
+`.min(1).max(10)`. Neither H1 §5/§6/§7, B4 §6.1, nor consolidated-ref Part
+4.17 (L820-845) specifies a numeric cap — source language is "a single
+Certification may cover multiple legislative measures in the same
+session" / "batch support," no number given. Currently harmless in
+practice: the tRPC layer's cap of 10 is checked before anything ever
+reaches the JSON-schema layer, so the unbounded JSON schema is presently
+unreachable dead slack, not a live bug. Flagged as a documentation/spec
+inconsistency worth a deliberate decision (remove the cap to match spec
+literally, add a matching maxItems to the JSON schema to make the
+inconsistency into an intentional matching pair, or leave as-is since it's
+functionally inert today) rather than something to silently pick either
+side of.
+
+Note: [Confirmed] — both schema definitions read directly against the
+current upload at the cited line numbers. [Confirmed] — H1, B4 §6.1, and
+consolidated-ref Part 4.17 re-checked for any numeric cap language; none
+found in any of the three source documents.
+
+---
+
+### [LOG-0265] — RichTextEditor toolbar extension proceeded on a still-`proposed` foundation entry
+
+**Date:** 2026-08-07
+**Module:** FE (packages/ui)
+**Related files:** `packages/ui/src/components/domain/RichTextEditor.tsx`, `docs/development-findings-log.md:7965` (LOG-0244), `docs/pre-development/J-software-design-patterns-and-standards/j5-initial-adrs/ADR-UI-017-richtext-editor-library-tiptap.md:3`
+**Status:** proposed
+
+**Finding:** LOG-0244, the entry that introduced `RichTextEditor` as the 17th Tier 3
+component, has `status: proposed` and explicitly asks a human to confirm or reject
+ADR-UI-017 (see LOG-0244's own "Human action needed" field). ADR-UI-017's own status
+field independently says "Accepted," and its "Deciders" field reads "Development team
+(planning-layer research, human-confirmed)" — apparently asserting the same
+confirmation LOG-0244 says is still pending. This toolbar-extension work (TASK-WF-FE-041
+follow-up) proceeded on top of this still-`proposed` foundation without resolving the
+tension, per planning-layer instruction that not extending an already-shipped,
+already-production-integrated component (used in 13 panels, already sanitized
+server-side) does not reduce the risk the unconfirmed status represents — that risk
+is already fully realized regardless of this PR. Flagging for a human to reconcile
+LOG-0244's status against ADR-UI-017's status field, independent of this PR's outcome.
+
+**What was implemented:** N/A — this is a traceability note, not a fix. See
+TASK-WF-FE-041-B's standalone prompt for the actual toolbar extension.
+
+---
+
+### [LOG-0266] — findings-log entry numbering gap: LOG-0250 through LOG-0255 absent
+
+**Date:** 2026-08-07
+**Module:** DOCS (development-findings-log.md itself)
+**Related files:** `docs/development-findings-log.md` (heading sequence around lines 8145-8296)
+**Status:** proposed
+
+**Finding:** The entry heading sequence in `development-findings-log.md` reads
+`...LOG-0248, LOG-0249, LOG-0256, LOG-0257...` — LOG-0250 through LOG-0255 (6 entries)
+are entirely absent. Confirmed via `grep -noE "^### \[?LOG-[0-9]{4}\]?"` against the
+full file, matching both heading formats in use (`### LOG-NNNN:` for older entries,
+`### [LOG-NNNN]` for newer ones) — 253 total headings found, with this exact gap.
+This violates the log's own stated convention (`docs/development-findings-log.md:84-86`):
+entries continue from the highest existing number and numbers are never reused even
+if an entry is later superseded. No information in the file explains the gap — it's
+not clear whether these numbers were used and later removed (which would itself
+violate the append-only rule at line 26), never committed after being drafted, or
+lost to a race between concurrent agents. Flagging rather than guessing at a cause.
+
+**What was implemented:** N/A — flagging only, no fix attempted. This does not block
+any other work; it's a documentation-hygiene gap for a human to investigate.
+### LOG-0263: TipTap v3 StarterKit Extensions Default Inclusion
+- **Date**: 2026-08-07
+- **Module**: `packages/ui` / `RichTextEditor`
+- **Status**: `proposed`
+- **Finding**: Empirical verification of `@tiptap/starter-kit` v3 in `node_modules` confirmed that the `Strike`, `Underline`, `Link`, `Heading`, `Blockquote`, and `HorizontalRule` extensions are inherently bundled and active by default when `StarterKit` is used. They do not require explicit top-level dependencies or separate extension imports, despite some contradictory online documentation.
+- **Action Taken**: Enabled Strikethrough, Underline, Link, Heading 3, Heading 4, Blockquote, and Horizontal Rule toolbar buttons in `RichTextEditor` using the pre-existing `StarterKit` capabilities, with no new extension imports.
+
+### LOG-0264: DOMPurify Default Allowlist Behavior
+- **Date**: 2026-08-07
+- **Module**: `apps/server` / `sanitizeRichText`
+- **Status**: `proposed`
+- **Finding**: Testing `DOMPurify`'s default configuration against the new formatting tags (`<u>`, `<a>`, `<h3>`, `<h4>`, `<blockquote>`, `<hr>`, `<s>`, `<strike>`) generated by the extended `RichTextEditor` toolbar revealed that none of these tags are stripped. They survive sanitization entirely intact under `DOMPurify`'s unconfigured defaults.
+- **Action Taken**: Proceeded without adding a custom allowlist to `sanitizeRichText()`, as the default permissiveness fully covers the new subset of tags.

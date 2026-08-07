@@ -70,7 +70,7 @@ export function RichTextEditorPage() {
         </CardHeader>
         <CardContent>
           <RichTextEditor
-            value="<p>This is some <strong>initial</strong> content with <em>formatting</em>.</p><ul><li>List item 1</li><li>List item 2</li></ul>"
+            value="<h3>Heading 3</h3><h4>Heading 4</h4><p>This is some <strong>initial</strong> content with <em>formatting</em>.</p><p>We also have <u>underline</u>, <s>strikethrough</s>, and a <a href=&quot;https://example.com&quot;>link</a>.</p><blockquote>This is a blockquote.</blockquote><hr><ul><li>List item 1</li><li>List item 2</li></ul>"
             onChange={() => {}}
           />
         </CardContent>
@@ -82,7 +82,7 @@ export function RichTextEditorPage() {
         </CardHeader>
         <CardContent>
           <RichTextEditor
-            value="<p>This is some <strong>initial</strong> content with <em>formatting</em>.</p><ul><li>List item 1</li><li>List item 2</li></ul>"
+            value="<h3>Heading 3</h3><h4>Heading 4</h4><p>This is some <strong>initial</strong> content with <em>formatting</em>.</p><p>We also have <u>underline</u>, <s>strikethrough</s>, and a <a href=&quot;https://example.com&quot;>link</a>.</p><blockquote>This is a blockquote.</blockquote><hr><ul><li>List item 1</li><li>List item 2</li></ul>"
             onChange={() => {}}
             disabled={true}
           />
