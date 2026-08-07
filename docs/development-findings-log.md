@@ -8404,3 +8404,125 @@ message differentiate based on which case fired?
 
 Note: [Confirmed] — frontend gate condition and all three backend cases checked directly
 against the current upload.
+
+---
+
+### [LOG-0259] `bypassStep`'s router-layer `workflow.step.bypassed` emit already includes the justification comment — the sys_admin audit-ledger path for it is not a gap
+
+- date: 2026-08-07
+- task_id: none (approval-step outcomeComment visibility gap investigation)
+- status: proposed
+- affects: workflow.router.ts (`bypassStep`), admin-operations.ts (`bypassStep`), SecurityAuditLedgerPage.tsx
+- supersedes: none
+
+The prior investigation into this gap confirmed `admin-operations.ts`'s `bypassStep`
+(lines 72-132) writes a mandatory justification `comment` into `stepInstance.outcomeComment`
+at line 106, and flagged it as the highest-severity instance of the write-without-read
+pattern — an accountability record for an admin override with, it appeared, no visibility
+path at all.
+
+That characterization needs one correction. `workflow.router.ts`'s `bypassStep` procedure
+(line 4018) does its own *separate* router-layer emit — `workflow.step.bypassed` (lines
+4066-4079), distinct from the `workflow.step.completed` event type the earlier 12-of-18
+audit-trail analysis covered. This event's payload does include `comment: input.comment`
+(line 4077). Since `SecurityAuditLedgerPage.tsx`'s `listSecurityLedger` query and its raw
+`JSON.stringify(item.payload, null, 2)` render (confirmed by the prior session, line 119)
+apply generically to any event type, `bypassStep`'s justification already reaches a
+sys_admin-visible audit trail today, with no additional wiring needed.
+
+This does not close the underlying gap — the justification is still invisible to anyone
+without `sys_admin`/IT-admin access, and still absent from `getInstance`'s main surface —
+but it means the "narrower, more sensitive audience" visibility model recommended for this
+specific write-site (see the three-decisions document this investigation resolved) is
+already partially satisfied by existing code, not something that needs to be built from
+scratch.
+
+Note: [Confirmed] — `workflow.router.ts:4066-4079` read directly against the current
+upload; `comment: input.comment` present verbatim at line 4077.
+
+---
+
+### [LOG-0260] `WorkflowStepActionPage.tsx`'s "Workflow Step Summary" card (containing `currentStepName`) is the `default:` case of a `switch(panelHint)` — it never renders when any actionable panel matches
+
+- date: 2026-08-07
+- task_id: none (approval-step outcomeComment visibility gap investigation)
+- status: proposed
+- affects: WorkflowStepActionPage.tsx, any fix that adds step-outcome display to this page
+- supersedes: none
+
+The prior investigation flagged this as `[Unverified]` — it suspected but did not confirm
+whether the Summary card was fallback-only. Confirmed directly: `renderPanel()`'s
+`switch (instance.panelHint)` (line 71) has ~18 `case` branches, each returning early when
+`canAct` is true (e.g. lines 72-76). The Summary card (lines 163-195) sits after the
+`switch` block entirely, reached only via the `default:` case (line 159) or via a `case`
+whose `canAct` check fails and falls through without an early return.
+
+Practical effect: for any instance where a real action panel matches and the user has the
+required role, the Summary card — and therefore `currentStepName` and any future
+step-outcome display added only to this card — never renders. A fix that adds visibility
+only inside this card would be invisible during the majority of normal use. Any display of
+step outcome/comment history needs to live outside `renderPanel()`'s switch, in the page's
+persistent layout, to be visible regardless of which panel matches.
+
+Note: [Confirmed] — full file (221 lines) read directly against the current upload;
+switch/default structure and Summary card position verified.
+
+---
+
+### [LOG-0261] `submitStepMultiReferral`'s `SECRETARY_ADVANCED` outcome has a mandatory (validated non-empty) comment, structurally identical in strictness to `bypassStep`'s justification — not called out as its own category in the prior three-decisions analysis
+
+- date: 2026-08-07
+- task_id: none (approval-step outcomeComment visibility gap investigation)
+- status: proposed
+- affects: multi-referral.handler.ts, workflow.router.ts, the visibility-model decision for outcomeComment
+- supersedes: none
+
+`multi-referral.handler.ts:178-180` throws `COMMENT_REQUIRED` if `comment` is empty when
+`outcome === 'SECRETARY_ADVANCED'` (the manual-override path where a secretary advances a
+multi-referral step without all committees having submitted). This is the same enforcement
+strength as `admin-operations.ts`'s `bypassStep` (mandatory, validated non-empty), but
+`SECRETARY_ADVANCED` was grouped under "routine multi-referral outcome comments" in the
+three-decisions document's Model A recommendation rather than singled out.
+
+Not treated as a blocking issue — `SECRETARY_ADVANCED` is a normal (if manual-override)
+step-completion path within the multi-referral step type, not an out-of-band admin action
+against a step it doesn't own the way `bypassStep` is, so keeping it in the Model A bucket
+alongside other multi-referral outcomes is reasonable. Logged so a human reviewing the
+Decision 1 model split later has the full picture of which outcome types carry mandatory
+vs. optional comments, in case the distinction matters for a future refinement.
+
+Note: [Confirmed] — `multi-referral.handler.ts:174-229` read in full directly against the
+current upload; validation at lines 178-180 confirmed.
+
+---
+
+### [LOG-0262] `action.handler.ts`'s `submitStepAction` write-path gap (comment never reaches `outcomeComment` at all) is confirmed unfixed and explicitly out of scope for the `getInstance` read-path widening — needs its own separate task
+
+- date: 2026-08-07
+- task_id: none (approval-step outcomeComment visibility gap investigation)
+- status: proposed
+- affects: action.handler.ts, workflow.schema.ts (`outcomeComment`), any getInstance-facing visibility fix
+- supersedes: none
+
+Re-confirmed directly against the current upload: `action.handler.ts:49-53`'s
+`updateStepInstance` call sets `status`, `completedAt`, `outcome` only — no
+`outcomeComment` key — even though `comment` (parameter at line 16, conditionally required
+via `require_comment` config, validated with `isRichTextEmpty` at lines 41-45) is in scope
+at that point. The comment only reaches the ephemeral `workflow_events.payload.comment`
+(line 70), which per the prior investigation's confirmed finding does not publish to the
+external eventBus for this handler's `createWorkflowEvent` calls in general.
+
+This is structurally a different bug than the read-path gap this task's executor prompt
+resolves. Widening `getInstance` to surface `outcomeComment` does nothing for action-step
+comments, since there is no column value to read for them — the column is never written.
+Fixing this requires a write-path change first (add `outcomeComment: comment` to the
+`updateStepInstance` call at action.handler.ts:49-53), which is a small, low-risk,
+single-file change, but is being logged rather than silently folded into the executor
+prompt below, since it touches a different file/function than what was scoped and
+decided on.
+
+Note: [Confirmed] — `action.handler.ts` full file (84 lines) read directly against the
+current upload.
+
+---
+
