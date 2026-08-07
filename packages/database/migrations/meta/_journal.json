@@ -169,6 +169,13 @@
       "when": 1786011975123,
       "tag": "0023_late_aqueduct",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786080194746,
+      "tag": "0024_nifty_titania",
+      "breakpoints": true
     }
   ]
 }

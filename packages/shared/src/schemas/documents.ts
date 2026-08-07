@@ -537,6 +537,7 @@ export const LogSignatureInputSchema = createInsertSchema(signatures).pick({
   signedByDisplayName: z.string().min(1).max(256).trim(),
   isWetInk: z.boolean().default(true),
   signatureImageS3Key: z.uuid().optional(),
+  signatureType: SignatureTypeSchema,
 });
 export type LogSignatureInput = z.infer<typeof LogSignatureInputSchema>;
 

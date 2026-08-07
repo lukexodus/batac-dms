@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 
 // DOMPurify requires a DOM implementation in a Node.js (non-browser) context.
 const window = new JSDOM('').window;
-const purify = DOMPurify(window as unknown as Window);
+const purify = DOMPurify(window as any);
 
 /**
  * Sanitizes an HTML string produced by the RichTextEditor (TipTap) component
