@@ -45,7 +45,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { AllowedMimeTypeSchema, type AllowedMimeType } from '@batac/shared';
-
 import {
   StatusBadge,
   WorkflowStepIndicator,
@@ -68,6 +67,7 @@ import {
   Input,
   Badge,
 } from '@batac/ui';
+
 import { LogCertificationOfUrgencyDialog } from './dialogs/LogCertificationOfUrgencyDialog';
 import { hasRole } from '../../lib/auth-helpers';
 
