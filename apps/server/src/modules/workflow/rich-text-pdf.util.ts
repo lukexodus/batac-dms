@@ -45,7 +45,10 @@ export function parseRichTextForPdf(html: string): PdfBlock[] {
   if (body.children.length === 0) {
     const textContent = body.textContent?.trim() || '';
     if (textContent) {
-      blocks.push({ type: 'paragraph', runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }] });
+      blocks.push({
+        type: 'paragraph',
+        runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }],
+      });
     }
     return blocks;
   }
@@ -69,14 +72,14 @@ function parseBlock(element: Element): PdfBlock | null {
     walkNode(element, runs, { bold: false, italic: false, strike: false, code: false });
     return { type: 'paragraph', runs };
   }
-  
+
   if (tagName.match(/^h[1-6]$/)) {
     const level = parseInt(tagName.charAt(1), 10) as 1 | 2 | 3 | 4 | 5 | 6;
     const runs: TextRun[] = [];
     walkNode(element, runs, { bold: false, italic: false, strike: false, code: false });
     return { type: 'heading', level, runs };
   }
-  
+
   if (tagName === 'blockquote') {
     const blocks: PdfBlock[] = [];
     for (let i = 0; i < element.children.length; i++) {
@@ -86,7 +89,7 @@ function parseBlock(element: Element): PdfBlock | null {
     }
     return { type: 'blockquote', blocks };
   }
-  
+
   if (tagName === 'ul' || tagName === 'ol') {
     const ordered = tagName === 'ol';
     const items: PdfBlock[][] = [];
@@ -99,13 +102,16 @@ function parseBlock(element: Element): PdfBlock | null {
           const parsed = parseBlock(child);
           if (parsed) itemBlocks.push(parsed);
         }
-        // If an li has bare text without a p, parseBlock on element.children will miss it. 
+        // If an li has bare text without a p, parseBlock on element.children will miss it.
         // But starterkit always wraps li content in p. If it misses bare text, we should handle it.
         // Let's check if li has no element children but has text.
         if (li.children.length === 0) {
           const textContent = li.textContent?.trim() || '';
           if (textContent) {
-            itemBlocks.push({ type: 'paragraph', runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }] });
+            itemBlocks.push({
+              type: 'paragraph',
+              runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }],
+            });
           }
         }
         items.push(itemBlocks);
@@ -113,7 +119,7 @@ function parseBlock(element: Element): PdfBlock | null {
     }
     return { type: 'list', ordered, items };
   }
-  
+
   if (tagName === 'pre') {
     return { type: 'codeBlock', text: element.textContent || '' };
   }
@@ -121,9 +127,12 @@ function parseBlock(element: Element): PdfBlock | null {
   // Fallback for unrecognized block elements
   const textContent = element.textContent?.trim() || '';
   if (textContent) {
-    return { type: 'paragraph', runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }] };
+    return {
+      type: 'paragraph',
+      runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }],
+    };
   }
-  
+
   return null;
 }
 
@@ -135,7 +144,8 @@ interface FormatState {
 }
 
 function walkNode(node: Node, runs: TextRun[], state: FormatState) {
-  if (node.nodeType === 3) { // Node.TEXT_NODE
+  if (node.nodeType === 3) {
+    // Node.TEXT_NODE
     const text = node.textContent;
     if (text) {
       runs.push({
@@ -149,10 +159,11 @@ function walkNode(node: Node, runs: TextRun[], state: FormatState) {
     return;
   }
 
-  if (node.nodeType === 1) { // Node.ELEMENT_NODE
+  if (node.nodeType === 1) {
+    // Node.ELEMENT_NODE
     const element = node as Element;
     const tagName = element.tagName.toLowerCase();
-    
+
     if (tagName === 'br') {
       runs.push({
         text: '\n',

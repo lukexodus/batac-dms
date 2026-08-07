@@ -2480,11 +2480,11 @@ export function createWorkflowRouter() {
                   width: PDF_REPORT_STYLE.blockquote.ruleWidth,
                 };
                 activeRules.push(rule);
-                
+
                 for (const b of block.blocks) {
                   drawBlock(b, newMarginX, PDF_REPORT_STYLE.blockquote.italic || forceItalic);
                 }
-                
+
                 activeRules.pop();
                 rule.page.drawRectangle({
                   x: rule.marginX,
@@ -2499,7 +2499,7 @@ export function createWorkflowRouter() {
                   const item = block.items[i]!;
                   checkPageOverflow();
                   const bullet = block.ordered ? `${i + 1}${PDF_REPORT_STYLE.list.orderedSeparator}` : PDF_REPORT_STYLE.list.bulletChar;
-                  
+
                   textPage.drawText(bullet, {
                     x: marginX,
                     y: textY,
@@ -2507,12 +2507,12 @@ export function createWorkflowRouter() {
                     font: helvetica,
                     color: rgb(0, 0, 0),
                   });
-                  
+
                   const initialTextY = textY;
                   for (const b of item) {
                     drawBlock(b, newMarginX, forceItalic);
                   }
-                  
+
                   if (initialTextY === textY) {
                     textY -= textLineHeight;
                   }
@@ -2520,7 +2520,7 @@ export function createWorkflowRouter() {
               } else if (block.type === 'codeBlock') {
                 const codeMaxWidth = contentMaxWidth - (marginX - 60) - PDF_REPORT_STYLE.codeBlock.leftPadding;
                 const lines = wrapPdfText(block.text, courier, textSize, codeMaxWidth);
-                
+
                 checkPageOverflow();
                 textPage.drawRectangle({
                   x: marginX,
@@ -2529,7 +2529,7 @@ export function createWorkflowRouter() {
                   height: PDF_REPORT_STYLE.codeBlock.topBottomPadding,
                   color: rgb(...PDF_REPORT_STYLE.codeBlock.backgroundColorRgb),
                 });
-                
+
                 for (const line of lines) {
                   checkPageOverflow();
                   textPage.drawRectangle({
@@ -2548,7 +2548,7 @@ export function createWorkflowRouter() {
                   });
                   textY -= textLineHeight;
                 }
-                
+
                 checkPageOverflow();
                 textPage.drawRectangle({
                   x: marginX,
