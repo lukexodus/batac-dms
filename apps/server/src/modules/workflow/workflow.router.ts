@@ -39,9 +39,17 @@ const paginationInput = z.object({
   limit: z.number().int().min(1).max(100).default(50),
 });
 
+const GenerateTransmittalLetterInputSchema = z.object({
+  stepInstanceId: z.string().uuid(),
+  recipientOfficeLabel: z.string().min(1).default('Office of the Mayor'),
+  purposeText: z.string().min(1).default('For appropriate action'),
+  signatoryUserId: z.string().uuid().optional(),
+});
+
 const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
 
 const COMMITTEE_REPORT_TYPE_CODE = 'COMMITTEE_REPORT';
+const TRANSMITTAL_LETTER_TYPE_CODE = 'TRANSMITTAL_LETTER';
 
 let _s3Client: S3Client | null = null;
 function getS3Client(): S3Client {
@@ -282,6 +290,27 @@ async function resolveCommitteeReportTypeId(db: any, cityId: string): Promise<st
     throw new TRPCError({
       code: 'INTERNAL_SERVER_ERROR',
       message: `Document type ${COMMITTEE_REPORT_TYPE_CODE} is not configured for this city. Run the document-types seed.`,
+    });
+  }
+  return dt.id;
+}
+
+async function resolveTransmittalLetterTypeId(db: any, cityId: string): Promise<string> {
+  const [dt] = await db
+    .select({ id: documentTypes.id })
+    .from(documentTypes)
+    .where(
+      and(
+        eq(documentTypes.code, TRANSMITTAL_LETTER_TYPE_CODE),
+        eq(documentTypes.cityId, cityId),
+        isNull(documentTypes.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!dt) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Document type ${TRANSMITTAL_LETTER_TYPE_CODE} is not configured for this city. Run the document-types seed.`,
     });
   }
   return dt.id;
@@ -2715,6 +2744,157 @@ export function createWorkflowRouter() {
           textReportPagesCount,
           skippedCount,
         };
+      }),
+
+    /**
+     * `workflow.generateTransmittalLetter`
+     *
+     * Generates a physical PDF and document row for the Transmittal Letter.
+     * Completes the first half of the two-round-trip Transmittal Letter step.
+     */
+    generateTransmittalLetter: protectedProcedure
+      .input(GenerateTransmittalLetterInputSchema)
+      .output(
+        z.object({
+          success: z.boolean(),
+          documentId: z.string(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { stepInstanceId, purposeText, recipientOfficeLabel, signatoryUserId } = input;
+        
+        // 1. Fetch step context and guard
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Step instance not found.',
+          });
+        }
+        
+        const { stepAttrs, doc, instance } = found;
+        if (stepAttrs.stepKey !== 'transmittal_letter_to_mayor') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'This mutation is only for the transmittal_letter_to_mayor step.',
+          });
+        }
+        
+        workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs);
+        
+        // 2. Generate PDF
+        const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+        const pdfDoc = await PDFDocument.create();
+        const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        
+        const pageW = 595.28;
+        const pageH = 841.89;
+        const page = pdfDoc.addPage([pageW, pageH]);
+        
+        page.drawText('REPUBLIC OF THE PHILIPPINES', { x: 60, y: pageH - 90, size: 12, font: helvetica });
+        page.drawText('SANGGUNIANG PANLUNGSOD NG BATAC', { x: 60, y: pageH - 110, size: 14, font: helveticaBold });
+        page.drawText('TRANSMITTAL LETTER', { x: 60, y: pageH - 160, size: 16, font: helveticaBold });
+        
+        const today = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+        page.drawText(`Date: ${today}`, { x: 60, y: pageH - 200, size: 11, font: helvetica });
+        page.drawText(`To: ${recipientOfficeLabel}`, { x: 60, y: pageH - 230, size: 11, font: helveticaBold });
+        page.drawText(`Re: ${doc.title || 'Legislative Measure'}`, { x: 60, y: pageH - 260, size: 11, font: helvetica, maxWidth: pageW - 120 });
+        page.drawText(`Purpose: ${purposeText}`, { x: 60, y: pageH - 290, size: 11, font: helvetica });
+        
+        const signatoryName = (await resolveAssigneeName(ctx.db, signatoryUserId || ctx.auth.userId)) || 'SP Secretary'; // fallback
+        page.drawText('Very truly yours,', { x: 60, y: pageH - 360, size: 11, font: helvetica });
+        page.drawText(signatoryName, { x: 60, y: pageH - 400, size: 11, font: helveticaBold });
+        
+        const pdfBytes = await pdfDoc.save();
+        
+        // 3. Save to S3
+        const s3Key = randomUUID();
+        await putS3Object(s3Key, Buffer.from(pdfBytes), 'application/pdf');
+        
+        // 4. DB Insert
+        const documentTypeId = await resolveTransmittalLetterTypeId(ctx.db, ctx.auth.cityId);
+        
+        const txRepoOuter = new DocumentsRepository(ctx.db as any); // use outer db for type fetch
+        const dtOuter = await txRepoOuter.findDocumentTypeById(documentTypeId);
+        if (!dtOuter || !dtOuter.retentionScheduleId) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Document type TRANSMITTAL_LETTER is missing a retention schedule.`,
+          });
+        }
+        const retentionScheduleId = dtOuter.retentionScheduleId;
+        
+        let createdDocId: string;
+        await ctx.db.transaction(async (tx) => {
+          const txRepo = new DocumentsRepository(tx);
+          const spsOffice = await getOrgService(ctx).getOfficeByCode(SP_SECRETARIAT_OFFICE_CODE, ctx.auth.cityId);
+          if (!spsOffice) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'SP Secretariat not configured' });
+          
+          const created = await txRepo.insertDocument({
+            cityId: ctx.auth.cityId,
+            documentTypeId,
+            title: `Transmittal Letter for ${doc.title || doc.id}`,
+            lifecycleState: 'completed',
+            classificationLevel: 'internal',
+            qrTrackingNumber: randomUUID(),
+            originatingOfficeId: spsOffice.officeId,
+            ownedByOfficeId: spsOffice.officeId,
+            createdBy: ctx.auth.userId,
+            versionNumber: 1,
+            retentionScheduleId,
+            metadata: {
+              associated_measure_id: doc.id,
+              recipient_office_label: recipientOfficeLabel,
+              recipient_office_id: null,
+              purpose_text: purposeText,
+              signed_by_user_id: signatoryUserId || ctx.auth.userId,
+              signed_by_display_name: signatoryName,
+              date_transmitted: new Date().toISOString().split('T')[0],
+            },
+          });
+          createdDocId = created.id;
+          
+          await txRepo.insertVersion({
+            cityId: ctx.auth.cityId,
+            documentId: created.id,
+            versionNumber: 1,
+            fileKey: s3Key,
+            originalFilename: `transmittal_letter_${doc.id.substring(0,8)}.pdf`,
+            mimeType: 'application/pdf',
+            fileSizeBytes: pdfBytes.length,
+            pageCount: 1,
+            ocrProcessed: false,
+            requiresManualVerification: false,
+            createdBy: ctx.auth.userId,
+          });
+        });
+        
+        // 5. Numbering Assignment
+        try {
+          const numberingService = ctx.req.server.numberingService;
+          await numberingService.assignControlNumber(createdDocId!, 'letters_sent', ctx.auth.cityId, ctx.auth.userId);
+        } catch (e: any) {
+          // Rollback by soft-deleting
+          await ctx.db.update(documents).set({ deletedAt: new Date() }).where(eq(documents.id, createdDocId!));
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Failed to assign control number: ${e.message}`,
+            cause: e,
+          });
+        }
+        
+        // 6. Back-reference Update
+        await ctx.db.transaction(async (tx) => {
+          const txRepo = new DocumentsRepository(tx);
+          const currentMetadata = doc.metadata as Record<string, unknown>;
+          await txRepo.updateDocumentMetadata(doc.id, {
+            ...currentMetadata,
+            transmittal_letter_document_id: createdDocId!,
+          });
+        });
+        
+        return { success: true, documentId: createdDocId! };
       }),
 
     /**
