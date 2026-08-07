@@ -807,10 +807,13 @@ export default function DocumentIntakePage() {
                   .filter(([key]) => !SYSTEM_SET_METADATA_FIELDS.has(key))
                   .map(([key, prop]) => {
                   const isRequired = !!metadataSchema.required?.includes(key);
-                  const label = key
+                  let label = key
                     .split('_')
                     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
                     .join(' ');
+                  if (key === 'associated_measure_ids') {
+                    label = 'Associated Measures';
+                  }
 
                   return (
                     <DynamicField 
