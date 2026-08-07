@@ -205,8 +205,8 @@ describe('documents.router transactions', () => {
       
       await caller.logCertificationOfUrgency({ certifyingDocumentId: '44444444-4444-4444-8444-444444444444', associatedMeasureIds: ['66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777'] } as any);
       
-      expect(fakeDbState.documents.get('66666666-6666-4666-8666-666666666666').metadata).toEqual({ foo: 'bar', certifiedUrgent: true, certificationDocumentId: '44444444-4444-4444-8444-444444444444' });
-      expect(fakeDbState.documents.get('77777777-7777-4777-8777-777777777777').metadata).toEqual({ certifiedUrgent: true, certificationDocumentId: '44444444-4444-4444-8444-444444444444' });
+      expect(fakeDbState.documents.get('66666666-6666-4666-8666-666666666666').metadata).toEqual({ foo: 'bar', certifiedUrgent: true, certification_of_urgency_document_id: '44444444-4444-4444-8444-444444444444' });
+      expect(fakeDbState.documents.get('77777777-7777-4777-8777-777777777777').metadata).toEqual({ certifiedUrgent: true, certification_of_urgency_document_id: '44444444-4444-4444-8444-444444444444' });
     });
 
     it('partial-failure rollback: first update rolls back if second fails', async () => {

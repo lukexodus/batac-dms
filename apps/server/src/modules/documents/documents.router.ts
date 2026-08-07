@@ -1456,7 +1456,7 @@ export function createDocumentsRouter() {
               await txRepo.updateDocumentMetadata(measureId, {
                 ...currentMetadata,
                 certifiedUrgent: true,
-                certificationDocumentId: input.certifyingDocumentId,
+                certification_of_urgency_document_id: input.certifyingDocumentId,
               });
             }
           }
