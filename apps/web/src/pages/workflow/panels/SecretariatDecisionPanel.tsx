@@ -65,21 +65,21 @@ export function SecretariatDecisionPanel({
         </div>
         <div className="flex space-x-2">
           <Button onClick={() => mutate('approve')} disabled={logDecisionMutation.isPending}>
-            Approve
+            Approve & Advance Workflow
           </Button>
           <Button
             variant="destructive"
             onClick={() => mutate('reject', true)}
             disabled={logDecisionMutation.isPending}
           >
-            Reject
+            Reject & Terminate Workflow
           </Button>
           <Button
             variant="outline"
             onClick={() => mutate('amended', true)}
             disabled={logDecisionMutation.isPending}
           >
-            Amended
+            Approve with Amendments
           </Button>
         </div>
       </CardContent>

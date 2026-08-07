@@ -78,7 +78,7 @@ export function GenericApprovalPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Approval Decision</CardTitle>
+        <CardTitle>{instance.currentStepName ? `Decision: ${instance.currentStepName}` : 'Approval Decision'}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -101,7 +101,7 @@ export function GenericApprovalPanel({
             }
             disabled={busy}
           >
-            Approve
+            Approve & Advance Workflow
           </Button>
           <Button
             variant="destructive"
@@ -114,7 +114,7 @@ export function GenericApprovalPanel({
             }}
             disabled={busy}
           >
-            Reject
+            Reject & Terminate Workflow
           </Button>
           <Button
             variant="outline"
@@ -140,7 +140,7 @@ export function GenericApprovalPanel({
             }}
             disabled={busy}
           >
-            Amend
+            Approve with Amendments
           </Button>
         </div>
       </CardContent>

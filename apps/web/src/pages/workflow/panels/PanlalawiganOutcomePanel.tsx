@@ -119,7 +119,7 @@ export function PanlalawiganOutcomePanel({
             }}
             disabled={recordMutation.isPending}
           >
-            Record Outcome
+            Record Outcome & Advance Workflow
           </Button>
         </div>
 
@@ -162,7 +162,7 @@ export function PanlalawiganOutcomePanel({
             }}
             disabled={resolveMutation.isPending}
           >
-            Resolve
+            Resolve Valid in Part & Route
           </Button>
         </div>
 
@@ -179,7 +179,7 @@ export function PanlalawiganOutcomePanel({
             }
             disabled={confirmDeemedMutation.isPending}
           >
-            Confirm
+            Confirm Deemed Approved & Advance Workflow
           </Button>
         </div>
       </CardContent>

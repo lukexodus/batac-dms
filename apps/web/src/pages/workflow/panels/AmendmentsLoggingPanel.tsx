@@ -63,7 +63,7 @@ export function AmendmentsLoggingPanel({
           }
           disabled={completeMutation.isPending || isRichTextEmpty(comment)}
         >
-          {completeMutation.isPending ? 'Completing...' : 'Log Amendments & Complete Task'}
+          {completeMutation.isPending ? 'Completing...' : 'Log Amendments & Advance Workflow'}
         </Button>
       </CardContent>
     </Card>

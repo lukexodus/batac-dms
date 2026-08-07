@@ -87,7 +87,7 @@ export function FinalNumberAssignmentPanel({
                 disabled={completeMutation.isPending}
                 className="mt-4"
               >
-                {completeMutation.isPending ? 'Processing...' : 'Complete Task'}
+                {completeMutation.isPending ? 'Processing...' : 'Confirm & Advance Workflow'}
               </Button>
             )}
           </div>

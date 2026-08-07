@@ -66,7 +66,7 @@ export function MayorDecisionPanel({
             onClick={() => signMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })}
             disabled={busy}
           >
-            Sign
+            Sign & Approve Document
           </Button>
           <Button
             variant="destructive"
@@ -82,7 +82,7 @@ export function MayorDecisionPanel({
             }}
             disabled={busy}
           >
-            Veto
+            Veto & Return to Sanggunian
           </Button>
         </div>
       </CardContent>

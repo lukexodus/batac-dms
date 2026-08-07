@@ -57,7 +57,7 @@ export function LegalOfficeReviewDecisionPanel({
         </div>
         <div className="flex space-x-2">
           <Button onClick={() => mutate('RESOLVED_IN_PLACE')} disabled={submitOutcomeMutation.isPending}>
-            Resolve In Place
+            Resolve In Place & Advance Workflow
           </Button>
         </div>
       </CardContent>

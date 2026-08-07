@@ -107,7 +107,7 @@ export function OrderOfBusinessSchedulingPanel({
           onClick={handleScheduleAndComplete}
           disabled={isSubmitting || !selectedDate}
         >
-          {isSubmitting ? 'Processing...' : 'Schedule & Complete Task'}
+          {isSubmitting ? 'Processing...' : 'Schedule & Advance Workflow'}
         </Button>
       </CardContent>
     </Card>

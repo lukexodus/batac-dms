@@ -33,7 +33,7 @@ export function GenericActionPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Complete Task</CardTitle>
+        <CardTitle>{instance.currentStepName ? `Complete Task: ${instance.currentStepName}` : 'Complete Task'}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {instance.currentStepKey === 'final_number_assignment' && (
@@ -59,7 +59,7 @@ export function GenericActionPanel({
           }
           disabled={completeMutation.isPending}
         >
-          {completeMutation.isPending ? 'Completing...' : 'Complete Task'}
+          {completeMutation.isPending ? 'Completing...' : `Advance Workflow: ${instance.currentStepName || 'Complete Task'}`}
         </Button>
       </CardContent>
     </Card>
