@@ -159,7 +159,7 @@ export async function createInstance(
     );
 
     const config = (startStep.config as Record<string, any>) || {};
-    let assignees = [];
+    let assignees: { user_id: string }[] = [];
     if (config['assignee']) {
       assignees = await resolveAssignees(
         config['assignee'],
@@ -201,7 +201,7 @@ export async function createInstance(
           stepType: startStep.stepType,
           stepKey: startStep.stepKey,
           documentId,
-          assignedTo: null,
+          assignedTo: assignees.length > 0 ? assignees.map((a) => a.user_id) : null,
           dueAt: null,
         },
       },

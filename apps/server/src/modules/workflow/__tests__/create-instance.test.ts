@@ -115,10 +115,15 @@ describe('Create Instance (CI)', () => {
     );
   });
 
-  it('CI-02: start step receives workflow.step.started event', async () => {
+  it('CI-02: start step receives workflow.step.started event with correct assignees', async () => {
     await createInstance('doc-1', 'def-1', 'user-encoder', mockDeps);
     expect(mockRepo.createWorkflowEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'workflow.step.started' }),
+      expect.objectContaining({
+        eventType: 'workflow.step.started',
+        payload: expect.objectContaining({
+          assignedTo: ['user-mayor'],
+        }),
+      }),
       mockTrx,
     );
   });
