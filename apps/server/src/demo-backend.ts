@@ -45,8 +45,8 @@ async function runDemo() {
     // Hash password using Argon2id
     const passwordHash = await argon2.hash(passwordPlain, {
       memoryCost: env.ARGON2_MEMORY_COST ?? 65536,
-      timeCost: env.ARGON2_TIME_COST ?? 3,
-      parallelism: env.ARGON2_PARALLELISM ?? 4,
+      timeCost: env.ARGON2_TIME_COST ?? 2,
+      parallelism: env.ARGON2_PARALLELISM ?? 1,
       hashLength: env.ARGON2_HASH_LENGTH ?? 32,
     });
 

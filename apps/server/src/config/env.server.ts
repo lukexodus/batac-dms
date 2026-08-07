@@ -80,7 +80,7 @@ export const serverEnvSchema = z
 
     // ─── Argon2id ─────────────────────────────────────────────────────────
     ARGON2_MEMORY_COST: positiveInt.default(65536),
-    ARGON2_TIME_COST: positiveInt.default(3),
+    ARGON2_TIME_COST: positiveInt.default(2),
     ARGON2_PARALLELISM: positiveInt.default(1),
     ARGON2_HASH_LENGTH: positiveInt.default(32),
 
