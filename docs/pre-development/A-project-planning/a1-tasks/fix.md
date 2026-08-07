@@ -27104,7 +27104,7 @@ The doubled-path bug in `metadata-schema-validator.ts` and the missing render-wi
 
 ## Context
 
-`second_reading_vote` and `second_reading_amended_vote` (`packages/database/src/seeds/workflow/phase1-legislative.ts:116-127,143-155`) both declare `AMENDED` in their `allowed_outcomes`, but no current frontend path can submit it. This was traced and confirmed this session: `computePanelHint`'s `secretariat_decision` branch (`apps/server/src/modules/workflow/workflow.router.ts:253-257`) can never fire for any step, because the `assignedTo` structure it reads `.office_id` from is never populated with that field by any assignee-resolution path (root cause logged separately as `LOG-0177`; fixing that root cause is a larger, separate task, not part of this one). As a result, both steps always route to `generic_approval` → `GenericApprovalPanel`, which today only submits `APPROVED`, `REJECTED`, and `RETURNED_FOR_REVISION` — never `AMENDED`.
+`second_reading_vote` and `second_reading_amended_vote` (`packages/database/src/seeds/workflow/phase1-legislative.ts:116-127,143-155`) both declare `AMENDED` in their `allowed_outcomes`, but no current frontend path can submit it. This was traced and confirmed this session: `computePanelHint`'s `secretariat_decision` branch (`apps/server/src/modules/workflow/workflow.router.ts:253-257`) can never fire for any step, because the `assignedTo` structure it reads `.office_id` from is never populated with that field by any assignee-resolution path (root cause logged separately as `LOG-0252`; fixing that root cause is a larger, separate task, not part of this one). As a result, both steps always route to `generic_approval` → `GenericApprovalPanel`, which today only submits `APPROVED`, `REJECTED`, and `RETURNED_FOR_REVISION` — never `AMENDED`.
 
 `TASK-WF-FE-019` already added a generic backend procedure, `workflow.submitApprovalOutcome` (`apps/server/src/modules/workflow/workflow.router.ts:1315-1390`), that accepts an arbitrary non-empty outcome string, delegates validation to `submitStepApproval` (which checks the outcome against the current step's own `config.allowed_outcomes`), and reuses `workflowPolicy.canApproveStep` unchanged for authorization. This task wires that existing procedure into `GenericApprovalPanel` as a fourth "Amend" action.
 
@@ -27231,7 +27231,7 @@ new_str:
 
 **IN SCOPE:** `apps/web/src/pages/workflow/panels/GenericApprovalPanel.tsx` only.
 
-**OUT OF SCOPE (do not touch even if related):** `apps/server/src/modules/workflow/workflow.router.ts` (`submitApprovalOutcome` already exists and needs no changes), `getInstance`'s output schema (widening it to expose `allowedOutcomes` is separate, larger scope — not part of this task), `computePanelHint` (routing logic is correct as traced; the dead `secretariat_decision` branch and the underlying `office_id` gap are tracked separately as `LOG-0177`, not this task), `SecretariatDecisionPanel.tsx` (left as-is; whether to remove the now-confirmed-dead component is a separate decision, not part of this task), `WorkflowStepActionPage.tsx` (already correctly routes to `GenericApprovalPanel` for `generic_approval`; no change needed), any other panel component.
+**OUT OF SCOPE (do not touch even if related):** `apps/server/src/modules/workflow/workflow.router.ts` (`submitApprovalOutcome` already exists and needs no changes), `getInstance`'s output schema (widening it to expose `allowedOutcomes` is separate, larger scope — not part of this task), `computePanelHint` (routing logic is correct as traced; the dead `secretariat_decision` branch and the underlying `office_id` gap are tracked separately as `LOG-0252`, not this task), `SecretariatDecisionPanel.tsx` (left as-is; whether to remove the now-confirmed-dead component is a separate decision, not part of this task), `WorkflowStepActionPage.tsx` (already correctly routes to `GenericApprovalPanel` for `generic_approval`; no change needed), any other panel component.
 
 ## Verification steps
 
@@ -29416,7 +29416,7 @@ because it was moved into `src/` under a new name as part of Option B).
 Per the addendum's rule, I am not editing the file directly — these are for you to copy-paste to the bottom of the file, continuing the numbering from the confirmed highest existing entry, LOG-0181.
 
 ```markdown
-### [LOG-0182] apps/web/eslint.config.cjs turns off explicit-module-boundary-types for the whole app, undocumented in J3
+### [LOG-0254] apps/web/eslint.config.cjs turns off explicit-module-boundary-types for the whole app, undocumented in J3
 
 - date: 2026-07-29
 - task_id: none — discovered while investigating a repo-wide lint-error-fix request
