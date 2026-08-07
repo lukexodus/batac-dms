@@ -8028,61 +8028,121 @@ open.
 
 ---
 
-### [LOG-0246] Two divergent copies of notifications.seed.ts exist; only one is loaded by the seed orchestrator, and they disagree on the mayor_lapse/panlalawigan_deemed_approved legal-basis duplication question TASK-NOTIF-014 asked about
+### [LOG-0246] Two divergent copies of notifications.seed.ts existed; only one was loaded by the seed orchestrator — resolved by deleting the dead copy
 
 - date: 2026-08-06
 - task_id: TASK-NOTIF-014
-- status: proposed
+- status: resolved
 - affects: H4, packages/database/src/seed/notifications.seed.ts, apps/server/src/database/seeds/notifications.seed.ts, apps/server/src/database/seeds/orchestrator.ts
 
 apps/server/src/database/seeds/orchestrator.ts (line 9) imports seedNotifications
-from ../../../../../packages/database/src/seed/notifications.seed.js — this is the
-only notifications seed file actually reachable via `pnpm db:seed`. A second file,
-apps/server/src/database/seeds/notifications.seed.ts, exists in the same
-directory tree as the orchestrator itself but is not imported by it or by
-anything else found in a repository-wide search for its path. The two files
-differ by 108 lines (full diff, not spot-checked).
+from ../../../../../packages/database/src/seed/notifications.seed.js — the only
+notifications seed file reachable via `pnpm db:seed`. A second file,
+apps/server/src/database/seeds/notifications.seed.ts, existed in the same
+directory as the orchestrator itself but was not imported by it, by a
+barrel file (none exists in that directory), or by anything else found in
+a repository-wide search. The two files differed by 108 lines.
 
-TASK-NOTIF-014's corrected AI Prompt specifically asked whoever writes the
-consumers.test.ts legal-basis tests to check the current seed file state
-for whether the mayor_lapse and panlalawigan_deemed_approved templates
-render the "RA 7160 Section 47"/"RA 7160 Section 56(d)" citations once or
-twice, since a prior draft of the seed data had them appearing twice
-(once via {{legalBasis}}, once as hardcoded suffix text).
+TASK-NOTIF-014's corrected AI Prompt asked whoever wrote the consumers.test.ts
+legal-basis tests to check the current seed file state for whether the
+mayor_lapse and panlalawigan_deemed_approved templates rendered the
+"RA 7160 Section 47"/"RA 7160 Section 56(d)" citations once or twice, since
+a prior draft of the seed data had them appearing twice (once via
+{{legalBasis}}, once as hardcoded suffix text).
 
-Confirmed directly: the orchestrator-loaded packages/database/src/seed/
-notifications.seed.ts (lines 52-63) has the citation appearing exactly
-once, via {{legalBasis}} only, for both templates — no duplication.
-The non-loaded apps/server/src/database/seeds/notifications.seed.ts
-(lines 56-59) still has the duplication for the mayor_lapse template
-specifically: 'Legal basis: {{legalBasis}} (RA 7160 Section 47)'.
+The orchestrator-loaded packages/database/src/seed/notifications.seed.ts
+(lines 52-63) has the citation appearing exactly once, via {{legalBasis}}
+only, for both templates — no duplication. The non-loaded apps/server/src/
+database/seeds/notifications.seed.ts (lines 56-59) still had the duplication
+for the mayor_lapse template: 'Legal basis: {{legalBasis}} (RA 7160 Section 47)'.
 
-The test suite delivered under TASK-NOTIF-014 (consumers.test.ts,
-CONS-03-06) correctly avoided asserting either the single- or
-double-occurrence behavior as "correct" — it only checks that
-templateData carries the legalBasis field, not the final rendered
-string — which sidesteps this ambiguity rather than locking in one
-side of it. But the test's own comment does not specify which of the
-two seed files it checked against, so it's unclear whether "the
-current live state of notifications.seed.ts as of TASK-NOTIF-014"
-(the comment's phrasing) refers to the orchestrator-loaded file or
-the unloaded one.
+Decision (delegated to Claude by Keara, 2026-08-06): the apps/server copy
+is confirmed dead code (unreferenced by any runtime import) and was deleted
+as part of TASK-NOTIF-014-FIX-02. The live packages/database copy is
+authoritative and has no duplication — the citation renders once. No
+production template-body change was needed; the "fix" was removing the
+stale, unused second copy.
 
-Not resolved here: whether apps/server/src/database/seeds/
-notifications.seed.ts is stale dead code that should be deleted, or
-whether it's meant to be an alternate/future seed source the
-orchestrator should be pointed at — and if the latter, which of the
-two divergent template bodies (single- vs double-citation) is the
-one that should ship.
+One pre-existing findings-log entry (search for "apps/server/src/database/
+seeds/notifications.seed.ts, line 27") cites the now-deleted file for an
+unrelated, separately-confirmed finding about document.state_changed
+rendering raw state values. That finding's substance holds regardless —
+the same behavior is confirmed present identically in the live
+packages/database copy — but the specific file path in that older
+citation no longer resolves after this deletion.
 
-Note: [Confirmed] — both file paths, the orchestrator's import target,
-the 108-line diff count, and the exact differing bodyTemplate strings
-for notif.workflow.mayor_lapse.in_app in both files, all checked
-directly against the current repo upload.
+Note: [Confirmed] — orchestrator's import target, the absence of any other
+importer or barrel file, the 108-line diff, and the exact differing
+bodyTemplate strings, all checked directly against the repo upload before
+deletion.
 
 ---
 
-### [LOG-0247] notifications.router.test.ts invokes procedures via internal `_def.procedures.X._def.query()`, bypassing tRPC's own input/output validation and the protectedProcedure middleware chain — cannot cover the UNAUTHORIZED-for-no-session case K1 §6.6 requires
+### [LOG-0247] notifications.router.test.ts invoked procedures via internal `_def.procedures.X._def.query()` — resolved by rewriting to use notificationsRouter.createCaller
+
+- date: 2026-08-06
+- task_id: TASK-NOTIF-014
+- status: resolved
+- affects: K1 (§6.6), notifications.router.test.ts, organization.router.test.ts, workflow.router.test.ts, apps/server/src/test-notif-012.ts
+
+TASK-NOTIF-014's corrected AI Prompt instructed router tests to be
+structured "the same way tracking.router.test.ts or organization.router.test.ts
+structure theirs." tracking.router.test.ts does not exist anywhere in this
+repository (the tracking module's __tests__ directory has 6 files, none a
+router test) — that reference was inaccurate. organization.router.test.ts
+does exist and constructs its caller via t.createCallerFactory(...) (line 200);
+workflow.router.test.ts (line 107) uses the same pattern. The delivered
+notifications.router.test.ts instead called notificationsRouter._def
+.procedures.listMine._def.query({ ctx, input }) directly for all 16 test
+cases — an internal, non-public tRPC structure that bypasses Zod input/
+output validation and the protectedProcedure middleware chain (apps/server/
+src/trpc/trpc.ts, lines 48-61) entirely. This meant the file could not
+exercise the UNAUTHORIZED-for-no-session case, one of K1 §6.6's four
+minimum-required cases per ABAC-protected tRPC procedure.
+
+Decision (delegated to Claude by Keara, 2026-08-06): rewrite the file to
+use notificationsRouter.createCaller(ctx) directly. This choice was
+additionally supported by apps/server/src/test-notif-012.ts — a manual
+verification script from TASK-NOTIF-012, run against a live app and
+database, not a committed test — which already used
+notificationsRouter.createCaller successfully against this exact router,
+confirming the pattern works at runtime and proving the router needs no
+production-code change (no deps-injecting factory parameter, unlike
+organization.router.ts's createOrgRouter(deps)) to support it. The
+rewrite stays at Layer 1 (mocked ctx.req.server.notificationsRepository,
+no real Postgres), matching organization.router.test.ts's own established
+convention rather than introducing a new Layer 2 pattern unilaterally.
+
+While drafting the replacement, a UUID-format bug was caught before
+delivery: the router's listMine and listDeliveryLogs procedures both
+have .output() Zod schemas requiring notificationId/relatedDocumentId/
+deliveryLogId/recipientUserId to be z.string().uuid(); a real caller
+enforces this. Non-UUID fixture strings (e.g. 'evt-01', 'log-01') were
+caught and replaced with valid UUIDs, verified empirically against the
+repo's actual pinned zod@4.4.3 (installed and tested directly, not
+assumed) before the file was finalized. This is the same general class
+of bug LOG-0229 identified as causing ~115 pre-existing test failures
+elsewhere in the suite.
+
+Observation (not acted on — noted for awareness only): getOwnPreferences
+and updateOwnPreferences have no allowedRoles gate at all (bare
+protectedProcedure, auth-only), unlike listMine/markAsRead/listDeliveryLogs.
+The rewritten test file's coverage for these two procedures uses an
+arbitrary authenticated role and doesn't specifically assert that a role
+excluded from the other procedures' allow-lists still succeeds here. This
+wasn't in TASK-NOTIF-014's named priority coverage areas, so it was left
+as an observation rather than added as new test scope.
+
+Implemented via TASK-NOTIF-014-FIX-02 (full file replacement).
+
+Note: [Confirmed] — tracking module's file list, organization.router.test.ts's
+and workflow.router.test.ts's actual caller-construction code, trpc.ts's
+middleware, test-notif-012.ts's existing use of createCaller against this
+router, and the zod uuid() validation behavior against the pinned version,
+all checked directly (the last one empirically, via a real installed
+package, not read from source or assumed).
+
+### [LOG-0248] notifications.router.test.ts invokes procedures via internal `_def.procedures.X._def.query()`, bypassing tRPC's own input/output validation and the protectedProcedure middleware chain — cannot cover the UNAUTHORIZED-for-no-session case K1 §6.6 requires
 
 - date: 2026-08-06
 - task_id: TASK-NOTIF-014
@@ -8167,7 +8227,7 @@ running the suite to confirm.
 
 ---
 
-### [LOG-0248] Live seed bug: notif.iam.session_displaced.in_app's bodyTemplate in the orchestrator-loaded seed file omits {{oldSessionId}}/{{newSessionId}}, silently dropping both from every real notification
+### [LOG-0249] Live seed bug: notif.iam.session_displaced.in_app's bodyTemplate in the orchestrator-loaded seed file omits {{oldSessionId}}/{{newSessionId}}, silently dropping both from every real notification
 
 - date: 2026-08-06
 - task_id: TASK-NOTIF-011
