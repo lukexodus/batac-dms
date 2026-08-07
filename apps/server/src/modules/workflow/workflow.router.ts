@@ -3370,15 +3370,21 @@ export function createWorkflowRouter() {
             const primaryCommitteeId = assignedCommittees[0]!.committee_id;
             const chair = await txDeps.orgService.getCommitteeChair(primaryCommitteeId);
 
-            if (chair) {
-              await txDeps.workflowRepository.updateInstanceContext(
-                instance.id,
-                {
-                  referred_committee_chair_id: chair.userId,
-                },
-                tx,
-              );
+            if (!chair) {
+              throw new TRPCError({
+                code: 'PRECONDITION_FAILED',
+                message:
+                  'The committee assigned during referral has no chair on record. Assign a chair in the Organization module before routing to committee, or choose a different resolution path.',
+              });
             }
+
+            await txDeps.workflowRepository.updateInstanceContext(
+              instance.id,
+              {
+                referred_committee_chair_id: chair.userId,
+              },
+              tx,
+            );
           }
 
           // Refresh instance to get updated context (e.g. if we set referred_committee_chair_id)

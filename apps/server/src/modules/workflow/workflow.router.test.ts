@@ -1480,6 +1480,33 @@ describe('TASK-WF-021 Procedures', () => {
       );
     });
 
+    it('route_to_committee throws PRECONDITION_FAILED when the referred committee has no chair', async () => {
+      const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
+      // Override orgService to verify it's called
+      (ctx.req.server as any).organizationService.getCommitteeChair = vi
+        .fn()
+        .mockResolvedValue(null);
+      const caller = callerFor(ctx);
+      setupResolveValidInPartMocks('route_to_committee');
+
+      await expect(
+        caller.resolveValidInPart({
+          documentId: DOCUMENT_ID,
+          resolutionPath: 'route_to_committee',
+          mandatoryComment: 'Route back to committee.',
+        }),
+      ).rejects.toThrowError(
+        new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message:
+            'The committee assigned during referral has no chair on record. Assign a chair in the Organization module before routing to committee, or choose a different resolution path.',
+        }),
+      );
+
+      expect(mockSubmitStepApproval).not.toHaveBeenCalled();
+      expect(mockUpdateInstanceContext).not.toHaveBeenCalled();
+    });
+
     it('implement_directly → maps to REVISED_DIRECTLY outcome', async () => {
       const ctx = makeCtxWithServer(SP_SECRETARY, mockDb);
       const caller = callerFor(ctx);
