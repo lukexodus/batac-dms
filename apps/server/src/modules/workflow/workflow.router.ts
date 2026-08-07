@@ -847,7 +847,7 @@ export function createWorkflowRouter() {
           stepName: getHumanReadableStepName(row.stepName, row.stepKey, row.stepType),
           stepType: row.stepType,
           outcome: row.outcome,
-          outcomeComment: row.outcomeComment,
+          outcomeComment: row.status === 'bypassed' ? null : row.outcomeComment,
           status: row.status,
           startedAt: row.startedAt,
           completedAt: row.completedAt,
