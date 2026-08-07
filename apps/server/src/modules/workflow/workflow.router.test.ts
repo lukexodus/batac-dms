@@ -150,6 +150,7 @@ describe('Workflow Router Read Procedures', () => {
       ]); // 3. current steps lookup
       mockDb.mockResponse([]); // 4. resolveAssigneeName lookup for the first assignee's user_id
       mockDb.mockResponse([]); // 5. all steps lookup (for lapse status)
+      mockDb.mockResponse([]); // 6. step history lookup
 
       const result = await caller.getInstance({ instanceId: VALID_UUID });
 
@@ -191,6 +192,7 @@ describe('Workflow Router Read Procedures', () => {
       mockDb.mockResponse([{ code: 'SP' }]); // 3. offices select (check SP code)
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'action', assignedTo: [] }]); // 4. current steps
       mockDb.mockResponse([]); // 5. lapse status check
+      mockDb.mockResponse([]); // 6. step history lookup
 
       const result = await caller.getInstance({ instanceId: VALID_UUID });
       expect(result.instanceId).toBe(VALID_UUID);
@@ -218,6 +220,7 @@ describe('Workflow Router Read Procedures', () => {
       ]); // internal document
       mockDb.mockResponse([{ stepInstanceId: VALID_UUID, stepType: 'decision', assignedTo: [] }]);
       mockDb.mockResponse([]);
+      mockDb.mockResponse([]); // 6. step history lookup
 
       const result = await caller.getInstance({ instanceId: VALID_UUID });
       expect(result.instanceId).toBe(VALID_UUID);
