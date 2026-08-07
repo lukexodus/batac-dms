@@ -8292,3 +8292,115 @@ renderTemplate function's token-matching behavior were all checked directly agai
 current repo upload, not inferred or assumed from the prior review pass's conclusions.
 
 ---
+
+### [LOG-0256] `MayorLapseConfirmationPanel` and the Panlalawigan "Confirm 30-Day Deemed Approved" button are audit-acknowledgment-only — actual state transitions for both are performed by separate hourly background jobs, not by the button click
+
+- date: 2026-08-07
+- task_id: none (testing-guide investigation)
+- status: confirmed
+- affects: demo-guide-v2.md (Act 4/mayor-review section, if it exists there), any future testing documentation
+- supersedes: none
+
+Confirmed by direct trace of both mutations and both jobs in the current upload.
+
+`logMayorLapseConfirmation` (workflow.router.ts:2885-2954) writes `lapse_confirmed_at`/
+`lapse_confirmed_by` into step instance metadata and logs a `LAPSED_CONFIRMED` audit
+event. It does not call `submitStepApproval` or `resolveNextStep` anywhere in its body.
+The actual step completion (status: 'completed', outcome: 'LAPSED', workflow advanced
+via `resolveNextStep`) is performed entirely by `evaluate-mayor-lapse-timers.ts`
+(lines 9-131), an hourly pgboss-scheduled job (workflow.plugin.ts:132-136,
+'0 * * * *', Asia/Manila).
+
+`confirmPanlalawiganDeemedApproved` (workflow.router.ts:3436-3538) follows the
+identical pattern: writes `deemed_approved_confirmed_at`/`_by` metadata, logs a
+`DEEMED_APPROVED_CONFIRMED` event, and returns — no step completion call anywhere
+in the procedure. The actual transition (outcome: 'DEEMED_APPROVED') is performed
+by `evaluate-panlalawigan-timers.ts`, also hourly pgboss-scheduled
+(workflow.plugin.ts:142-151), confirmed via a passing test
+(evaluate-panlalawigan-timers.test.ts:35, 'PANLA-01: 30 days elapsed -> step
+completes DEEMED_APPROVED with deadline completedAt').
+
+Unlike the mayor-lapse mutation, `confirmPanlalawiganDeemedApproved` does actively
+enforce the deadline server-side before allowing even the metadata-only confirmation
+(workflow.router.ts:3452-3465, throws PRECONDITION_FAILED if the deadline hasn't
+been set or hasn't elapsed) — this is a real behavioral difference between the two
+otherwise-parallel mechanisms, not just a naming difference.
+
+Practical effect: neither branch is triggerable on-demand through the UI within a
+normal test/demo session. Both require either waiting out the real deadline window
+on a persistently-running server, or directly manipulating the relevant deadline
+context key (`mayor_action_deadline` / `panlalawigan_action_deadline`) in the
+database to force it into the past before the next hourly job tick.
+
+Note: [Confirmed] — all four procedures/jobs and their exact line ranges checked
+directly against the current repo upload. [Inference] — that this pattern
+(confirmation-button-as-audit-trail, job-as-actual-transition) is an intentional,
+consistent architectural choice rather than coincidence, based on the two
+mechanisms being structurally identical; not stated as such anywhere in code
+comments.
+
+---
+
+### [LOG-0257] `PanlalawiganOutcomePanel` renders three independently-actionable sections (Record Outcome / Resolve Valid in Part / Confirm 30-Day Deemed Approved) simultaneously with no gating between them
+
+- date: 2026-08-07
+- task_id: none (testing-guide investigation)
+- status: confirmed
+- affects: demo-guide-v2.md, any future testing/training documentation for this step
+- supersedes: none
+
+Confirmed by direct read of PanlalawiganOutcomePanel.tsx (full file, 189 lines).
+All three cards (lines 84-124, 126-167, 169-184) render unconditionally inside the
+same CardContent — there is no state check hiding "Resolve Valid in Part" until
+"Record Outcome" has been used, nor hiding "Confirm 30-Day Deemed Approved" until
+the deadline context suggests it's relevant. A user landing on this step for the
+first time sees all three at once, with no visual indication of which section is
+"the" next action.
+
+Not necessarily a bug — the components may be legitimately independent (Panlalawigan
+outcome recording, valid-in-part resolution, and deadline confirmation could genuinely
+need to coexist as separate concerns depending on document state) — but worth a human
+decision on whether progressive disclosure (hiding sections 2/3 until relevant) would
+reduce tester/user confusion, since nothing currently prevents clicking "Confirm" on
+Deemed Approved before ever touching the Record Outcome dropdown.
+
+Note: [Confirmed] — panel structure and absence of conditional rendering checked
+directly against the current upload.
+
+---
+
+### [LOG-0258] Certified Urgent bypass button has no lifecycle-state gate; logging a certification against a document already past `multi_referral` succeeds with a success toast but is a silent no-op
+
+- date: 2026-08-07
+- task_id: none (testing-guide investigation)
+- status: confirmed
+- affects: demo-guide-v2.md, any future testing documentation for this step; possibly
+  a UX improvement candidate
+- supersedes: none
+
+Confirmed by tracing both the frontend gate and the backend handler's three-case logic.
+
+The "Log Certification of Urgency" button's visibility gate, `canLogCertificationOfUrgency`
+(DocumentDetailPage.tsx:196-198), checks only `hasRole(identity, 'sp_secretary')` — no
+lifecycle-state or workflow-step condition. The button is visible and clickable on any
+SP Resolution, at any point in its workflow, for any user with the sp_secretary role.
+
+certified-urgent-bypass.handler.ts's Case C (lines 241-269) handles exactly this: when
+the multi_referral step instance's status is 'completed', 'bypassed', or 'cancelled' (i.e.
+the workflow has already moved past that step), the handler logs a
+'workflow.certification_urgency.already_past_referral' event and returns — no error is
+thrown, no state changes. The frontend (LogCertificationOfUrgencyDialog.tsx:54-61) shows
+'Certification of Urgency logged successfully. Bypassed committee referral.' regardless of
+which of the three backend cases actually fired, since success/failure is determined only
+by whether the mutation resolved, not by which case ran.
+
+Practical effect: a Secretary can click this button on a resolution already at, say,
+second_reading_vote, get a success toast claiming the bypass worked, and nothing about
+the workflow will have changed. Not a functional bug (the underlying data — cert doc
+association — is still correctly written to document metadata regardless of workflow
+state), but a testable, potentially confusing UX gap worth a human decision: should the
+button be hidden/disabled once multi_referral has resolved, or should the success
+message differentiate based on which case fired?
+
+Note: [Confirmed] — frontend gate condition and all three backend cases checked directly
+against the current upload.
