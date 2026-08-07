@@ -1,14 +1,10 @@
-import { JSDOM } from 'jsdom';
+import re
 
-export interface TextRun {
-  text: string;
-  bold: boolean;
-  italic: boolean;
-  strike: boolean;
-  code: boolean;
-}
+with open('apps/server/src/modules/workflow/rich-text-pdf.util.ts', 'r') as f:
+    content = f.read()
 
-export const PDF_REPORT_STYLE = {
+# Replace ParsedParagraph export and the JSDoc comment with new types
+new_types = """export const PDF_REPORT_STYLE = {
   headingSizes: { h1: 16, h2: 14, h3: 13, h4: 13, h5: 13, h6: 13 },
   headingSpacingBefore: 10,
   headingSpacingAfter: 4,
@@ -35,9 +31,11 @@ export type PdfBlock =
   | { type: 'heading'; level: 1 | 2 | 3 | 4 | 5 | 6; runs: TextRun[] }
   | { type: 'blockquote'; blocks: PdfBlock[] }
   | { type: 'list'; ordered: boolean; items: PdfBlock[][] }
-  | { type: 'codeBlock'; text: string };
+  | { type: 'codeBlock'; text: string };"""
 
-export function parseRichTextForPdf(html: string): PdfBlock[] {
+content = re.sub(r'export type ParsedParagraph = TextRun\[\];\n\n/\*\*(.*?)\*/\n', new_types + '\n\n', content, flags=re.DOTALL)
+
+new_parser = """export function parseRichTextForPdf(html: string): PdfBlock[] {
   const dom = new JSDOM(html);
   const body = dom.window.document.body;
   const blocks: PdfBlock[] = [];
@@ -125,53 +123,10 @@ function parseBlock(element: Element): PdfBlock | null {
   }
   
   return null;
-}
+}"""
 
-interface FormatState {
-  bold: boolean;
-  italic: boolean;
-  strike: boolean;
-  code: boolean;
-}
+content = re.sub(r'export function parseRichTextForPdf.*?return paragraphs;\n}', new_parser, content, flags=re.DOTALL)
 
-function walkNode(node: Node, runs: TextRun[], state: FormatState) {
-  if (node.nodeType === 3) { // Node.TEXT_NODE
-    const text = node.textContent;
-    if (text) {
-      runs.push({
-        text,
-        bold: state.bold,
-        italic: state.italic,
-        strike: state.strike,
-        code: state.code,
-      });
-    }
-    return;
-  }
+with open('apps/server/src/modules/workflow/rich-text-pdf.util.ts', 'w') as f:
+    f.write(content)
 
-  if (node.nodeType === 1) { // Node.ELEMENT_NODE
-    const element = node as Element;
-    const tagName = element.tagName.toLowerCase();
-    
-    if (tagName === 'br') {
-      runs.push({
-        text: '\n',
-        bold: state.bold,
-        italic: state.italic,
-        strike: state.strike,
-        code: state.code,
-      });
-      return;
-    }
-
-    const newState = { ...state };
-    if (tagName === 'strong' || tagName === 'b') newState.bold = true;
-    if (tagName === 'em' || tagName === 'i') newState.italic = true;
-    if (tagName === 's' || tagName === 'strike' || tagName === 'del') newState.strike = true;
-    if (tagName === 'code') newState.code = true;
-
-    for (let i = 0; i < node.childNodes.length; i++) {
-      walkNode(node.childNodes[i] as Node, runs, newState);
-    }
-  }
-}
