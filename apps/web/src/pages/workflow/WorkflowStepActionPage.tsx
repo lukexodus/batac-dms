@@ -214,6 +214,34 @@ export function WorkflowStepActionPage() {
         </Button>
       </div>
 
+      {instance.stepHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step History</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {instance.stepHistory.map((step) => (
+              <div key={step.stepInstanceId} className="border-b pb-3 last:border-b-0 last:pb-0">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">{step.stepName || step.stepType}</span>
+                  {step.outcome && (
+                    <span className="text-muted-foreground text-xs uppercase">{step.outcome}</span>
+                  )}
+                </div>
+                {step.completedAt && (
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    {new Date(step.completedAt).toLocaleString()}
+                  </p>
+                )}
+                {step.outcomeComment && (
+                  <p className="text-sm mt-1">{step.outcomeComment}</p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {renderPanel()}
     </div>
   );

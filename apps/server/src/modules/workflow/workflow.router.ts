@@ -15,7 +15,7 @@ import {
 import { documents, documentTypes, versions } from '@batac/database/schema/documents.schema.js';
 import { offices, employees, committees } from '@batac/database/schema/organization.schema.js';
 import { users } from '@batac/database/schema/iam.schema.js';
-import { eq, and, or, isNull, inArray, notInArray, desc, gte, lte } from 'drizzle-orm';
+import { eq, and, or, isNull, inArray, notInArray, desc, asc, gte, lte } from 'drizzle-orm';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../../config/env.js';
@@ -716,6 +716,19 @@ export function createWorkflowRouter() {
               })
             )
             .nullable(),
+          stepHistory: z.array(
+            z.object({
+              stepInstanceId: z.string().uuid(),
+              stepKey: z.string().nullable(),
+              stepName: z.string().nullable(),
+              stepType: z.string().nullable(),
+              outcome: z.string().nullable(),
+              outcomeComment: z.string().nullable(),
+              status: z.string(),
+              startedAt: z.coerce.date().nullable(),
+              completedAt: z.coerce.date().nullable(),
+            }),
+          ),
           unifiedReportDocumentId: z.string().uuid().nullable(),
           unifiedReportDocumentTitle: z.string().nullable(),
           unifiedReportDocumentUrl: z.string().nullable(),
@@ -810,6 +823,35 @@ export function createWorkflowRouter() {
         } else if (allSteps.some((s) => s.outcome === 'DEEMED_APPROVED')) {
           lapseStatus = 'panlalawigan_30_day_deemed';
         }
+
+        const historyRows = await ctx.db
+          .select({
+            stepInstanceId: stepInstances.id,
+            stepKey: steps.stepKey,
+            stepType: steps.stepType,
+            stepName: steps.label,
+            outcome: stepInstances.outcome,
+            outcomeComment: stepInstances.outcomeComment,
+            status: stepInstances.status,
+            startedAt: stepInstances.startedAt,
+            completedAt: stepInstances.completedAt,
+          })
+          .from(stepInstances)
+          .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+          .where(and(eq(stepInstances.instanceId, instanceId), isNull(stepInstances.deletedAt)))
+          .orderBy(asc(stepInstances.createdAt));
+
+        const stepHistory = historyRows.map((row) => ({
+          stepInstanceId: row.stepInstanceId,
+          stepKey: row.stepKey,
+          stepName: getHumanReadableStepName(row.stepName, row.stepKey, row.stepType),
+          stepType: row.stepType,
+          outcome: row.outcome,
+          outcomeComment: row.outcomeComment,
+          status: row.status,
+          startedAt: row.startedAt,
+          completedAt: row.completedAt,
+        }));
 
         const statusMap: Record<string, 'Active' | 'Completed' | 'Cancelled'> = {
           completed: 'Completed',
@@ -941,6 +983,7 @@ export function createWorkflowRouter() {
           unifiedReportDocumentId,
           unifiedReportDocumentTitle,
           unifiedReportDocumentUrl,
+          stepHistory,
         };
       }),
 
