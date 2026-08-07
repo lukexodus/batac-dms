@@ -266,4 +266,71 @@ describe('NotificationsService', () => {
       );
     });
   });
+
+  // ---- SVC-05: seed-template rendering — verbatim legal-basis citation (TASK-NOTIF-009) ----
+  // Uses the real seed template bodies from packages/database/src/seed/notifications.seed.ts
+  // (the orchestrator-loaded, authoritative copy — see docs/development-findings-log.md LOG-0244).
+  // Closes a gap left by consumers.test.ts's CONS-03-03/03-05: those tests confirm the
+  // legislative-lapse consumer forwards payload.legalBasis into templateData.legalBasis
+  // unchanged, but do not exercise actual template rendering. This describe block exercises
+  // the real renderTemplate substitution path in sendNotification end-to-end, asserting the
+  // citation appears exactly once in the final rendered body — not duplicated.
+  describe('SVC-05: legal-basis citation renders exactly once (real seed templates)', () => {
+    it('SVC-05-01: mayor_lapse — "RA 7160 Section 47" appears exactly once in the rendered body, unaltered', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({
+          bodyTemplate:
+            'Mayor Approval Lapsed for step {{stepInstanceId}}. Deadline was {{deadlineWas}}. Legal Basis: {{legalBasis}}.',
+        }),
+      );
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientUserId: 'user-abc',
+        templateId: 'notif.workflow.mayor_lapse.in_app',
+        channel: 'in_app',
+        templateData: {
+          stepInstanceId: 'step-123',
+          deadlineWas: '2026-01-15',
+          legalBasis: 'RA 7160 Section 47',
+        },
+      });
+
+      const call = (pushToUser as any).mock.calls[0];
+      const renderedBody: string = call[1].renderedBody;
+      expect(renderedBody).toBe(
+        'Mayor Approval Lapsed for step step-123. Deadline was 2026-01-15. Legal Basis: RA 7160 Section 47.',
+      );
+      expect(renderedBody.split('RA 7160 Section 47').length - 1).toBe(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('SVC-05-02: panlalawigan_deemed_approved — "RA 7160 Section 56(d)" appears exactly once in the rendered body, unaltered', async () => {
+      repo.findActiveTemplateByNameAndChannel.mockResolvedValue(
+        mockTemplate({
+          bodyTemplate:
+            'Panlalawigan Deemed Approved for step {{stepInstanceId}}. Transmission Date was {{transmissionDate}}. Deadline was {{deadlineWas}}. Legal Basis: {{legalBasis}}.',
+        }),
+      );
+      const service = createNotificationsService({ repository: repo, logger, mailer });
+      await service.sendNotification({
+        recipientUserId: 'user-abc',
+        templateId: 'notif.workflow.panlalawigan_deemed_approved.in_app',
+        channel: 'in_app',
+        templateData: {
+          stepInstanceId: 'step-456',
+          transmissionDate: '2026-01-10',
+          deadlineWas: '2026-01-20',
+          legalBasis: 'RA 7160 Section 56(d)',
+        },
+      });
+
+      const call = (pushToUser as any).mock.calls[0];
+      const renderedBody: string = call[1].renderedBody;
+      expect(renderedBody).toBe(
+        'Panlalawigan Deemed Approved for step step-456. Transmission Date was 2026-01-10. Deadline was 2026-01-20. Legal Basis: RA 7160 Section 56(d).',
+      );
+      expect(renderedBody.split('RA 7160 Section 56(d)').length - 1).toBe(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+  });
 });
