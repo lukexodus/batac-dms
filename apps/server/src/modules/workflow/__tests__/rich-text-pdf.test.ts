@@ -64,4 +64,17 @@ describe('parseRichTextForPdf', () => {
       ]
     ]);
   });
+  it('parses a <br> as a forced newline run with current formatting', () => {
+    const html = '<p>Line 1<strong>bold<br>still bold</strong></p>';
+    const result = parseRichTextForPdf(html);
+    expect(result).toEqual([
+      [
+        { text: 'Line 1', bold: false, italic: false, strike: false, code: false },
+        { text: 'bold', bold: true, italic: false, strike: false, code: false },
+        { text: '\n', bold: true, italic: false, strike: false, code: false },
+        { text: 'still bold', bold: true, italic: false, strike: false, code: false }
+      ]
+    ]);
+  });
+
 });

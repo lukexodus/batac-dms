@@ -84,6 +84,17 @@ function walkNode(node: Node, runs: TextRun[], state: FormatState) {
     const element = node as Element;
     const tagName = element.tagName.toLowerCase();
     
+    if (tagName === 'br') {
+      runs.push({
+        text: '\n',
+        bold: state.bold,
+        italic: state.italic,
+        strike: state.strike,
+        code: state.code,
+      });
+      return;
+    }
+
     const newState = { ...state };
     if (tagName === 'strong' || tagName === 'b') newState.bold = true;
     if (tagName === 'em' || tagName === 'i') newState.italic = true;

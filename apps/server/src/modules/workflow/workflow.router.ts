@@ -93,12 +93,12 @@ async function putS3Object(fileKey: string, body: Buffer, contentType: string): 
   );
 }
 
-interface DrawableRunFragment {
+export interface DrawableRunFragment {
   text: string;
   font: 'regular' | 'bold' | 'italic' | 'boldItalic' | 'code';
 }
 
-type DrawableLine = DrawableRunFragment[];
+export type DrawableLine = DrawableRunFragment[];
 
 /**
  * Wraps a sequence of TextRuns (as produced by parseRichTextForPdf) into
@@ -111,7 +111,7 @@ type DrawableLine = DrawableRunFragment[];
  * (code uses the regular/non-bold font at the same size, per this pass's
  * scope - no distinct monospace font is introduced).
  */
-function wrapRunsForPdf(
+export function wrapRunsForPdf(
   paragraph: ParsedParagraph,
   fonts: {
     regular: { widthOfTextAtSize(text: string, size: number): number };
@@ -137,7 +137,6 @@ function wrapRunsForPdf(
   };
 
   for (const run of paragraph) {
-    const words = run.text.split(/\s+/).filter(Boolean);
     let fontVariant: DrawableRunFragment['font'] = 'regular';
     if (run.code) {
       fontVariant = 'code';
@@ -152,23 +151,35 @@ function wrapRunsForPdf(
     const fontMetric = fontVariant === 'code' ? fonts.regular : fonts[fontVariant];
     const spaceW = spaceWidths[fontVariant];
 
-    for (const word of words) {
-      const wordWidth = fontMetric.widthOfTextAtSize(word, size);
-      const isFirstWordInLine = currentLine.length === 0;
-
-      if (!isFirstWordInLine && currentLineWidth + spaceW + wordWidth > maxWidth) {
+    const segments = run.text.split(/\r?\n/);
+    for (let i = 0; i < segments.length; i++) {
+      if (i > 0) {
         lines.push(currentLine);
         currentLine = [];
         currentLineWidth = 0;
       }
 
-      if (currentLine.length > 0 && currentLine[currentLine.length - 1]!.font === fontVariant) {
-        currentLine[currentLine.length - 1]!.text += ' ' + word;
-        currentLineWidth += spaceW + wordWidth;
-      } else {
-        const prefix = currentLine.length > 0 ? ' ' : '';
-        currentLine.push({ text: prefix + word, font: fontVariant });
-        currentLineWidth += (prefix ? spaceW : 0) + wordWidth;
+      const segment = segments[i]!;
+      const words = segment.split(/\s+/).filter(Boolean);
+
+      for (const word of words) {
+        const wordWidth = fontMetric.widthOfTextAtSize(word, size);
+        const isFirstWordInLine = currentLine.length === 0;
+
+        if (!isFirstWordInLine && currentLineWidth + spaceW + wordWidth > maxWidth) {
+          lines.push(currentLine);
+          currentLine = [];
+          currentLineWidth = 0;
+        }
+
+        if (currentLine.length > 0 && currentLine[currentLine.length - 1]!.font === fontVariant) {
+          currentLine[currentLine.length - 1]!.text += ' ' + word;
+          currentLineWidth += spaceW + wordWidth;
+        } else {
+          const prefix = currentLine.length > 0 ? ' ' : '';
+          currentLine.push({ text: prefix + word, font: fontVariant });
+          currentLineWidth += (prefix ? spaceW : 0) + wordWidth;
+        }
       }
     }
   }
