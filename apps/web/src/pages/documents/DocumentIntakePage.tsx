@@ -170,7 +170,7 @@ function MeasurePickerArrayField({
         name={name as Path<IntakeFormValues>}
         control={control}
         render={({ field }) => {
-          const values = Array.isArray(field.value) ? field.value : [];
+          const values = Array.isArray(field.value) ? (field.value as string[]) : [];
           return (
             <div className="space-y-4 mt-4">
               {values.length === 0 && <p className="text-sm text-muted-foreground">No measures selected.</p>}
@@ -368,6 +368,12 @@ function DynamicField({
   register: UseFormRegister<IntakeFormValues>;
   errors: FieldErrors<IntakeFormValues>;
 }) {
+  React.useEffect(() => {
+    if ((name === 'metadata.dateSent' || name === 'metadata.dateReceived') && !control._formValues[name]) {
+      setValue(name as Path<IntakeFormValues>, new Date().toISOString().split('T')[0]);
+    }
+  }, [name, setValue, control]);
+
   if (prop.enum) {
     return (
       <div className="space-y-2">
@@ -385,9 +391,15 @@ function DynamicField({
               <SelectContent>
                 {(prop.enum || []).map((opt: string | null) => {
                   if (opt === null) return null; // Or handle null if needed
+                  let displayLabel = opt.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  if (name === 'metadata.letterType') {
+                    if (opt === 'transmittal') displayLabel = 'Transmittal to External Agency (Not Mayor)';
+                    if (opt === 'invitation') displayLabel = 'Session/Meeting Invitation';
+                    if (opt === 'forwarding') displayLabel = 'Forwarding Document / Committee Report';
+                  }
                   return (
                     <SelectItem key={opt} value={opt}>
-                      {opt.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                      {displayLabel}
                     </SelectItem>
                   );
                 })}
@@ -548,7 +560,11 @@ function DynamicField({
       <Label htmlFor={`meta-${name}`}>
         {label} {isRequired && <span className="text-danger-500">*</span>}
       </Label>
-      <Input id={`meta-${name}`} {...register(name as Path<IntakeFormValues>)} />
+      <Input 
+        id={`meta-${name}`} 
+        type={name.toLowerCase().includes('date') ? 'date' : 'text'}
+        {...register(name as Path<IntakeFormValues>)} 
+      />
       {(() => {
         const fieldKey = name.split('.').pop() ?? name;
         const fieldError = errors?.metadata?.[fieldKey as keyof typeof errors.metadata];
