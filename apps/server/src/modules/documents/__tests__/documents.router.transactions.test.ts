@@ -27,7 +27,7 @@ vi.mock('../documents.repository.js', async (importOriginal) => {
           }
         }),
         updateDocumentMetadata: vi.fn(async (id, metadata) => {
-          if (id === 'meas-2' && (globalThis as any).forceMeas2Error) {
+          if (id === '77777777-7777-4777-8777-777777777777' && (globalThis as any).forceMeas2Error) {
             throw new Error('DB Error on meas-2');
           }
           const doc = getState().documents.get(id);
@@ -121,6 +121,7 @@ const callerFactory = t.createCallerFactory(t.router({ documents: createDocument
 describe('documents.router transactions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDocumentsService.transitionState.mockReset();
     fakeDbState = {
       documents: new Map(),
       documentTypes: new Map(),
@@ -131,9 +132,9 @@ describe('documents.router transactions', () => {
 
   describe('submit', () => {
     it('happy path: sets QR, assigns preliminary number, and transitions state', async () => {
-      fakeDbState.documents.set('doc-1', { id: 'doc-1', documentTypeId: 'type-1', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft' });
-      fakeDbState.documentTypes.set('type-1', { id: 'type-1', code: 'SP_ORDINANCE', hasPreliminaryNumbering: true, numberSeriesId: 'series-1' });
-      fakeDbState.numberSeries.set('series-1', { id: 'series-1', seriesKey: 'sp_ord' });
+      fakeDbState.documents.set('11111111-1111-4111-8111-111111111111', { id: '11111111-1111-4111-8111-111111111111', documentTypeId: '22222222-2222-4222-8222-222222222222', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft' });
+      fakeDbState.documentTypes.set('22222222-2222-4222-8222-222222222222', { id: '22222222-2222-4222-8222-222222222222', code: 'SP_ORDINANCE', hasPreliminaryNumbering: true, numberSeriesId: '33333333-3333-4333-8333-333333333333' });
+      fakeDbState.numberSeries.set('33333333-3333-4333-8333-333333333333', { id: '33333333-3333-4333-8333-333333333333', seriesKey: 'sp_ord' });
       
       mockNumberingService.assignPreliminaryNumber.mockResolvedValue({ numberValue: 'PRE-123' });
       
@@ -141,24 +142,24 @@ describe('documents.router transactions', () => {
       const ctx = await makeCtx(subject);
       const caller = callerFactory(ctx).documents;
       
-      const result = await caller.submit({ documentId: 'doc-1' } as any);
+      const result = await caller.submit({ documentId: '11111111-1111-4111-8111-111111111111' } as any);
       
       expect(result.lifecycleState).toBe('submitted');
       expect(result.preliminaryNumber).toBe('PRE-123');
       expect(result.qrTrackingNumber).toBeDefined();
       
-      const updatedDoc = fakeDbState.documents.get('doc-1');
+      const updatedDoc = fakeDbState.documents.get('11111111-1111-4111-8111-111111111111');
       expect(updatedDoc.qrTrackingNumber).toBeDefined();
       
       expect(mockDocumentsService.transitionState).toHaveBeenCalledWith(
-        'doc-1', 'submitted', subject.userId, 'Document submitted', expect.anything()
+        '11111111-1111-4111-8111-111111111111', 'submitted', subject.userId, 'Document submitted', expect.anything()
       );
       expect(mockEventBus.emit).toHaveBeenCalledWith('document.created', expect.anything());
     });
 
     it('partial-failure rollback: QR update rolls back if transitionState throws', async () => {
-      fakeDbState.documents.set('doc-1', { id: 'doc-1', documentTypeId: 'type-1', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft' });
-      fakeDbState.documentTypes.set('type-1', { id: 'type-1', code: 'MEMO', hasPreliminaryNumbering: false });
+      fakeDbState.documents.set('11111111-1111-4111-8111-111111111111', { id: '11111111-1111-4111-8111-111111111111', documentTypeId: '22222222-2222-4222-8222-222222222222', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft' });
+      fakeDbState.documentTypes.set('22222222-2222-4222-8222-222222222222', { id: '22222222-2222-4222-8222-222222222222', code: 'MEMO', hasPreliminaryNumbering: false });
       
       mockDocumentsService.transitionState.mockRejectedValue(new Error('Validation failed inside transitionState'));
       
@@ -166,54 +167,54 @@ describe('documents.router transactions', () => {
       const ctx = await makeCtx(subject);
       const caller = callerFactory(ctx).documents;
       
-      await expect(caller.submit({ documentId: 'doc-1' } as any)).rejects.toThrow('Validation failed inside transitionState');
+      await expect(caller.submit({ documentId: '11111111-1111-4111-8111-111111111111' } as any)).rejects.toThrow('Validation failed inside transitionState');
       
-      const doc = fakeDbState.documents.get('doc-1');
+      const doc = fakeDbState.documents.get('11111111-1111-4111-8111-111111111111');
       expect(doc.qrTrackingNumber).toBeUndefined(); // Rolled back
     });
 
     it('without preliminary numbering: sets QR and transitions state', async () => {
-      fakeDbState.documents.set('doc-1', { id: 'doc-1', documentTypeId: 'type-1', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft' });
-      fakeDbState.documentTypes.set('type-1', { id: 'type-1', code: 'MEMO', hasPreliminaryNumbering: false });
+      fakeDbState.documents.set('11111111-1111-4111-8111-111111111111', { id: '11111111-1111-4111-8111-111111111111', documentTypeId: '22222222-2222-4222-8222-222222222222', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft' });
+      fakeDbState.documentTypes.set('22222222-2222-4222-8222-222222222222', { id: '22222222-2222-4222-8222-222222222222', code: 'MEMO', hasPreliminaryNumbering: false });
       
       const subject = makeSubject();
       const ctx = await makeCtx(subject);
       const caller = callerFactory(ctx).documents;
       
-      const result = await caller.submit({ documentId: 'doc-1' } as any);
+      const result = await caller.submit({ documentId: '11111111-1111-4111-8111-111111111111' } as any);
       
       expect(result.preliminaryNumber).toBeNull();
       expect(result.qrTrackingNumber).toBeDefined();
       
-      const updatedDoc = fakeDbState.documents.get('doc-1');
+      const updatedDoc = fakeDbState.documents.get('11111111-1111-4111-8111-111111111111');
       expect(updatedDoc.qrTrackingNumber).toBeDefined();
     });
   });
 
   describe('logCertificationOfUrgency', () => {
     it('happy path: updates all associated measures metadata', async () => {
-      fakeDbState.documents.set('cert-1', { id: 'cert-1', documentTypeId: 'type-cert', cityId: '55555555-5555-4555-8555-555555555555' });
-      fakeDbState.documentTypes.set('type-cert', { id: 'type-cert', code: 'CERT' });
+      fakeDbState.documents.set('44444444-4444-4444-8444-444444444444', { id: '44444444-4444-4444-8444-444444444444', documentTypeId: '88888888-8888-4888-8888-888888888888', cityId: '55555555-5555-4555-8555-555555555555' });
+      fakeDbState.documentTypes.set('88888888-8888-4888-8888-888888888888', { id: '88888888-8888-4888-8888-888888888888', code: 'CERT' });
       
-      fakeDbState.documents.set('meas-1', { id: 'meas-1', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: { foo: 'bar' } });
-      fakeDbState.documents.set('meas-2', { id: 'meas-2', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: {} });
+      fakeDbState.documents.set('66666666-6666-4666-8666-666666666666', { id: '66666666-6666-4666-8666-666666666666', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: { foo: 'bar' } });
+      fakeDbState.documents.set('77777777-7777-4777-8777-777777777777', { id: '77777777-7777-4777-8777-777777777777', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: {} });
       
       const subject = makeSubject();
       const ctx = await makeCtx(subject);
       const caller = callerFactory(ctx).documents;
       
-      await caller.logCertificationOfUrgency({ certifyingDocumentId: 'cert-1', associatedMeasureIds: ['meas-1', 'meas-2'] } as any);
+      await caller.logCertificationOfUrgency({ certifyingDocumentId: '44444444-4444-4444-8444-444444444444', associatedMeasureIds: ['66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777'] } as any);
       
-      expect(fakeDbState.documents.get('meas-1').metadata).toEqual({ foo: 'bar', certifiedUrgent: true, certificationDocumentId: 'cert-1' });
-      expect(fakeDbState.documents.get('meas-2').metadata).toEqual({ certifiedUrgent: true, certificationDocumentId: 'cert-1' });
+      expect(fakeDbState.documents.get('66666666-6666-4666-8666-666666666666').metadata).toEqual({ foo: 'bar', certifiedUrgent: true, certificationDocumentId: '44444444-4444-4444-8444-444444444444' });
+      expect(fakeDbState.documents.get('77777777-7777-4777-8777-777777777777').metadata).toEqual({ certifiedUrgent: true, certificationDocumentId: '44444444-4444-4444-8444-444444444444' });
     });
 
     it('partial-failure rollback: first update rolls back if second fails', async () => {
-      fakeDbState.documents.set('cert-1', { id: 'cert-1', documentTypeId: 'type-cert', cityId: '55555555-5555-4555-8555-555555555555' });
-      fakeDbState.documentTypes.set('type-cert', { id: 'type-cert', code: 'CERT' });
+      fakeDbState.documents.set('44444444-4444-4444-8444-444444444444', { id: '44444444-4444-4444-8444-444444444444', documentTypeId: '88888888-8888-4888-8888-888888888888', cityId: '55555555-5555-4555-8555-555555555555' });
+      fakeDbState.documentTypes.set('88888888-8888-4888-8888-888888888888', { id: '88888888-8888-4888-8888-888888888888', code: 'CERT' });
       
-      fakeDbState.documents.set('meas-1', { id: 'meas-1', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: {} });
-      fakeDbState.documents.set('meas-2', { id: 'meas-2', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: {} });
+      fakeDbState.documents.set('66666666-6666-4666-8666-666666666666', { id: '66666666-6666-4666-8666-666666666666', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: {} });
+      fakeDbState.documents.set('77777777-7777-4777-8777-777777777777', { id: '77777777-7777-4777-8777-777777777777', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'in_workflow', metadata: {} });
       
       const subject = makeSubject();
       const ctx = await makeCtx(subject);
@@ -221,25 +222,25 @@ describe('documents.router transactions', () => {
       
       (globalThis as any).forceMeas2Error = true;
       
-      await expect(caller.logCertificationOfUrgency({ certifyingDocumentId: 'cert-1', associatedMeasureIds: ['meas-1', 'meas-2'] } as any)).rejects.toThrow('DB Error on meas-2');
+      await expect(caller.logCertificationOfUrgency({ certifyingDocumentId: '44444444-4444-4444-8444-444444444444', associatedMeasureIds: ['66666666-6666-4666-8666-666666666666', '77777777-7777-4777-8777-777777777777'] } as any)).rejects.toThrow('DB Error on meas-2');
       
       (globalThis as any).forceMeas2Error = false;
       
       // meas-1 should not be updated in fakeDbState
-      expect(fakeDbState.documents.get('meas-1').metadata).toEqual({});
+      expect(fakeDbState.documents.get('66666666-6666-4666-8666-666666666666').metadata).toEqual({});
     });
 
     it('pre-existing validation-loop behavior, unchanged: throws before any writes if validation fails', async () => {
-      fakeDbState.documents.set('cert-1', { id: 'cert-1', documentTypeId: 'type-cert', cityId: '55555555-5555-4555-8555-555555555555' });
-      fakeDbState.documentTypes.set('type-cert', { id: 'type-cert', code: 'CERT' });
+      fakeDbState.documents.set('44444444-4444-4444-8444-444444444444', { id: '44444444-4444-4444-8444-444444444444', documentTypeId: '88888888-8888-4888-8888-888888888888', cityId: '55555555-5555-4555-8555-555555555555' });
+      fakeDbState.documentTypes.set('88888888-8888-4888-8888-888888888888', { id: '88888888-8888-4888-8888-888888888888', code: 'CERT' });
       
-      fakeDbState.documents.set('meas-1', { id: 'meas-1', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft', metadata: {} }); // not in_workflow
+      fakeDbState.documents.set('66666666-6666-4666-8666-666666666666', { id: '66666666-6666-4666-8666-666666666666', cityId: '55555555-5555-4555-8555-555555555555', lifecycleState: 'draft', metadata: {} }); // not in_workflow
       
       const subject = makeSubject();
       const ctx = await makeCtx(subject);
       const caller = callerFactory(ctx).documents;
       
-      await expect(caller.logCertificationOfUrgency({ certifyingDocumentId: 'cert-1', associatedMeasureIds: ['meas-1'] } as any)).rejects.toThrow(/is not in_workflow/);
+      await expect(caller.logCertificationOfUrgency({ certifyingDocumentId: '44444444-4444-4444-8444-444444444444', associatedMeasureIds: ['66666666-6666-4666-8666-666666666666'] } as any)).rejects.toThrow(/is not in_workflow/);
       
       expect(ctx.db.transaction).not.toHaveBeenCalled();
     });

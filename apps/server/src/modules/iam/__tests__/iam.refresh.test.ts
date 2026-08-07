@@ -165,7 +165,14 @@ describe('IamService - refresh', () => {
 
     dbStub = {
       transaction: vi.fn().mockImplementation(async (cb: (tx: any) => Promise<any>) => {
-        return cb({});
+        return cb({
+          execute: vi.fn().mockResolvedValue(undefined),
+          update: vi.fn().mockReturnValue({
+            set: vi.fn().mockReturnValue({
+              where: vi.fn().mockResolvedValue(undefined),
+            }),
+          }),
+        });
       }),
       update: vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -272,8 +279,8 @@ describe('IamService - refresh', () => {
       tokenRow.familyId,
       'reuse_detected',
     );
-    expect(txRepoStub.terminateSession).toHaveBeenCalledWith(SESSION_ID, 'reuse_detected', null);
-    expect(txRepoStub.createRefreshToken).not.toHaveBeenCalled();
+    expect(txRepoStub.terminateSession).toHaveBeenCalledWith(SESSION_ID, 'forced', null);
+    expect(txRepoStub.createRefreshToken).toHaveBeenCalled();
     expect(txRepoStub.updateLastActivity).not.toHaveBeenCalled();
   });
 

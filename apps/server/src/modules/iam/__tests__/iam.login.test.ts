@@ -258,7 +258,12 @@ function makeDb(txRepo?: Partial<IamRepository>) {
   // iam.service.ts imports createIamRepository inside the transaction and
   // calls it with the tx parameter. We intercept that by mocking the module.
   const mockTx = {
-    /* drizzle tx placeholder */
+    execute: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
   };
   return {
     transaction: vi.fn().mockImplementation(async (cb: (tx: any) => Promise<any>) => {

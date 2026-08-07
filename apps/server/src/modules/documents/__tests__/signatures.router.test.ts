@@ -130,7 +130,7 @@ describe('Signatures Router tRPC Procedures', () => {
         signedByEmployeeId: '88888888-8888-8888-8888-888888888888',
         signedByDisplayName: 'John Doe',
         signatureType: 'sp_secretary',
-        signedAt: '2026-06-02T10:00:00Z',
+        signedAt: new Date('2026-06-02T10:00:00Z'),
         isWetInk: true,
       });
 

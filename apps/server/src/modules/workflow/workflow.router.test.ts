@@ -372,7 +372,7 @@ describe('Workflow Router Read Procedures', () => {
           documentId: VALID_UUID,
           status: 'active',
           context: {},
-          slaDeadline: new Date('2026-07-20'),
+          slaDeadline: new Date('2026-12-31'),
           slaBreachedAt: null,
           startedAt: new Date('2026-07-01'),
           completedAt: null,
