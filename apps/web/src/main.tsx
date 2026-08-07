@@ -26,6 +26,7 @@ import EmptyStatePage from './pages/dev/EmptyStatePage';
 import OrderOfBusinessRowPage from './pages/dev/OrderOfBusinessRowPage';
 import PageHeaderPage from './pages/dev/PageHeaderPage';
 import QRCodeDisplayPage from './pages/dev/QRCodeDisplayPage';
+import { RichTextEditorPage } from './pages/dev/RichTextEditorPage';
 import RoutingHistoryTimelinePage from './pages/dev/RoutingHistoryTimelinePage';
 import ScanQualityIndicatorPage from './pages/dev/ScanQualityIndicatorPage';
 import SidebarPage from './pages/dev/SidebarPage';
