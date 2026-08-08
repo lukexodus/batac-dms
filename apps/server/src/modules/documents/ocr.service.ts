@@ -52,6 +52,24 @@ export class OcrService {
     return 'poor';
   }
 
+  async processJob(payload: { versionId: string; s3Key: string; documentId: string }): Promise<void> {
+    const { versionId, s3Key, documentId } = payload;
+
+    const versionRows = await this.db
+      .select({ mimeType: versions.mimeType })
+      .from(versions)
+      .where(eq(versions.id, versionId))
+      .limit(1);
+
+    const mimeType = versionRows[0]?.mimeType;
+    if (!mimeType) {
+      throw new Error(`processJob: version ${versionId} not found or has no mimeType`);
+    }
+
+    const { text, confidenceScore } = await this.ocrProvider.extractTextFromS3Key(s3Key, mimeType);
+    await this.processOcrCallback(versionId, text, confidenceScore, documentId, mimeType, s3Key);
+  }
+
   async enqueueOcrJob(versionId: string, s3Key: string, documentId: string): Promise<void> {
     await this.pgBoss.send(
       'ocr.process',

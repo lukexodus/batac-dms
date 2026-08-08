@@ -27,7 +27,8 @@ export class TesseractOcrProvider implements OcrProvider {
     const buffer = Buffer.from(await response.Body.transformToByteArray());
 
     // 2. Initialize Tesseract worker
-    const worker = await createWorker('eng');
+    const languagePacks = process.env['OCR_LANGUAGE_PACKS'] || 'eng+fil';
+    const worker = await createWorker(languagePacks);
 
     try {
       // 3. Perform OCR

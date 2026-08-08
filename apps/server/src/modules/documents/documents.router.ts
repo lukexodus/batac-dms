@@ -46,8 +46,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "../../config/env.js";
-import { OcrService, StubOcrProvider } from "./ocr.service.js";
-import { StubPreviewProvider } from "./preview.provider.js";
+
 import { DocumentsRepository } from "./documents.repository.js";
 import type { DocumentRow, DocumentTypeRow } from "./documents.repository.js";
 import type { DocumentPolicyGuard } from "./documents.policy.js";
@@ -148,16 +147,7 @@ function getS3Client(): S3Client {
   return _s3Client;
 }
 
-function getOcrService(ctx: Context): OcrService {
-  return new OcrService(
-    (ctx.req.server as any).boss,
-    new StubOcrProvider(),
-    new StubPreviewProvider(),
-    getS3Client() as any, // satisfies S3Client interface needed by OcrService
-    env.S3_BUCKET || "batac-dms",
-    ctx.req.server.db as any,
-  );
-}
+
 
 // ---------------------------------------------------------------------------
 // Minimal JSON-Schema-subset validator for "second-pass JSONB validation"
@@ -1031,7 +1021,7 @@ export function createDocumentsRouter() {
         });
 
         // Enqueue OCR extraction
-        const ocrService = getOcrService(ctx);
+        const ocrService = ctx.req.server.ocrService;
         await ocrService.enqueueOcrJob(
           version.id,
           input.s3Key,
@@ -1257,7 +1247,7 @@ export function createDocumentsRouter() {
             message: "You must have update rights to trigger Re-OCR.",
           });
 
-        const ocrService = getOcrService(ctx);
+        const ocrService = ctx.req.server.ocrService;
         await ocrService.enqueueManualReOcrJob(input.versionId);
 
         return { success: true as const };

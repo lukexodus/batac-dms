@@ -132,6 +132,24 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   fastify.decorate('designationHandler', designationHandler);
   fastify.decorate('ocrService', ocrService);
 
+  if ((fastify as any).boss) {
+    const boss = (fastify as any).boss;
+    await boss.createQueue('ocr.process');
+    await boss.work('ocr.process', async (jobs: any[]) => {
+      for (const job of jobs) {
+        try {
+          await ocrService.processJob(job.data);
+        } catch (err) {
+          fastify.log.error(
+            { err, jobId: job.id, versionId: job.data?.versionId },
+            'documents: ocr.process job failed',
+          );
+          throw err; // re-throw so pg-boss applies enqueueOcrJob's existing retryLimit: 3
+        }
+      }
+    });
+  }
+
   // Dedicated connection for fire-and-forget event consumers (LOG-0207/LOG-0210).
   // The consumer service must use its own connection: the EventBus runs handlers
   // inside the emitter's RLS-scoped transaction, so a consumer writing via
