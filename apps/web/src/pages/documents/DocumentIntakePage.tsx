@@ -859,10 +859,10 @@ export default function DocumentIntakePage() {
       | undefined;
 
     // Strip system-injected fields from frontend validation (backend auto-fills these)
-    if (schema && Array.isArray(schema.required)) {
+    if (schema && Array.isArray(schema['required'])) {
       schema = {
         ...schema,
-        required: schema.required.filter(
+        required: schema['required'].filter(
           (k: string) => !SYSTEM_SET_METADATA_FIELDS.has(k),
         ),
       };
