@@ -10,6 +10,7 @@ import {
   Shield,
   Building,
   Users,
+  QrCode,
 } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -131,6 +132,7 @@ export function AuthenticatedLayout() {
       )
     ) {
       items.push({ id: 'documents', icon: FileText, label: 'Documents', href: '/documents' });
+      items.push({ id: 'scan-qr', icon: QrCode, label: 'Scan QR', href: '/scan' });
     }
 
     // Workflow Steps
