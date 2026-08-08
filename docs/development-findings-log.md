@@ -8934,3 +8934,14 @@ renders it as a reading-type chip in the header panel when present. The procedur
 is not catalogued in E1; a human must decide whether to add it to E1 and/or
 document it as a spec gap. The completed-reading-date gap (`firstReading.sessionDate`
 metadata never written) is a separate discovery for a human to decide on.
+
+### [LOG-0274] @yudiel/react-qr-scanner chosen for QR scanning
+
+- date: 2026-08-08
+- task_id: TASK-TRACK-FE-001
+- status: proposed
+- affects: none
+
+@yudiel/react-qr-scanner was chosen for the in-app QR scanner implementation because it provides a robust, modern React component that natively handles continuous live camera video stream decoding, which is essential for the physical QR scanning use case. It gracefully handles device selection and camera permissions, and is actively maintained with no known critical vulnerabilities.
+
+[Inference]: This library serves as the most conservative reasonable default for camera-based QR decoding in the staff-facing web app.

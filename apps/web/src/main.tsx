@@ -56,6 +56,7 @@ import { SecurityAuditLedgerPage } from './pages/sysadmin/SecurityAuditLedgerPag
 import { SystemAdminHomePage } from './pages/sysadmin/SystemAdminHomePage';
 import { SystemLogsPage } from './pages/sysadmin/SystemLogsPage';
 import { UserAccountManagementPage } from './pages/sysadmin/UserAccountManagementPage';
+import { QrScanPage } from './pages/tracking/QrScanPage';
 import { MayorDashboardPage } from './pages/workflow/MayorDashboardPage';
 import { MyAssignedStepsPage } from './pages/workflow/MyAssignedStepsPage';
 import { OrderOfBusinessPage } from './pages/workflow/OrderOfBusinessPage';
@@ -249,6 +250,10 @@ const router = createBrowserRouter([
           {
             path: 'documents/:documentId',
             element: <DocumentDetailPage />,
+          },
+          {
+            path: 'scan',
+            element: <QrScanPage />,
           },
           {
             path: '*',
