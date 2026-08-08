@@ -1,25 +1,15 @@
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-} from '@tanstack/react-table';
+import { createColumnHelper } from '@tanstack/react-table';
 import { FileText, Loader2, ArrowRight, Check, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
   EmptyState,
   Button,
   StatusBadge,
 } from '@batac/ui';
 
+import { DataTable } from '../../components/DataTable';
 import { mapLifecycleStateToDocumentState } from '../../lib/status-mapping';
 import { trpc } from '../../lib/trpc';
 
@@ -105,11 +95,9 @@ export function DocumentRequestsListPage() {
     limit: 20,
   });
 
-  const table = useReactTable({
-    data: data?.items ?? [],
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
+  const handleSortOrFilterChange = () => {
+    setCursorHistory([]);
+  };
 
   const handleNext = () => {
     if (data?.nextCursor) {
@@ -170,56 +158,27 @@ export function DocumentRequestsListPage() {
         )}
       </div>
 
-      <div className="rounded-md border bg-white">
-        {isLoading && cursorHistory.length === 0 ? (
-          <div className="flex h-[400px] items-center justify-center">
-            <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
-          </div>
-        ) : !isLoading && data?.items.length === 0 && cursorHistory.length === 0 ? (
-          <div className="py-8">
-            <EmptyState
-              icon={FileText}
-              heading="No document requests found"
-              body="There are no document requests matching the current filters."
-            />
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {isLoading && cursorHistory.length === 0 ? (
+        <div className="flex h-[400px] items-center justify-center">
+          <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        </div>
+      ) : !isLoading && data?.items.length === 0 && cursorHistory.length === 0 ? (
+        <div className="py-8">
+          <EmptyState
+            icon={FileText}
+            heading="No document requests found"
+            body="There are no document requests matching the current filters."
+          />
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={data?.items ?? []}
+          globalFilterPlaceholder="Search requests…"
+          onSortingChange={handleSortOrFilterChange}
+          onGlobalFilterChange={handleSortOrFilterChange}
+        />
+      )}
 
       <div className="flex items-center justify-end space-x-2 py-4">
         <Button variant="outline" size="sm" onClick={handlePrev} disabled={!hasPrevPage}>

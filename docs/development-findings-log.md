@@ -8852,4 +8852,51 @@ live submission in this session. The human may want the panel path to populate
 the same three metadata fields so the two submission paths record identical
 document metadata.
 
+---
+
+### [LOG-0272] Client-side column sorting + global filter added to the four list DataTables; page-scoped scope documented
+
+- date: 2026-08-08
+- task_id: none (ad-hoc UI feature request)
+- status: proposed
+- affects: F5 §4.1 (Table paired with TanStack for sorting/filtering — `apps/web`
+  concern), F6 §3.8 (DataTable ARIA: `aria-sort` on `<th>`); no single doc owns
+  the "client-side vs server-side list ordering" decision
+
+**What was found:** The Documents list page rendered its table through
+`useReactTable` + the Tier 1 shadcn `Table` from `@batac/ui`, configured with
+only `getCoreRowModel()` — no `getSortedRowModel()`/`getFilteredRowModel()` — so
+column sorting was not supported. The same duplicated table JSX existed in three
+sibling pages (Document Requests, Complaints, My Assigned Steps), all four
+sharing the same structure: a `useReactTable` instance, identical header/body
+mapping JSX, and cursor-based server pagination (`limit: 20`).
+
+**What was implemented:** A shared `apps/web/src/components/DataTable.tsx`
+component (TanStack Table + Tier 1 shadcn `Table`, per F5 §4.1's
+"`apps/web` concern") that provides:
+- click-to-sort column headers (asc → desc → clear cycle) using
+  `getSortedRowModel()`, with `aria-sort` placed on the `<th>` itself (not the
+  inner sort button) per F6 §3.8;
+- a global client-side filter (search input) via `getFilteredRowModel()`;
+- `onSortingChange`/`onGlobalFilterChange` callbacks so each page resets its
+  cursor history to page 1 when the user sorts or filters.
+
+The four pages that used the identical table pattern were refactored onto it:
+`DocumentListPage`, `DocumentRequestsListPage`, `ComplaintsListPage`,
+`MyAssignedStepsPage`. Verified via `pnpm --filter @batac/web typecheck`,
+`pnpm --filter @batac/web lint` (on the five touched files) and
+`pnpm --filter @batac/web build`. The F6 PR checks (real `<table>` markup,
+`aria-sort` on `<th>`) were confirmed in source, not in a live browser session.
+
+Note: [Inference] — the four list endpoints use server-side cursor pagination
+(`limit: 20`), so TanStack sorting and the global filter operate on the
+currently-loaded page only, not the full result set; each page re-sorts and
+re-filters whichever page is loaded, and the page resets to page 1 on a sort or
+filter change. For globally-correct ordering/filtering across all result pages,
+the sort/filter inputs would need to move server-side (the four list procedures,
+their repositories, the shared input schemas, and the router tests). That was
+not done here. No pre-development document states which side owns list ordering;
+F5/F6 describe the client-side DataTable only, so the page-scoped behavior is a
+reasoned default, not a specified guarantee.
+
 
