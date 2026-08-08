@@ -550,8 +550,14 @@ export default function DocumentDetailPage() {
     : document.preliminaryNumber
       ? 'preliminary'
       : 'preliminary';
-  // documentType is a nested object: { id, name, code, classificationDefault, preliminaryNumbering }
+  // documentType is a nested object: { id, name, code, classificationDefault, preliminaryNumbering, seriesKey, owningModule, publicVisibilityRule }
   const documentTypeName = document.documentType?.name ?? document.documentTypeId;
+  
+  // Capability derivation from documentType metadata
+  const docType = document.documentType;
+  const isMeasure = docType?.preliminaryNumbering || !!docType?.numberSeriesId;
+  const canBePublished = docType?.publicVisibilityRule !== 'not_public';
+  const isRoutable = docType?.owningModule === 'workflow' && docType?.code !== 'CERTIFICATION_OF_URGENCY';
 
   // ── Routing history → RoutingHistoryTimeline entries ──────────────────────
   // The tracking.getRoutingHistory output uses snake_case / different shape from
@@ -771,25 +777,29 @@ export default function DocumentDetailPage() {
       <div className={trackingRecord ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-start' : ''}>
         {/* ── Action buttons ── */}
         {(() => {
-          const showSubmit = canSubmit(identity, lifecycleState);
-          const showAssignPrelim = canAssignPreliminaryNumber(
-            identity,
-            lifecycleState,
-            document.preliminaryNumber ?? null,
-          );
-          const showAssignFinal = canAssignFinalNumber(
-            identity,
-            document.preliminaryNumber ?? null,
-            document.finalNumber ?? null,
-            document.documentType?.code ?? '',
-          );
+          const showSubmit = isRoutable && canSubmit(identity, lifecycleState);
+          const showAssignPrelim =
+            docType?.preliminaryNumbering === true &&
+            canAssignPreliminaryNumber(
+              identity,
+              lifecycleState,
+              document.preliminaryNumber ?? null,
+            );
+          const showAssignFinal =
+            docType?.numberSeriesId != null &&
+            canAssignFinalNumber(
+              identity,
+              document.preliminaryNumber ?? null,
+              document.finalNumber ?? null,
+              document.documentType?.code ?? '',
+            );
           const showArchive = canArchive(identity, lifecycleState);
-          const showPublish = canPublishToPortal(identity, lifecycleState);
-          const showCertUrgency = canLogCertificationOfUrgency(identity);
+          const showPublish = canBePublished && canPublishToPortal(identity, lifecycleState);
+          const showCertUrgency = isMeasure && canLogCertificationOfUrgency(identity);
           const showCancel = canCancel(identity, lifecycleState, document.workflowInstanceId);
           const showDelete = canDelete(identity, lifecycleState, document.workflowInstanceId);
-          const showPrintQr = canPrintQrCoverSheet(identity);
-          const showLogRouting = canLogRoutingEntry(identity);
+          const showPrintQr = isRoutable && canPrintQrCoverSheet(identity);
+          const showLogRouting = isRoutable && canLogRoutingEntry(identity);
 
           const hasWorkflowGroup = showSubmit || showCertUrgency;
           const hasNumberingGroup = showAssignPrelim || showAssignFinal;
@@ -1083,7 +1093,7 @@ export default function DocumentDetailPage() {
         })()}
 
         {/* ── QR Code + tracking info ── */}
-        {trackingRecord && (
+        {trackingRecord && isRoutable && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Tracking</CardTitle>
@@ -1124,10 +1134,12 @@ export default function DocumentDetailPage() {
             <Files className="h-4 w-4" />
             Files &amp; OCR
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <History className="h-4 w-4" />
-            Routing History
-          </TabsTrigger>
+          {isRoutable && (
+            <TabsTrigger value="history" className="gap-2">
+              <History className="h-4 w-4" />
+              Routing History
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Details tab */}

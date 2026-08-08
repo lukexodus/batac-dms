@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { Camera, Search, AlertCircle, FileText, Download } from 'lucide-react';
+import React, { useState } from 'react';
 
 import {
   Card,
@@ -12,11 +12,12 @@ import {
   Skeleton,
   RoutingHistoryTimeline,
 } from '@batac/ui';
+
 import type { RoutingEntry } from '@batac/ui';
 
 import { hasRole } from '@/lib/auth-helpers';
-import { useSessionStore } from '@/stores';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
+import { useSessionStore } from '@/stores';
 
 const PAGE_ALLOWED_ROLES = [
   'records_officer',
@@ -151,7 +152,10 @@ function QrScanContent() {
                      handleScan(code.rawValue);
                   }
                 }}
-                onError={(err) => console.error(err)}
+                onError={(err) => {
+                  // eslint-disable-next-line no-console
+                  console.error(err);
+                }}
               />
             </div>
             
@@ -238,9 +242,9 @@ function ScanResultView({ result }: { result: RouterOutputs['tracking']['scanQrC
   const createdByUser = users?.find(u => u.id === createdByUserId);
   const loggedByName = createdByUser?.displayName ?? (createdByUserId ? createdByUserId.slice(0, 8) : 'Unknown');
 
-  const metadata = docData?.metadata as any;
-  const sponsors = Array.isArray(metadata?.sponsors) && metadata.sponsors.length > 0 ? metadata.sponsors : null;
-  const authoredBy = sponsors ? sponsors.map((s: any) => s.name).join(', ') : null;
+  const metadata = docData?.metadata as Record<string, unknown> | undefined;
+  const sponsors = Array.isArray(metadata?.sponsors) && metadata.sponsors.length > 0 ? (metadata.sponsors as { name: string }[]) : null;
+  const authoredBy = sponsors ? sponsors.map(s => s.name).join(', ') : null;
 
   const routingEntries: RoutingEntry[] = result.fullRoutingHistory.map((e, index) => ({
     id: `scan-history-${index}`,

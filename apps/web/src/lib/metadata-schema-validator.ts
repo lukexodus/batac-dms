@@ -54,7 +54,7 @@ function validateMetadataNode(
           typeof propSchema === "object" &&
           "default" in propSchema
         ) {
-          obj[key] = (propSchema as any)["default"];
+          obj[key] = (propSchema as Record<string, unknown>)["default"];
         }
       }
     }

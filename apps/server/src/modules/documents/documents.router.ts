@@ -291,6 +291,10 @@ function toDocumentTypeSummary(type: DocumentTypeRow) {
     code: type.code,
     classificationDefault: type.classificationDefault,
     preliminaryNumbering: type.hasPreliminaryNumbering,
+    metadataSchema: type.metadataSchema,
+    numberSeriesId: type.numberSeriesId,
+    owningModule: type.owningModule,
+    publicVisibilityRule: type.publicVisibilityRule,
   };
 }
 
@@ -384,10 +388,16 @@ export function createDocumentsRouter() {
       .output(z.array(DocumentTypeSummarySchema))
       .query(async ({ ctx }) => {
         const rows = await getRepository(ctx).listActiveDocumentTypes();
-        return rows.map((row) => ({
-          ...row,
-          classificationDefault: row.classificationDefault,
-          metadataSchema: row.metadataSchema as any,
+        return rows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          code: r.code,
+          classificationDefault: r.classificationDefault,
+          preliminaryNumbering: r.preliminaryNumbering,
+          metadataSchema: r.metadataSchema as Record<string, unknown> | null,
+          numberSeriesId: r.numberSeriesId,
+          owningModule: r.owningModule,
+          publicVisibilityRule: r.publicVisibilityRule,
         }));
       }),
 

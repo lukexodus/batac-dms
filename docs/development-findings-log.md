@@ -8945,3 +8945,40 @@ metadata never written) is a separate discovery for a human to decide on.
 @yudiel/react-qr-scanner was chosen for the in-app QR scanner implementation because it provides a robust, modern React component that natively handles continuous live camera video stream decoding, which is essential for the physical QR scanning use case. It gracefully handles device selection and camera permissions, and is actively maintained with no known critical vulnerabilities.
 
 [Inference]: This library serves as the most conservative reasonable default for camera-based QR decoding in the staff-facing web app.
+
+---
+
+### [LOG-0275]: OCR decision-status conflict across AGENTS.md / tech-stack.md / document-list.md resolved — tech-stack.md is authoritative; document-list.md and AGENTS.md are stale
+
+- **date:** 2026-08-08
+- **author:** AI Agent (investigation, not implementation)
+- **status:** proposed
+- **affects:** AGENTS.md, document-list.md, tech-stack.md, LOG-0212
+
+**What was found:** Three governance-tier documents disagreed on whether the OCR
+library choice is closed. `AGENTS.md` Section 1 (`/AGENTS.md:33`) states the
+choice is still marked open in `tech-stack.md`. `tech-stack.md` itself
+(`docs/pre-development/tech-stack.md:167`) states "Decision closed... confirmed
+by human decision (August 2026)," selecting `tesseract.js`.
+`document-list.md` states the opposite twice (`docs/pre-development/document-list.md:107`
+and `:391`), and both mentions attribute their governance rule to
+"AGENTS-v2.md Section 1" — a filename that does not exist anywhere in the
+repository. Only `AGENTS.md` (no version suffix) exists at root.
+`development-findings-log.md` LOG-0212 (`docs/development-findings-log.md:6416-6422`)
+independently claims the decision was closed by explicit human instruction, but
+was logged with `status: proposed`.
+
+**Resolution, per human decision (2026-08-08):** `tech-stack.md` is authoritative.
+The OCR library choice is closed: `tesseract.js`. The `AGENTS-v2.md` references
+in `document-list.md` are confirmed stale — almost certainly a leftover from a
+prior rename of the routing file to `AGENTS.md`, carrying forward `document-list.md`'s
+own "open" status from before that rename along with the old filename. LOG-0212
+is promoted to `confirmed` as part of this same decision (human action, applied
+directly to LOG-0212's own status field — not by this entry).
+
+**What was NOT done:** `AGENTS.md` Section 1's "currently: OCR library choice"
+open-item note and `document-list.md` lines 107 and 391 have not been edited.
+Per this project's rule that agents never edit AGENTS.md or Group B–L documents
+directly, that edit is a human action. This entry exists so the next agent
+who hits the same conflict doesn't have to re-derive the resolution — the specific
+lines needing a human edit are named above.

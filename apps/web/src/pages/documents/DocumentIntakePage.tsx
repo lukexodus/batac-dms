@@ -844,10 +844,10 @@ export default function DocumentIntakePage() {
   const confirmUpload = trpc.documents.confirmUpload.useMutation();
 
   // Workaround for circular dependency: control -> useWatch -> selectedType -> resolver -> useForm -> control
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above; a typed alternative was not found without reintroducing the circular dependency this works around
   const intakeResolver = (
     values: Record<string, unknown>,
     context: unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see comment above; a typed alternative was not found without reintroducing the circular dependency this works around
     options: any,
   ) => {
     const selectedType = documentTypes?.find(

@@ -304,6 +304,9 @@ export class DocumentsRepository {
         classificationDefault: documentTypes.classificationDefault,
         preliminaryNumbering: documentTypes.hasPreliminaryNumbering,
         metadataSchema: documentTypes.metadataSchema,
+        numberSeriesId: documentTypes.numberSeriesId,
+        owningModule: documentTypes.owningModule,
+        publicVisibilityRule: documentTypes.publicVisibilityRule,
       })
       .from(documentTypes)
       .where(and(isNull(documentTypes.deletedAt), eq(documentTypes.isActive, true)))
