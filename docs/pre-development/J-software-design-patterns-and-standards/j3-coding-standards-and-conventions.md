@@ -9,35 +9,35 @@
   - [L106–L127] 1.2 The `strict: true` Flag Means All of These — Explicit compiler strictness flags including exact property types and unchecked index access controls.
   - [L128–L176] 1.3 The `any` Prohibition — Mandatory ban on `any`, safe use of `unknown`, type assertions (`as`), and prohibition of `@ts-ignore` bypasses.
   - [L177–L230] 1.4 Explicit Return Types on Exported Functions — Mandatory return type annotations for functions exported from `/packages` and guidelines for internal helpers.
-- [L231–L439] 2. Naming Conventions — Casing standards across codebases for variables, components, constants, files, directories, DB tables, schemas, and events.
-  - [L233–L257] 2.1 PascalCase — Types, Interfaces, Components, Enums, Classes — PascalCase formatting rules for types, interfaces, React components, classes, and const object enums.
-  - [L258–L280] 2.2 camelCase — Functions, Variables, Object Properties, Method Names — camelCase formatting rules for functions, local variables, object attributes, and class methods.
-  - [L281–L321] 2.3 SCREAMING_SNAKE_CASE — True Constants — SCREAMING_SNAKE_CASE requirements for module-level immutable configurations, thresholds, and environment variables.
-  - [L322–L360] 2.4 kebab-case — File and Directory Names — kebab-case filenames in apps/packages, specific file suffixes (e.g. `.schema.ts`), and `index.ts` public exports.
-  - [L361–L384] 2.5 Database Schema and Column Names — PostgreSQL and Drizzle schema naming requirements using snake_case for tables and columns.
-  - [L385–L402] 2.6 Zod Schema Names — Zod naming schema suffix (`{Entity}Schema`), and required type inference (`z.infer`) instead of duplication.
-  - [L403–L419] 2.7 tRPC Procedure Names — camelCase naming patterns for tRPC procedures using specific verb-resource actions instead of generic handles.
-  - [L420–L439] 2.8 Event Bus Event Names — SCREAMING_SNAKE_CASE event naming convention (`MODULE_NOUN_PAST_VERB`) and locations for their exports.
-- [L440–L499] 3. Import Ordering — Linter-enforced import group ordering, spacing requirements, and mandatory use of `import type`.
-- [L500–L574] 4. Module Boundary Rules — Strict schema isolation boundaries between server modules and their permitted communication patterns.
-- [L575–L691] 5. Comment Conventions — Requirements for JSDoc documentation, meaningful inline notes, and structured task comments.
-  - [L577–L634] 5.1 JSDoc — Required on All Exported Functions in `/packages/shared` — Mandatory JSDoc tagging format (`@param`, `@returns`, `@throws`) for exports in the shared package.
-  - [L635–L671] 5.2 Inline Comments — When and How — Guidelines for writing explanatory inline comments that clarify complex logic instead of restating code.
-  - [L672–L691] 5.3 TODO / FIXME / HACK Format — Standardized formatting for temporary comments requiring issue numbers and developer identifiers.
-- [L692–L749] 6. Prettier Configuration — Monorepo formatting settings (print width, quotes, trailing commas) and editor configurations for save-actions.
-- [L750–L885] 7. ESLint Configuration — Linter rules, base configurations, and plugins for monorepo validation, safety, and import order.
-  - [L752–L755] 7.1 Base Config Location — Location of the base ESLint config and rules for extending it in individual packages.
-  - [L756–L767] 7.2 Core Plugins — List of ESLint plugins utilized across the codebase for boundary checks, TypeScript safety, and style.
-  - [L768–L848] 7.3 Key Rule Decisions — Specific ESLint rules governing TypeScript strictness, forbidden patterns, import sorting, and environment access.
-  - [L849–L865] 7.4 `no-console` Enforcement — Mandatory prohibition of `console.*` in favor of structured Pino JSON logging.
-  - [L866–L885] 7.5 React-Specific Rules (Web App Only) — React-specific lint rule overrides for props, hooks, and async event handlers.
-- [L886–L986] 8. File and Directory Organization — Standard directory layout structures for server modules, React components, and the shared package.
-  - [L888–L931] 8.1 Server Module Structure — File layout within server modules, routing, services, repository, and strict `index.ts` public APIs.
-  - [L932–L962] 8.2 React Component Structure (`/apps/web`) — Feature-based layout guidelines in web app, single-component default exports, and tightly-coupled subcomponents.
-  - [L963–L986] 8.3 Shared Package Structure (`/packages/shared`) — Directory organization of schemas, types, constants, utilities, and events in the shared codebase.
-- [L987–L1064] 9. Zod and the Type-Safety Chain — Schema-first type-safety chain, deriving types from schemas, and parsing error handling conventions.
-- [L1065–L1156] 10. Error Handling Conventions — Rules for throwing custom Errors, catch type narrowing, promise handling, and tRPC error codes.
-- [L1157–L1189] 11. Quick-Reference Cheat Sheet — Summary table of standard conventions for TypeScript, naming, imports, modules, comments, and errors.
+- [L231–L463] 2. Naming Conventions — Casing standards across codebases for variables, components, constants, files, directories, DB tables, schemas, and events.
+  - [L233–L257] 2.1 PascalCase — Types, Interfaces, Components, Enums, Classes — Types, Interfaces, Components, Enums, Classes — PascalCase formatting rules for types, interfaces, React components, classes, and const object enums.
+  - [L258–L280] 2.2 camelCase — Functions, Variables, Object Properties, Method Names — Functions, Variables, Object Properties, Method Names — camelCase formatting rules for functions, local variables, object attributes, and class methods.
+  - [L281–L321] 2.3 SCREAMING_SNAKE_CASE — True Constants — True Constants — SCREAMING_SNAKE_CASE requirements for module-level immutable configurations, thresholds, and environment variables.
+  - [L322–L360] 2.4 kebab-case — File and Directory Names — File and Directory Names — kebab-case filenames in apps/packages, specific file suffixes (e.g. `.schema.ts`), and `index.ts` public exports.
+  - [L361–L398] 2.5 Database Schema and Column Names — PostgreSQL and Drizzle schema naming requirements using snake_case for tables and columns.
+  - [L399–L416] 2.6 Zod Schema Names — Zod naming schema suffix (`{Entity}Schema`), and required type inference (`z.infer`) instead of duplication.
+  - [L417–L433] 2.7 tRPC Procedure Names — camelCase naming patterns for tRPC procedures using specific verb-resource actions instead of generic handles.
+  - [L434–L463] 2.8 Event Bus Event Names — SCREAMING_SNAKE_CASE event naming convention (`MODULE_NOUN_PAST_VERB`) and locations for their exports.
+- [L464–L523] 3. Import Ordering — Linter-enforced import group ordering, spacing requirements, and mandatory use of `import type`.
+- [L524–L598] 4. Module Boundary Rules — Strict schema isolation boundaries between server modules and their permitted communication patterns.
+- [L599–L715] 5. Comment Conventions — Requirements for JSDoc documentation, meaningful inline notes, and structured task comments.
+  - [L601–L658] 5.1 JSDoc — Required on All Exported Functions in `/packages/shared` — Required on All Exported Functions in `/packages/shared` — Mandatory JSDoc tagging format (`@param`, `@returns`, `@throws`) for exports in the shared package.
+  - [L659–L695] 5.2 Inline Comments — When and How — When and How — Guidelines for writing explanatory inline comments that clarify complex logic instead of restating code.
+  - [L696–L715] 5.3 TODO / FIXME / HACK Format — Standardized formatting for temporary comments requiring issue numbers and developer identifiers.
+- [L716–L773] 6. Prettier Configuration — Monorepo formatting settings (print width, quotes, trailing commas) and editor configurations for save-actions.
+- [L774–L909] 7. ESLint Configuration — Linter rules, base configurations, and plugins for monorepo validation, safety, and import order.
+  - [L776–L779] 7.1 Base Config Location — Location of the base ESLint config and rules for extending it in individual packages.
+  - [L780–L791] 7.2 Core Plugins — List of ESLint plugins utilized across the codebase for boundary checks, TypeScript safety, and style.
+  - [L792–L872] 7.3 Key Rule Decisions — Specific ESLint rules governing TypeScript strictness, forbidden patterns, import sorting, and environment access.
+  - [L873–L889] 7.4 `no-console` Enforcement — Mandatory prohibition of `console.*` in favor of structured Pino JSON logging.
+  - [L890–L909] 7.5 React-Specific Rules (Web App Only) — React-specific lint rule overrides for props, hooks, and async event handlers.
+- [L910–L1010] 8. File and Directory Organization — Standard directory layout structures for server modules, React components, and the shared package.
+  - [L912–L955] 8.1 Server Module Structure — File layout within server modules, routing, services, repository, and strict `index.ts` public APIs.
+  - [L956–L986] 8.2 React Component Structure (`/apps/web`) — Feature-based layout guidelines in web app, single-component default exports, and tightly-coupled subcomponents.
+  - [L987–L1010] 8.3 Shared Package Structure (`/packages/shared`) — Directory organization of schemas, types, constants, utilities, and events in the shared codebase.
+- [L1011–L1088] 9. Zod and the Type-Safety Chain — Schema-first type-safety chain, deriving types from schemas, and parsing error handling conventions.
+- [L1089–L1180] 10. Error Handling Conventions — Rules for throwing custom Errors, catch type narrowing, promise handling, and tRPC error codes.
+- [L1181–L1213] 11. Quick-Reference Cheat Sheet — Summary table of standard conventions for TypeScript, naming, imports, modules, comments, and errors.
 
 ---
 
@@ -363,22 +363,36 @@ import { DocumentRecordSchema } from '@batac/shared/src/schemas/document-record.
 Drizzle schema definitions use **snake_case** for table names and column names, consistent with PostgreSQL conventions.
 
 ```typescript
-// /packages/database/src/schema/documents.schema.ts
-export const documents = pgTable('documents', {
+// /packages/database/schema/documents.schema.ts
+export const documents = documentsSchema.table('documents', {
   id:                  uuid('id').primaryKey().defaultRandom(),
   cityId:              uuid('city_id').notNull(),
   documentTypeId:      uuid('document_type_id').notNull(),
   originatingOfficeId: uuid('originating_office_id').notNull(),
-  trackingId:          varchar('tracking_id', { length: 64 }).notNull().unique(),
-  preliminaryNumber:   varchar('preliminary_number', { length: 64 }),
-  finalNumber:         varchar('final_number', { length: 64 }),
-  status:              documentStatusEnum('status').notNull().default('draft'),
+  preliminaryNumber:   text('preliminary_number'),
+  finalNumber:         text('final_number'),
+  lifecycleState:      text('lifecycle_state').notNull().default('draft'),
   createdAt:           timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt:           timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt:           timestamp('deleted_at', { withTimezone: true }),
   deletedBy:           uuid('deleted_by'),
-});
+}, (table) => [
+  check('documents_lifecycle_state_check', sql`${table.lifecycleState} IN (
+    'draft','submitted','in_workflow','pending_mayor_action','pending_panlalawigan_review',
+    'completed','released','archived','disposed','cancelled','superseded'
+  )`),
+]);
 ```
+
+`[Corrected — this example previously named the column status with a documentStatusEnum(...)
+native-enum column constructor. The real column is lifecycle_state (not status), and the
+project's confirmed storage strategy is TEXT + CHECK, not native Postgres ENUM — see C1 §4.5,
+ADR-DB-002, and the consolidated reference Part 11.9's "Check constraints for state transitions"
+non-negotiable. A native ENUM type requires ALTER TYPE to add values and cannot have values
+removed without recreating the type; TEXT + CHECK is altered with a simple ADD/DROP CONSTRAINT
+pair — this is why the project standardized on TEXT + CHECK for exactly this kind of
+value-set-may-evolve column. trackingId (a Phase-2/legacy-looking field not present in C1's
+actual schema) was also removed from this example as unverified against the real schema.]`
 
 The TypeScript property name (camelCase) and the SQL column name (snake_case) can differ. Drizzle handles the translation. Column names in raw SQL strings must use the snake_case form.
 
@@ -419,21 +433,31 @@ Avoid generic names like `get`, `update`, `handle`. Be specific about what is be
 
 ### 2.8 Event Bus Event Names
 
-Internal event bus events use **SCREAMING_SNAKE_CASE** with a module prefix:
+Internal event bus events use **lowercase dot-notation string literals**, declared as keys of `EventPayloadMap` (`packages/shared/src/events/event-payload-map.ts`) — not as separately-exported constants:
 
 ```typescript
-// Pattern: {MODULE}_{NOUN}_{PAST_VERB}
-export const DOCUMENT_LOGGED_BY_SECRETARIAT = 'DOCUMENT_LOGGED_BY_SECRETARIAT';
-export const WORKFLOW_STEP_COMPLETED = 'WORKFLOW_STEP_COMPLETED';
-export const MAYOR_REVIEW_WINDOW_LAPSED = 'MAYOR_REVIEW_WINDOW_LAPSED';
-export const PANLALAWIGAN_TIMER_STARTED = 'PANLALAWIGAN_TIMER_STARTED';
-export const DESIGNATION_GRANT_CREATED = 'DESIGNATION_GRANT_CREATED';
-export const CERTIFICATION_OF_URGENCY_LOGGED = 'CERTIFICATION_OF_URGENCY_LOGGED';
-export const COMMITTEE_REPORT_SUBMITTED = 'COMMITTEE_REPORT_SUBMITTED';
-export const AUDIT_EVENT_WRITTEN = 'AUDIT_EVENT_WRITTEN';
+// packages/shared/src/events/event-payload-map.ts
+export interface EventPayloadMap {
+  'document.created': DocumentCreatedPayload;
+  'document.state_changed': DocumentStateChangedEvent;
+  'workflow.step.completed': WorkflowStepCompletedPayload;
+  'workflow.sla.breached': WorkflowSlaBreachedPayload;
+  'document.certification_urgency.logged': DocumentCertificationUrgencyLoggedPayload;
+  'delegation.granted': DelegationGrantedEvent;
+  // ... full list in B2's Master Event Bus Registry, the source of truth for event names
+}
 ```
 
-Event name constants are defined in each module's `events.ts` file and re-exported from the module's `index.ts` as part of its public API.
+Event names are referenced by their literal string key (`eventBus.emit('document.state_changed', ...)`), typed against `EventPayloadMap`, not via a separately-exported constant. There is no fixed segmentation formula (see J1 §3's Event Naming Convention note) — check B2's Master Event Bus Registry for the exact name of an existing event, and follow its established pattern when adding a new one.
+
+`[Corrected — this section previously specified SCREAMING_SNAKE_CASE exported constants
+(e.g. WORKFLOW_STEP_COMPLETED = 'WORKFLOW_STEP_COMPLETED', DESIGNATION_GRANT_CREATED, none of
+which exist anywhere in the real system) as the required convention. This does not match how
+events are actually declared or referenced anywhere in the codebase — the real pattern is
+lowercase dot-notation literal string keys on EventPayloadMap, matched to what J1 §3 (also
+corrected in this pass) and B2's Master Event Bus Registry establish. This was a third,
+independently wrong convention on top of J1's now-corrected one — neither matched the other,
+and neither matched real code.]`
 
 ---
 

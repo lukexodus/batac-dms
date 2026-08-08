@@ -12,7 +12,7 @@
 - [L268–L312] 3. PKCE for the SPA — Client-side code verifier/challenge generation flow, token exchange protocol, and memory-only storage rules.
 - [L313–L427] 4. Session Management
   - [L317–L328] 4.1 Session Lifecycle — Core lifecycle events and rules for inactivity, concurrent sessions, forced logout, and shared workstation locking.
-  - [L329–L356] 4.2 Session Table Schema [Inference — not confirmed] — PostgreSQL schema for iam.sessions with partial unique index to enforce single active session.
+  - [L329–L356] 4.2 Session Table Schema [Inference — not confirmed] — not confirmed] — PostgreSQL schema for iam.sessions with partial unique index to enforce single active session.
   - [L357–L378] 4.3 Concurrent Session Enforcement — Step-by-step logic for terminating existing sessions and notifying users during concurrent login attempts.
   - [L379–L385] 4.4 Inactivity Detection — Server-side route handler hook checks, UI-driven 25-minute warnings, and keepalive logic.
   - [L386–L406] 4.5 Forced Logout [Inference for implementation; rule is CONFIRMED] — Step-by-step API endpoint execution sequence, role requirements, and mandatory audit log reasoning.
@@ -33,21 +33,21 @@
   - [L706–L754] 6.4 Tables with RLS Enabled — Mapping of tables in all five schemas to their specific RLS policy intent.
   - [L755–L846] 6.5 Example RLS Policy Patterns [Inference] — SQL patterns for city isolation, office scope, IT admin block, and has_cross_office_read_grant logic.
 - [L847–L915] 7. IT Admin Data Isolation — Invariant blocking IT Admin access to Confidential/Restricted document content via three-layer enforcement.
-- [L916–L1026] 8. Platform Administrator Role Exclusion Invariant
+- [L916–L1028] 8. Platform Administrator Role Exclusion Invariant
   - [L920–L923] 8.1 Rule — Prohibition of combining the Platform Administrator role with any operational document-processing role on one account.
   - [L924–L927] 8.2 Rationale — Fraud prevention reasoning based on avoiding conflicts of interest between rule definitions and operational execution.
-  - [L928–L945] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05]
-  - [L946–L1026] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
-- [L1027–L1100] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
-- [L1101–L1256] 10. Implementation Notes
-  - [L1103–L1137] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
-  - [L1138–L1165] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
-  - [L1166–L1192] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
-  - [L1193–L1208] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
-  - [L1209–L1229] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
-  - [L1230–L1256] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
-- [L1257–L1276] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for all tracked decisions including D-AUTH-11 (added and resolved 2026-06-26); open follow-ups are superseded by Section 12.
-- [L1277–L1291] 12. Remaining Open Items — Three follow-up items and one fully-open item not blocking IAM migration; the fifth item (office-assignment-uniqueness) was resolved on 2026-06-26 and moved to Section 11 as D-AUTH-11.
+  - [L928–L947] 8.3 Definition of Document-Processing Roles [Resolved for seeding — ADR/D-AUTH-05] — ADR/D-AUTH-05]
+  - [L948–L1028] 8.4 Enforcement — TypeScript application-level validations and database-level trigger code to block illegal role combinations.
+- [L1029–L1102] 9. Future SSO Migration Path — Design choices for OAuth/OIDC compatibility, external identity mapping column additions, and token exchange flow.
+- [L1103–L1258] 10. Implementation Notes
+  - [L1105–L1139] 10.1 Fastify Plugin Structure [Inference] — Verification hooks, database session variable setup, and public route configurations.
+  - [L1140–L1167] 10.2 tRPC Context [Inference] — Definition of AuthContext and Context TypeScript types used to supply information to ABAC evaluators.
+  - [L1168–L1194] 10.3 Audit Events for Authentication and Authorization Actions — Payload fields for 17 auditable events covering logins, logouts, role changes, and ABAC denials.
+  - [L1195–L1210] 10.4 Rate Limiting — IP-based and session-based request limits per minute/hour for login, logout, and password resets.
+  - [L1211–L1231] 10.4.1 Account-Level Lockout Policy [Resolved — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — [ADR-AUTH-007](b5-authentication-and-authorization-architecture-adrs/ADR-AUTH-007-account-lockout-policy-on-repeated-login-failures.md); one value still open] — Progressive delays (up to 15 minutes) for repeated login failures instead of hard lockout.
+  - [L1232–L1258] 10.5 MFA Readiness: Phase 1 Design, Phase 2 Activation — Phase 1 flow structure supporting environment-gated TOTP validation in Phase 2.
+- [L1259–L1278] 11. Deferred Decisions (Must Resolve Before IAM Module Migration) — Summary of resolutions for all tracked decisions including D-AUTH-11 (added and resolved 2026-06-26); open follow-ups are superseded by Section 12.
+- [L1279–L1293] 12. Remaining Open Items — Three follow-up items and one fully-open item not blocking IAM migration; the fifth item (office-assignment-uniqueness) was resolved on 2026-06-26 and moved to Section 11 as D-AUTH-11.
 
 ---
 
@@ -942,6 +942,8 @@ The following role categories are incompatible with Platform Administrator:
 **Seeding decision — D-AUTH-05 now resolved, not just flagged:** "Acting Mayor" and "OIC (any)" are removed from this list entirely. They are not `iam.roles` rows and were never a role-modeling question — per the consolidated reference Part 11.13 and Architectural Invariant #16, acting/OIC authority is conferred through a `delegation_grant` record (one active designation per person, DB partial unique index), which temporarily reroutes the original authority's workflow-step assignments to the designated person. The designated person keeps their own existing role; they gain no new role row. Section 8.4's `type_code = 'document_processor'` trigger therefore only ever needs to know about `Mayor`/`Vice Mayor` as literal seeded rows — there is no separate "Acting Mayor" or "OIC" row to seed.
 
 **New follow-up this resolution surfaces, not yet addressed by any document:** Invariant #12 ("Platform Administrator role cannot be combined with any document-processing role") is enforced against a user's own seeded role. It is not yet defined whether `delegation_grant` creation checks that the *designated* person doesn't hold Platform Administrator — a Platform Admin could, as currently specified, become the routing target for Mayor's document-processing steps via delegation while keeping their Platform Admin role, since they'd never acquire a document-processing role row that Section 8.4's trigger would catch. Whether `delegation_grant` creation should validate against the designated person's role the same way direct role-assignment does is an open enforcement-design question. `[Speculation — surfaced by this fix, not resolved by it]`
+
+**Mechanism detail, and a second gap this connects to (ADR-AUTH-006):** `delegation_grant.scope` (ADR-AUTH-006) is a structured JSONB field with `roles`, `office_ids`, and `actions` arrays — the ABAC evaluator expands the delegate's effective roles/office scope for the duration of the grant using exactly this field (B5 §5.7), which is the concrete mechanism behind "gains no new role row" above: an Acting Mayor delegation would set `scope.roles: ["<mayor-role-uuid>"]`, not insert a new `iam.user_roles` record. ADR-AUTH-006 itself flags, unresolved: there is no wildcard convention — a delegation granting "everything the Mayor can do" must enumerate every action individually in `scope.actions`, or the delegate silently cannot perform an omitted one. For an Acting Mayor scenario specifically, an incomplete `actions` list is not a theoretical edge case — it's the default risk of hand-seeding this data, and a missing action would block real government business (e.g., an Acting Mayor who can sign but, because `override_vote` was left off the list, cannot participate in an 8/12 override vote). This should be resolved (either a wildcard convention, or a checklist of every Mayor-context action that must appear in an Acting Mayor grant) before Acting Mayor delegation seed/test data is written. `[Confirmed — ADR-AUTH-006 read directly, its own stated Consequences]`
 
 ### 8.4 Enforcement
 

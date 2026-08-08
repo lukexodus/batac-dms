@@ -8,11 +8,11 @@
 
 #### Table of Contents
 
-- [L19–L28] Global Field Values — Identical Across All 11 Records — 4 fields shared by every series row (delimiter, resets_annually, authority_office_id, year_format); skip if you only need per-series specifics.
-- [L32–L58] Table 1 — Series Identity and Formats — prefix, padding, preliminary/final format string per series; padding footnotes flag SPR (recommended 3-digit) and SPS (flagged for review) as likely undersized at 2.
-- [L62–L82] Table 2 — PostgreSQL Sequence Names — proposed sequence-name pattern per series plus year-boundary creation policy; naming convention itself is unconfirmed, not just the names.
-- [L86–L110] Table 3 — Number Assignment Events — which workflow event assigns preliminary vs. final numbers per series; only SPR has deferred (nullable) final assignment, only the 3 SP legislative types have a preliminary stage.
-- [L114–L152] Implementation Notes — 9 numbered notes: 7SP/administration-change handling, shared-prefix-not-shared-counter, preliminary mutability, panlalawigan_review_log's unresolved table placement, why Certification of Urgency and QR tracking number have no series record, gap/reuse policy.
+- [L19–L31] Global Field Values — Identical Across All 11 Records — 4 fields shared by every series row (delimiter, resets_annually, authority_office_id, year_format); skip if you only need per-series specifics.
+- [L32–L61] Table 1 — Series Identity and Formats — prefix, padding, preliminary/final format string per series; padding footnotes flag SPR (recommended 3-digit) and SPS (flagged for review) as likely undersized at 2.
+- [L62–L85] Table 2 — PostgreSQL Sequence Names — proposed sequence-name pattern per series plus year-boundary creation policy; naming convention itself is unconfirmed, not just the names.
+- [L86–L115] Table 3 — Number Assignment Events — which workflow event assigns preliminary vs. final numbers per series; only SPR has deferred (nullable) final assignment, only the 3 SP legislative types have a preliminary stage.
+- [L116–L153] Implementation Notes — 9 numbered notes: 7SP/administration-change handling, shared-prefix-not-shared-counter, preliminary mutability, panlalawigan_review_log's unresolved table placement, why Certification of Urgency and QR tracking number have no series record, gap/reuse policy.
 
 ---
 
@@ -47,7 +47,7 @@ Padding footnotes follow the table.
 | `letters_sent` | `LETTER_SENT` | `SPS` | `2` ³ | — | `SPS {YEAR}-{NN}` | 1B |
 | `memo_outgoing` | `MEMO_OUTGOING` | `MO` | `2` ¹ | — | `MO {YEAR}-{NN}` | 1B |
 | `memo_incoming` | `MEMO_INCOMING` | `MI` | `2` ¹ | — | `MI {YEAR}-{NN}` | 1B |
-| `panlalawigan_review_log` | `PANLALAWIGAN_REVIEW_LOG` | _(none)_ | `2` ¹ | — | `{YEAR}-{NN}` | 1 |
+| `panlalawigan_review_log` | `N/A` ⁷ | _(none)_ | `2` ¹ | — | `{YEAR}-{NN}` | 1 |
 
 **Padding footnotes:**
 
@@ -109,6 +109,8 @@ Event name constants are [Inference] — proposed identifiers consistent with th
 
 ⁶ **Panlalawigan review log assignment event (Part 4.3, observed log fields):** The SP Secretariat's control number (`{YEAR}-{NN}`) is assigned when a provincial response is received — either a formal written Panlalawigan resolution received within 30 days, or a 30-day lapse record created by the SP Secretary. `RECEIPT_OF_PROVINCIAL_RESPONSE` is [Inference]; the event name must be confirmed when the Panlalawigan review tracking workflow is defined.
 
+⁷ **`document_type_code = N/A` — confirmed, not a placeholder.** `ADR-DB-001` resolved this series' entity classification: `panlalawigan_review_log` is formalized as an internal tracking/log entity, satellite to an existing `documents.documents` row via `documents.panlalawigan_reviews`, not a `documents.document_types` catalog entry. There is no `document_type_code` to assign because there is no `document_types` row — this is a permanent design decision, not a deferred one. See Implementation Note 5 below, updated accordingly. `[Corrected — this cell previously showed PANLALAWIGAN_REVIEW_LOG as if it were a real, if unconfirmed, document_type_code]`
+
 ---
 
 #### Implementation Notes
@@ -131,9 +133,9 @@ Part 5.2 confirms: "Separate PostgreSQL sequence per document type per year — 
 
 Part 5.2 confirms: "Preliminary numbers can be replaced before finalization." A resolution may be assigned `Draft 7SP 2026-02` at logging, but if the document originally assigned `Draft 7SP 2026-01` is voted on and finalised first, preliminary and final sequence order will diverge. The `preliminary_number` column must be nullable and mutable for `sp_resolution`, `sp_ordinance`, and `sp_appropriation_ordinance` until the final assignment event fires. Once the final number is assigned, `preliminary_number` is retired and `final_number` is immutable with no override path for any role.
 
-**5. `panlalawigan_review_log` — entity classification**
+**5. `panlalawigan_review_log` — entity classification `[Resolved — ADR-DB-001]`**
 
-The `panlalawigan_review_log` series (format `{YEAR}-{NN}`, no prefix) is the SP Secretariat's internal control number for tracking provincial review responses (Part 4.3: "Control No.: SP Secretariat's own sequence number, e.g. 2026-01"). This is a log or registry entry, not a legislative document. Whether this entity is modelled as a `document_type` row in the `documents` schema or as a distinct entity in the `tracking` or `records` schema depends on the final data model. The `document_type_code = PANLALAWIGAN_REVIEW_LOG` in Table 1 is [Inference] and may not apply if this entity is not stored in the `documents` table. Confirm before implementing.
+The `panlalawigan_review_log` series (format `{YEAR}-{NN}`, no prefix) is the SP Secretariat's internal control number for tracking provincial review responses (Part 4.3: "Control No.: SP Secretariat's own sequence number, e.g. 2026-01"). This is a log or registry entry, not a legislative document. `ADR-DB-001` confirms this entity is **not** modelled as a `document_type` row in the `documents` schema — it remains `documents.panlalawigan_reviews`, a satellite table of an existing `documents.documents` row (`UNIQUE(document_id)`), never independently listed, searched, or catalogued as a document in its own right. This is a final classification, not deferred pending the data model. `document_type_code = PANLALAWIGAN_REVIEW_LOG` in Table 1 was always [Inference] and has been corrected to `N/A` — there is no `document_types` row, so there is no code to assign. `[Corrected — previously stated this "depends on the final data model" and asked the reader to "confirm before implementing"; ADR-DB-001, dated after this note, settles it]`
 
 **6. Certification of Urgency — no series record**
 

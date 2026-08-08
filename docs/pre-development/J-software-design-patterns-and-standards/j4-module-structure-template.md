@@ -14,24 +14,24 @@
 
 ## Table of Contents
 
-- [L38–L50] 1. Purpose and Scope — states the file layout applies to all 11 modules and that deviations require an ADR; points to J1/B2 for the underlying pattern rules.
-- [L52–L72] 2. Canonical Module Folder Layout — the 10-file tree for the `documents` example, naming convention (module-name prefix, `index.ts` excepted), and file-count note.
-- [L74–L335] 3. File Reference — per-file Role/Source/Key rules/Contains/Must-not-contain for all 10 files; parent section, see 3.1–3.10 below for individual files.
-  - [L76–L99] 3.1 `index.ts` — Published API Barrel — barrel exports only the Published API and its types; explicitly forbids re-exporting services, repositories, or the Fastify plugin.
-  - [L101–L140] 3.2 `documents.plugin.ts` — Fastify Plugin — `fp`-wrapped registration order (service → decorate → tRPC → nested REST), `dependencies` array, export shape example.
-  - [L142–L168] 3.3 `documents.service.ts` — Service Layer — factory-function service holding business logic, transaction creation, and the commit → audit → emit ordering rule.
-  - [L170–L193] 3.4 `documents.repository.ts` — Repository — Drizzle-only data access scoped to the `documents` schema; cross-schema queries explicitly prohibited.
-  - [L195–L218] 3.5 `documents.events.ts` — Domain Events — re-exports event keys from the master `domain-events.ts` registry; new events require same-PR Audit consumer registration.
-  - [L220–L247] 3.6 `documents.types.ts` — Domain Types — repository/service interfaces, Fastify augmentation; flags that "module-private" in the brief is only partially accurate since some types here are re-exported via `index.ts`.
-  - [L249–L273] 3.7 `documents.schemas.ts` — Module-Private Zod Schemas — module-internal Zod only; shared schemas redirect to `/packages/shared/schemas/`; conditional, omittable if nothing is module-private.
-  - [L275–L299] 3.8 `documents.router.ts` — tRPC Router — `/web` tRPC procedures that validate input and call the service only; maps typed domain errors to `TRPCError`.
-  - [L301–L314] 3.9 `documents.routes.ts` — REST Routes — external/portal REST handlers nested in the plugin without `fp`; conditional, omitted if a module has no external REST surface.
-  - [L316–L335] 3.10 `documents.errors.ts` — Typed Error Classes — named domain error classes thrown by the service and caught by the router/routes for protocol-level mapping.
-- [L337–L354] 4. File Classification — Core vs. Conditional table for all 10 files plus the open [Inference] flag on whether `router.ts` is truly Core for every module.
-- [L356–L374] 5. Module Applicability — all 11 modules with their schema name and delivery phase (1/2/3); notes Phase 2–3 schemas are reserved early but code lands later.
-- [L376–L390] 6. Infrastructure Files — Not Part of This Template — lists the 4 infra-level files (`domain-events.ts`, `event-bus.ts`, two `.plugin.ts` files) that are not created per module.
-- [L392–L403] 7. Relationship to Other Documents — table mapping J1/B2/Consolidated Reference/shared-schemas/domain-events/app.ts to what each is authoritative for relative to this document.
-- [L405–L417] 8. Deviation Policy — five example changes (new file type, file merges, moving the plugin into `index.ts`, etc.) that require an ADR before implementation.
+- [L38–L51] 1. Purpose and Scope — states the file layout applies to all 11 modules and that deviations require an ADR; points to J1/B2 for the underlying pattern rules.
+- [L52–L73] 2. Canonical Module Folder Layout — the 10-file tree for the `documents` example, naming convention (module-name prefix, `index.ts` excepted), and file-count note.
+- [L74–L345] 3. File Reference — per-file Role/Source/Key rules/Contains/Must-not-contain for all 10 files; parent section, see 3.1–3.10 below for individual files.
+  - [L76–L100] 3.1 `index.ts` — Published API Barrel — Published API Barrel — barrel exports only the Published API and its types; explicitly forbids re-exporting services, repositories, or the Fastify plugin.
+  - [L101–L141] 3.2 `documents.plugin.ts` — Fastify Plugin — Fastify Plugin — `fp`-wrapped registration order (service → decorate → tRPC → nested REST), `dependencies` array, export shape example.
+  - [L142–L169] 3.3 `documents.service.ts` — Service Layer — Service Layer — factory-function service holding business logic, transaction creation, and the commit → audit → emit ordering rule.
+  - [L170–L194] 3.4 `documents.repository.ts` — Repository — Repository — Drizzle-only data access scoped to the `documents` schema; cross-schema queries explicitly prohibited.
+  - [L195–L228] 3.5 `documents.events.ts` — Domain Events — Domain Events — re-exports event keys from the master `event-payload-map.ts` registry; new events require same-PR Audit consumer registration.
+  - [L229–L257] 3.6 `documents.types.ts` — Domain Types — Domain Types — repository/service interfaces, Fastify augmentation; flags that "module-private" in the brief is only partially accurate since some types here are re-exported via `index.ts`.
+  - [L258–L283] 3.7 `documents.schemas.ts` — Module-Private Zod Schemas — Module-Private Zod Schemas — module-internal Zod only; shared schemas redirect to `/packages/shared/schemas/`; conditional, omittable if nothing is module-private.
+  - [L284–L309] 3.8 `documents.router.ts` — tRPC Router — tRPC Router — `/web` tRPC procedures that validate input and call the service only; maps typed domain errors to `TRPCError`.
+  - [L310–L324] 3.9 `documents.routes.ts` — REST Routes — REST Routes — external/portal REST handlers nested in the plugin without `fp`; conditional, omitted if a module has no external REST surface.
+  - [L325–L345] 3.10 `documents.errors.ts` — Typed Error Classes — Typed Error Classes — named domain error classes thrown by the service and caught by the router/routes for protocol-level mapping.
+- [L346–L364] 4. File Classification — Core vs. Conditional table for all 10 files plus the open [Inference] flag on whether `router.ts` is truly Core for every module.
+- [L365–L386] 5. Module Applicability — all 11 modules with their schema name and delivery phase (1/2/3); notes Phase 2–3 schemas are reserved early but code lands later.
+- [L387–L402] 6. Infrastructure Files — Not Part of This Template — Not Part of This Template — lists the 4 infra-level files (`event-payload-map.ts`, `event-bus.ts`, two `.plugin.ts` files) that are not created per module.
+- [L403–L415] 7. Relationship to Other Documents — table mapping J1/B2/Consolidated Reference/shared-schemas/domain-events/app.ts to what each is authoritative for relative to this document.
+- [L416–L428] 8. Deviation Policy — five example changes (new file type, file merges, moving the plugin into `index.ts`, etc.) that require an ADR before implementation.
 
 ---
 
@@ -200,20 +200,29 @@ This document names the files and defines the role, permitted contents, and key 
 
 **Key rules:**
 
-- All event names and their payload types are declared in the master registry at `/apps/server/src/infrastructure/domain-events.ts`. This file re-exports from there; it does not declare new event types.
-- Any new event type this module introduces requires a corresponding update to `domain-events.ts`. That update and the new event's first use must be in the same PR.
-- Event key naming: `{module-name}.{entity-name}.{verb-past-tense}` (e.g., `documents.document.created`, `documents.document.stateChanged`).
+- All event names and their payload types are declared in the master registry at `packages/shared/src/events/event-payload-map.ts` (`EventPayloadMap`). This file re-exports from there; it does not declare new event types.
+- Any new event type this module introduces requires a corresponding update to `event-payload-map.ts`. That update and the new event's first use must be in the same PR.
+- Event key naming: lowercase dot-notation string literals, typed as keys of `EventPayloadMap` (e.g., `document.created`, `document.state_changed`). There is no fixed segmentation formula — check B2's Master Event Bus Registry for the exact name of an existing event, and follow its established pattern when adding a new one.
 - Any new event added to this module must also be registered with the Audit module's consumer in the same PR (B2 — §Module 8 Audit rule).
 - Events fire **after** the primary transaction commits and after the audit log entry is written. This ordering is enforced in the service layer — not here.
 
 **Contains:**
-- Named re-exports of the event key constants this module publishes (e.g., `export { DOCUMENT_CREATED } from '../../infrastructure/domain-events'`)
+- Re-exports of the relevant `EventPayloadMap` key literals this module publishes, for discoverability (e.g., `export type { EventPayloadMap } from '@batac/shared'` plus a local list of the specific keys this module owns)
 - Subscription registration logic for events this module consumes, called from the plugin at initialization time
 
 **Must not contain:**
-- New event type declarations (all event types go in `domain-events.ts`)
+- New event type declarations (all event types go in `event-payload-map.ts`)
 - Business logic triggered by events (that belongs in service methods called from the subscription handler)
 - Runtime subscription registration (all subscriptions registered at initialization)
+
+`[Corrected — this section previously specified the {module-name}.{entity-name}.{verb-past-tense}
+convention (with examples like "documents.document.stateChanged", which doesn't exist anywhere
+in the real system — the real name is document.state_changed), the wrong file path
+(domain-events.ts instead of the real event-payload-map.ts), and a SCREAMING_SNAKE_CASE
+constant-export pattern ("export { DOCUMENT_CREATED } from...") that doesn't match how events
+are actually declared or imported anywhere in the codebase. This was the third copy of
+essentially the same error found in this document set — see J1 §3 and J3 §2.8, both corrected
+in the same pass, for the full explanation.]`
 
 ---
 
@@ -381,13 +390,13 @@ The following files are infrastructure-level, not module-level, and are not crea
 
 ```
 /apps/server/src/infrastructure/
-  domain-events.ts      ← Master DomainEventMap type (all event names and payloads declared here)
+  event-payload-map.ts  ← Master EventPayloadMap type (all event names and payloads declared here)
   event-bus.ts          ← TypedEventBus class + getEventBus() singleton
   database.plugin.ts    ← DB connection as Fastify decoration (fastify.db)
   event-bus.plugin.ts   ← TypedEventBus as Fastify decoration (fastify.eventBus)
 ```
 
-`{module}.events.ts` re-exports from `domain-events.ts`. It does not add new event type declarations.
+`{module}.events.ts` re-exports from `event-payload-map.ts`. It does not add new event type declarations.
 
 ---
 
@@ -399,7 +408,7 @@ The following files are infrastructure-level, not module-level, and are not crea
 | B2 — Module Boundary and Internal API Contracts | Authoritative source for the `index.ts` barrel rule, the Published API surface per module, event tables, and the P2 cross-module import prohibition. |
 | Consolidated Architecture & Requirements Reference | Architectural Laws 1–3 are the high-level constraints this file layout enforces. Database conventions in §11.9 apply to all repository files. |
 | `/packages/shared/schemas/` | Home for Zod schemas shared across modules or packages. Module-private schemas belong in `{module}.schemas.ts`, not here. |
-| `/apps/server/src/infrastructure/domain-events.ts` | Master event registry. `{module}.events.ts` re-exports from here; it does not declare new event types locally. |
+| `packages/shared/src/events/event-payload-map.ts` | Master event registry. `{module}.events.ts` re-exports from here; it does not declare new event types locally. |
 | `/apps/server/src/app.ts` | Registers all module plugins in declared dependency order. The registration order is defined there, not in individual plugin files. |
 
 ---

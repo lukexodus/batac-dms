@@ -1,4 +1,7 @@
-# ADR-016: Workflow Engine Error States and Instance-Creation Modeling
+# ADR-WFL-004 (formerly ADR-016): Workflow Engine Error States and Instance-Creation Modeling
+
+`[Corrected — see ADR-WFL-003's title note for the full explanation of this project-wide
+renumbering. "ADR-016" is preserved as a parenthetical alias.]`
 
 **Status:** Accepted **Date:** 2026-06-17 **Resolves:** O-4, O-5, O-6 (D3 Appendix C) **Decision owner:** Claude (acting on delegated team discretion — explicitly confirmed by the stakeholder before this ADR was written; see note below) **Affects:** `workflow.instances.status` enum (D3 §2); `workflow.step_instances.status` enum (D3 §3); D3 Appendix B, D
 

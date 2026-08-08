@@ -1,4 +1,11 @@
-# ADR-013: Split `Pending Approval` Into `Pending Mayor Action` and `Pending Panlalawigan Review`
+# ADR-WFL-003 (formerly ADR-013): Split `Pending Approval` Into `Pending Mayor Action` and `Pending Panlalawigan Review`
+
+`[Corrected — this file's own title previously said only "ADR-013," predating a project-wide
+reorganization from flat sequential ADR numbering to the current domain-prefixed scheme. The
+filename and the ADR Master Index (J5) both already used the canonical ADR-WFL-003 ID; this
+heading is now updated to match. "ADR-013" is preserved as a parenthetical alias since it's
+the name used throughout D3, H1, K2, and C1's existing prose — those citations remain valid
+and are not being mass-rewritten, since they already link/point to this same file correctly.]`
 
 **Status:** Accepted **Date:** 2026-06-17 **Resolves:** O-1 (D3 Appendix C) **Decision owner:** Project stakeholder (team decision, not a stakeholder-interview finding) **Affects:** `documents.documents.lifecycle_status` enum; D3 §1; D3 Appendix D; dashboard status display; public portal status display
 

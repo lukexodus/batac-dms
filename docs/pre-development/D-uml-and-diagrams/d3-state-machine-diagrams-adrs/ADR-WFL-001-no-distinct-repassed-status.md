@@ -1,4 +1,7 @@
-# ADR-015: No Distinct `Repassed` Workflow Instance Status — Superseded Instance Remains `Running`
+# ADR-WFL-001 (formerly ADR-015): No Distinct `Repassed` Workflow Instance Status — Superseded Instance Remains `Running`
+
+`[Corrected — see ADR-WFL-003's title note for the full explanation of this project-wide
+renumbering. "ADR-015" is preserved as a parenthetical alias.]`
 
 **Status:** Accepted **Date:** 2026-06-17 **Resolves:** O-7 (D3 Appendix C) **Decision owner:** Project stakeholder (team decision) **Depends on:** ADR-014 (supersession model for repass) **Affects:** `workflow.instances.status` enum (D3 §2); D3 §2.4 note on `REPASSED`; B4 Section 4.6
 

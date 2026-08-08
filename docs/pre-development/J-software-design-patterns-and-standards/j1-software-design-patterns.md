@@ -3,54 +3,54 @@
 **Status:** Pre-Development Reference | Audience: Development Team
 **Stack baseline:** See `tech-stack.md` — Fastify + tRPC + Drizzle ORM + TanStack Query
 
-
 ## Table of Contents
 
 - [L59–L71] Purpose and Scope — Mandatory codebase patterns, system objectives (isolation, auditability), and architectural deviation (ADR) requirement.
 - [L72–L83] Pattern Index — Quick-reference table listing the five design patterns, their primary concerns, and associated file naming conventions.
-- [L84–L249] 1. Repository Pattern
-  - [L86–L91] What It Solves — Isolating Drizzle queries within a single module schema to hide data-access details from services.
-  - [L92–L99] Directory Placement — File path conventions for repository files and domain types in the server module directory.
-  - [L100–L209] Canonical Implementation — Factory function pattern returning a typed interface, avoiding classes, singletons, and decorators.
+- [L84–L259] 1. Repository Pattern
+  - [L86–L91] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
+  - [L92–L99] Directory Placement — File path conventions for hierarchical REST query key files and shared tRPC invalidation helpers.
+  - [L100–L209] Canonical Implementation — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
   - [L210–L229] Transaction Support — Executing repository operations within service-managed transactions by passing the transaction context.
-  - [L230–L237] Rules — Mandatory repository constraints including interface definitions, soft-delete requirements, and transaction parameter types.
-  - [L238–L249] Prohibitions — Prohibitions against direct database client imports, cross-schema queries, embedded business logic, and class usage.
-- [L250–L477] 2. Service Layer Pattern
-  - [L252–L255] What It Solves — Enforcing business logic isolation, coordinating repositories, managing transaction boundaries, and emitting domain events.
-  - [L256–L262] Directory Placement — Target location for business logic service implementation files within each module folder.
-  - [L263–L405] Canonical Implementation — Service factory function with dependencies, transaction coordination, post-commit actions, event emission, and router injection.
-  - [L406–L457] Where Services Are Consumed — Consuming services exclusively inside tRPC procedures and Fastify REST route handlers.
-  - [L458–L465] Rules — Dependency injection via Deps, transaction owner rules, and strict order of operations for audit/events.
-  - [L466–L477] Prohibitions — Prohibitions against logic in handlers, cross-module repository imports, transaction-nested events, and generic errors.
-- [L478–L706] 3. Domain Event Pattern
-  - [L480–L485] What It Solves — Decoupling modules using a fire-and-forget event bus for side effects rather than direct service calls.
-  - [L486–L493] Infrastructure Files — Target paths for the event registry and the TypedEventBus infrastructure files.
-  - [L494–L574] Canonical Implementation — Event Registry — Defining type-safe event names and payload schemas in a single master event registry.
-  - [L575–L642] Canonical Implementation — TypedEventBus — TypedEventBus wrapper class with listener management, async error handling, and process-wide singleton factory.
-  - [L643–L670] How a Module Subscribes — Registering event handlers inside module plugins during Fastify server startup.
-  - [L671–L686] Event Naming Convention — Naming conventions enforcing lowercase module namespaces and past-tense verbs for event identifiers.
-  - [L687–L694] Rules — Mandatory event rules regarding master declaration, post-transaction timing, and startup handler registration.
-  - [L695–L706] Prohibitions — Prohibitions against transaction-nested emissions, synchronous event results, critical-path coupling, and self-subscription.
-- [L707–L902] 4. Module Plugin Pattern
-  - [L709–L712] What It Solves — Enforcing module scope isolation by wiring repositories, services, and routes through Fastify plugins.
-  - [L713–L720] Key Fastify Behavior to Understand — Lexical scope differences between Fastify's encapsulated plugins and global plugins wrapped with fastify-plugin.
-  - [L721–L731] Directory Placement — Location requirements for module plugin files and registration order within the app entrypoint.
-  - [L732–L786] Canonical Implementation — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
-  - [L787–L804] TypeScript Augmentation — Extending FastifyInstance types with module service and router signatures for type safety.
-  - [L805–L845] App Registration Order — Declaring and ordering module registration, starting with infrastructure followed by dependency-sequenced modules.
-  - [L846–L882] Infrastructure Plugin Example — Concrete code example showing database connection decorator and connection cleanup hooks.
-  - [L883–L890] Rules — Mandatory plugin structure, dependency arrays, nested REST scopes, and database connection cleanup hooks.
-  - [L891–L902] Prohibitions — Prohibitions against direct service imports, un-wrapped plugins, top-scope REST registration, and circular dependencies.
-- [L903–L1136] 5. Query Key Factory Pattern
-  - [L905–L914] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
-  - [L915–L927] Directory Placement — File path conventions for hierarchical REST query key files and shared tRPC invalidation helpers.
-  - [L928–L1007] Tier 1 — tRPC Cache Invalidation via `useUtils` — Creating custom hooks to bundle related tRPC query invalidations inside useMutation success callbacks.
-  - [L1008–L1098] Tier 2 — Explicit Query Keys for REST Calls — Defining type-safe, hierarchical query key factories using as const tuples for REST endpoints.
-  - [L1099–L1116] Hierarchical Invalidation — Targeting cache invalidations at specific resources, full listing arrays, or entire domain scopes.
-  - [L1117–L1124] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
-  - [L1125–L1136] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
-- [L1137–L1218] 6. How the Patterns Compose — End-to-end execution trace and mapping table showing how all five patterns coordinate during operations.
-- [L1219–L1248] Appendix — File Structure Reference — Complete list of files and folder paths required to implement a fully conforming module.
+  - [L230–L239] Concurrency Control: Advisory Locks vs. Row Locks
+  - [L240–L247] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
+  - [L248–L259] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
+- [L260–L487] 2. Service Layer Pattern
+  - [L262–L265] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
+  - [L266–L272] Directory Placement — File path conventions for hierarchical REST query key files and shared tRPC invalidation helpers.
+  - [L273–L415] Canonical Implementation — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
+  - [L416–L467] Where Services Are Consumed — Consuming services exclusively inside tRPC procedures and Fastify REST route handlers.
+  - [L468–L475] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
+  - [L476–L487] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
+- [L488–L713] 3. Domain Event Pattern
+  - [L490–L495] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
+  - [L496–L503] Infrastructure Files — Target paths for the event registry and the TypedEventBus infrastructure files.
+  - [L504–L558] Canonical Implementation — Event Registry — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
+  - [L559–L633] Canonical Implementation — TypedEventBus — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
+  - [L634–L661] How a Module Subscribes — Registering event handlers inside module plugins during Fastify server startup.
+  - [L662–L689] Event Naming Convention — Naming conventions enforcing lowercase module namespaces and past-tense verbs for event identifiers.
+  - [L690–L701] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
+  - [L702–L713] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
+- [L714–L909] 4. Module Plugin Pattern
+  - [L716–L719] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
+  - [L720–L727] Key Fastify Behavior to Understand — Lexical scope differences between Fastify's encapsulated plugins and global plugins wrapped with fastify-plugin.
+  - [L728–L738] Directory Placement — File path conventions for hierarchical REST query key files and shared tRPC invalidation helpers.
+  - [L739–L793] Canonical Implementation — Standard plugin wiring, including global service decoration, tRPC router mapping, and nested REST routing.
+  - [L794–L811] TypeScript Augmentation — Extending FastifyInstance types with module service and router signatures for type safety.
+  - [L812–L852] App Registration Order — Declaring and ordering module registration, starting with infrastructure followed by dependency-sequenced modules.
+  - [L853–L889] Infrastructure Plugin Example — Concrete code example showing database connection decorator and connection cleanup hooks.
+  - [L890–L897] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
+  - [L898–L909] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
+- [L910–L1143] 5. Query Key Factory Pattern
+  - [L912–L921] What It Solves — Ensuring cache invalidation consistency via tRPC useUtils and hierarchical REST query key factories.
+  - [L922–L934] Directory Placement — File path conventions for hierarchical REST query key files and shared tRPC invalidation helpers.
+  - [L935–L1014] Tier 1 — tRPC Cache Invalidation via `useUtils` — tRPC Cache Invalidation via `useUtils` — Creating custom hooks to bundle related tRPC query invalidations inside useMutation success callbacks.
+  - [L1015–L1105] Tier 2 — Explicit Query Keys for REST Calls — Explicit Query Keys for REST Calls — Defining type-safe, hierarchical query key factories using as const tuples for REST endpoints.
+  - [L1106–L1123] Hierarchical Invalidation — Targeting cache invalidations at specific resources, full listing arrays, or entire domain scopes.
+  - [L1124–L1131] Rules — Mandatory caching rules including tRPC-REST division, as const tuple returns, and unique root keys.
+  - [L1132–L1143] Prohibitions — Prohibitions against inline query key literals, tRPC custom keys, global invalidations, and mutable keys.
+- [L1144–L1225] 6. How the Patterns Compose — End-to-end execution trace and mapping table showing how all five patterns coordinate during operations.
+- [L1226–L1255] Appendix — File Structure Reference — File Structure Reference — Complete list of files and folder paths required to implement a fully conforming module.
 
 ---
 
@@ -75,7 +75,7 @@ The patterns are not optional style preferences. They are the structural constra
 |---|---|---|---|
 | 1 | Repository Pattern | Data access isolation per module | `{module}.repository.ts` |
 | 2 | Service Layer Pattern | Business logic boundary | `{module}.service.ts` |
-| 3 | Domain Event Pattern | Loose coupling between modules | `event-bus.ts`, `domain-events.ts` |
+| 3 | Domain Event Pattern | Loose coupling between modules | `event-bus.ts`, `event-payload-map.ts` |
 | 4 | Module Plugin Pattern | Fastify module encapsulation | `{module}.plugin.ts` |
 | 5 | Query Key Factory Pattern | TanStack Query cache management | `query-keys/{module}.keys.ts` |
 
@@ -498,7 +498,7 @@ Example: When the documents module logs a new SP Resolution, the notifications m
 ```
 /apps/server/src/infrastructure/
   event-bus.ts        ← TypedEventBus class and singleton factory
-  domain-events.ts    ← Master event registry (DomainEventMap type)
+  event-payload-map.ts ← Master event registry (EventPayloadMap type)
 ```
 
 ### Canonical Implementation — Event Registry
@@ -506,89 +506,63 @@ Example: When the documents module logs a new SP Resolution, the notifications m
 All event names and their payload types are declared in one place. This is the type-safe contract between publishers and subscribers.
 
 ```typescript
-// /apps/server/src/infrastructure/domain-events.ts
+// /packages/shared/src/events/event-payload-map.ts
 
 // ─── Event Payload Types ──────────────────────────────────────────────────────
-// Named as: {module}.{entity}.{verb past-tense}
+// See B2's Master Event Bus Registry for the authoritative, complete list — this
+// is a representative excerpt, not the full map.
 
-export interface DomainEventMap {
+export interface EventPayloadMap {
   // ── documents module ────────────────────────────────────────────────────────
-  'documents.document.logged': {
-    documentId: string;
-    documentTypeId: string;
-    originatingOfficeId: string;
-    actorId: string;
-  };
-  'documents.document.finalNumberAssigned': {
-    documentId: string;
-    finalSeq: number;
-    actorId: string;
-  };
-  'documents.document.statusChanged': {
-    documentId: string;
-    previousStatus: string;
-    newStatus: string;
-    actorId: string;
-  };
+  'document.created': DocumentCreatedPayload;
+  'document.state_changed': DocumentStateChangedEvent;
+  'document.number_assigned': DocumentNumberAssignedEvent;
+  'document.certification_urgency.logged': DocumentCertificationUrgencyLoggedPayload;
 
   // ── workflow module ─────────────────────────────────────────────────────────
-  'workflow.instance.stepCompleted': {
-    instanceId: string;
-    stepId: string;
-    stepType: string;
-    outcomeCode: string;
-    actorId: string;
-  };
-  'workflow.instance.completed': {
-    instanceId: string;
-    documentId: string;
-    finalStatus: string;
-  };
-  'workflow.instance.slaWarning': {
-    instanceId: string;
-    documentId: string;
-    percentElapsed: number;
-  };
-  'workflow.instance.slaBreached': {
-    instanceId: string;
-    documentId: string;
-    supervisorId: string;
-  };
+  'workflow.instance.created': WorkflowInstanceCreatedPayload;
+  'workflow.instance.completed': WorkflowInstanceCompletedPayload;
+  'workflow.step.started': WorkflowStepStartedPayload;
+  'workflow.step.completed': WorkflowStepCompletedPayload;
+  'workflow.approval.lapsed': WorkflowApprovalLapsedPayload;
+  'workflow.panlalawigan.deemed_approved': WorkflowPanlalawiganDeemedApprovedPayload;
+  'workflow.sla.warning': WorkflowSlaWarningPayload;
+  'workflow.sla.breached': WorkflowSlaBreachedPayload;
 
   // ── tracking module ─────────────────────────────────────────────────────────
-  'tracking.qrCode.assigned': {
-    documentId: string;
-    qrTrackingId: string;
-  };
+  'tracking.qr_code.assigned': TrackingQrCodeAssignedPayload; // [Unverified — exact real name; confirm against tracking.event-consumer.ts before relying on this specific entry]
 
-  // ── iam module ──────────────────────────────────────────────────────────────
-  'iam.delegation.granted': {
-    delegationId: string;
-    grantedBy: string;
-    grantedTo: string;
-    scopeDescription: string;
-    expiresAt: Date;
-  };
-  'iam.delegation.revoked': {
-    delegationId: string;
-    revokedBy: string;
-  };
-  'iam.delegation.expired': {
-    delegationId: string;
-    originalAuthority: string;
-  };
+  // ── iam / organization module ───────────────────────────────────────────────
+  'delegation.granted': DelegationGrantedEvent;
+  'delegation.expired': DelegationExpiredEvent;
+  'delegation.revoked': DelegationRevokedEvent;
 }
 
-export type DomainEventName = keyof DomainEventMap;
+export type DomainEventName = keyof EventPayloadMap;
 ```
+
+`[Corrected — every event name in this example previously used a stale, invented convention
+that doesn't match any real event actually declared in packages/shared/src/events/event-payload-map.ts
+or B2's Master Event Bus Registry — e.g. "documents.document.statusChanged" and
+"workflow.instance.slaBreached" do not exist anywhere in the real system; the real names are
+"document.state_changed" and "workflow.sla.breached". This is the highest-stakes staleness found
+in this document, precisely because this section is presented as the pattern to copy, not just
+an aside — a developer implementing a new event by copying this example's structure would create
+event names nothing else in the system recognizes. The corrected list above pulls directly from
+the real, live event-payload-map.ts file and B2's Master Event Bus Registry (already reconciled
+to B3's ratified names in an earlier pass); the file path and type name in the code comment are
+also corrected (domain-events.ts / DomainEventMap → event-payload-map.ts / EventPayloadMap,
+matching the real file). One entry (tracking.qr_code.assigned) is marked [Unverified] rather
+than silently asserted, since it wasn't directly confirmed against source during this pass — the
+rest were.]`
 
 ### Canonical Implementation — TypedEventBus
 
 ```typescript
-// /apps/server/src/infrastructure/event-bus.ts
+// /packages/shared/src/event-bus.ts
 
 import { EventEmitter } from 'node:events';
-import type { DomainEventMap, DomainEventName } from './domain-events';
+import type { EventPayloadMap, DomainEventName } from './events/event-payload-map.js';
 
 // ─── Typed wrapper ────────────────────────────────────────────────────────────
 
@@ -602,30 +576,37 @@ export class TypedEventBus {
     this.emitter.setMaxListeners(50);
   }
 
-  emit<K extends DomainEventName>(event: K, payload: DomainEventMap[K]): void {
+  emit<K extends DomainEventName>(event: K, payload: EventPayloadMap[K]): void {
     this.emitter.emit(event, payload);
   }
 
   on<K extends DomainEventName>(
     event: K,
-    handler: (payload: DomainEventMap[K]) => void | Promise<void>,
+    handler: (payload: EventPayloadMap[K]) => void | Promise<void>,
   ): void {
-    this.emitter.on(event, (payload: DomainEventMap[K]) => {
-      // Async handlers: errors are caught and logged. They must NOT throw
-      // — an uncaught promise rejection in an EventEmitter listener crashes the process.
-      const result = handler(payload);
-      if (result instanceof Promise) {
-        result.catch((err) => {
-          // Replace with your structured logger (Pino) in production.
-          console.error(`[EventBus] Unhandled error in handler for "${event}":`, err);
-        });
+    this.emitter.on(event, (payload: EventPayloadMap[K]) => {
+      // Both sync and async handler errors are caught and logged here. They must
+      // NOT propagate — a throwing subscriber must not fail the emitter or any
+      // other subscriber (ADR-API-001). A synchronous throw inside handler()
+      // would otherwise propagate straight back through emitter.emit() to the
+      // calling module; this try/catch is what prevents that.
+      try {
+        const result = handler(payload);
+        if (result instanceof Promise) {
+          result.catch((err) => {
+            // Replace with your structured logger (Pino) in production.
+            console.error(`[EventBus] Unhandled error in handler for "${event}":`, err);
+          });
+        }
+      } catch (err) {
+        console.error(`[EventBus] Unhandled synchronous error in handler for "${event}":`, err);
       }
     });
   }
 
   off<K extends DomainEventName>(
     event: K,
-    handler: (payload: DomainEventMap[K]) => void | Promise<void>,
+    handler: (payload: EventPayloadMap[K]) => void | Promise<void>,
   ): void {
     this.emitter.off(event, handler as (...args: unknown[]) => void);
   }
@@ -681,26 +662,42 @@ async function notificationsPlugin(fastify: FastifyInstance) {
 ### Event Naming Convention
 
 ```
-{module-name}.{entity-name}.{verb-past-tense}
+{domain}.{verb-past-tense-or-dot-qualified-noun}
 
 Examples:
-  documents.document.logged
-  documents.document.finalNumberAssigned
-  workflow.instance.stepCompleted
-  workflow.instance.slaBreached
-  iam.delegation.granted
-  tracking.qrCode.assigned
+  document.created
+  document.state_changed
+  workflow.step.started
+  workflow.sla.breached
+  delegation.granted
+  document.certification_urgency.logged
 ```
 
-The module name prefix ensures no name collisions between modules. The verb must be past tense — events describe things that have already happened, not commands.
+`[Corrected — this section previously stated the rule as {module-name}.{entity-name}.{verb-past-tense}
+(e.g. "documents.document.logged", "workflow.instance.slaBreached", "iam.delegation.granted"),
+which does not match the real, ratified event names actually used throughout B2's Master Event
+Bus Registry, B3, and the live packages/shared/src/events/event-payload-map.ts. The real
+convention does not always prefix with the full module name (delegation.granted, not
+iam.delegation.granted), and does not use camelCase verbs (state_changed, not statusChanged;
+sla.breached, not slaBreached). There is no single fully regular rule — event names are
+domain-qualified and past-tense, but the exact segmentation follows B2's Master Event Bus
+Registry as the source of truth, not a mechanical formula. Do not construct a new event name
+from the old formula above; check the Master Event Bus Registry (B2) for the exact name of an
+existing event, and follow its established pattern when naming a genuinely new one.]`
+
+The domain-qualifying prefix ensures no name collisions between unrelated concepts. The verb must be past tense — events describe things that have already happened, not commands.
 
 ### Rules
 
-- All event names and payload types must be declared in `domain-events.ts` before first use. No inline event strings.
+- All event names and payload types must be declared in `event-payload-map.ts` before first use. No inline event strings.
 - Events fire after the primary transaction commits and after the audit log entry is written.
 - Async handlers must catch their own errors. The `TypedEventBus.on()` wrapper catches uncaught promise rejections and logs them, but individual handlers should still handle their own expected failure cases.
 - Subscriptions are registered in the subscribing module's plugin `onReady` or at plugin initialization — never lazily at runtime.
-- Adding a new event type requires updating `DomainEventMap`. This is the only cross-module contract surface.
+- Adding a new event type requires updating `EventPayloadMap`. This is the only cross-module contract surface.
+
+`[Corrected — "domain-events.ts"/"DomainEventMap" throughout this section previously didn't
+match the real file/type names; the actual file is packages/shared/src/events/event-payload-map.ts
+and the actual exported type is EventPayloadMap]`
 
 ### Prohibitions
 
@@ -709,7 +706,7 @@ The module name prefix ensures no name collisions between modules. The verb must
 | `eventBus.emit(...)` inside a `db.transaction()` callback | Subscribers may act on data before it is committed. Emit only after the transaction resolves. |
 | Using the event bus for synchronous results (emitting and reading a response) | Events are fire-and-forget. They cannot return values. Use direct service calls if you need a result. |
 | Using events for critical path steps that require atomicity | Domain events for side effects only. The core business operation (create document, advance workflow step) must complete synchronously and transactionally before the event fires. |
-| String literals for event names anywhere except `domain-events.ts` | Always use the `DomainEventMap` key type. TypeScript will catch typos. |
+| String literals for event names anywhere except `event-payload-map.ts` | Always use the `EventPayloadMap` key type. TypeScript will catch typos. |
 | A module subscribing to its own events | If Module A emits and needs to react to its own emission in the same module, call the function directly. Self-subscription is a code smell. |
 
 ---
@@ -1233,7 +1230,7 @@ A complete module, fully conforming to all five patterns:
 ```
 /apps/server/src/modules/documents/
   documents.errors.ts       — Typed error classes (DocumentAlreadyFinalizedError, etc.)
-  documents.events.ts       — Re-exports the relevant DomainEventMap keys for this module
+  documents.events.ts       — Re-exports the relevant EventPayloadMap keys for this module
   documents.plugin.ts       — Fastify plugin (fp-wrapped); wires everything together
   documents.repository.ts   — DocumentsRepository interface + createDocumentsRepository factory
   documents.router.ts       — tRPC router for /web (createDocumentsRouter)
@@ -1244,7 +1241,7 @@ A complete module, fully conforming to all five patterns:
 /apps/server/src/infrastructure/
   database.plugin.ts        — DB connection as Fastify decoration
   event-bus.plugin.ts       — TypedEventBus as Fastify decoration
-  domain-events.ts          — Master DomainEventMap type (all events declared here)
+  event-payload-map.ts      — Master EventPayloadMap type (all events declared here)
   event-bus.ts              — TypedEventBus class + getEventBus() singleton
 
 /apps/web/src/lib/query-keys/

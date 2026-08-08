@@ -1,5 +1,14 @@
 # ADR-API-003: Secretariat Decision Entry Point
 
+`[Note — this decision is referred to as "ADR-B2-3" throughout B1, B2, B3, D2, E1, F1, and
+several implementation-tracking files, an informally-coined nickname from before this ADR was
+filed under the current domain-prefixed scheme. Unlike the D3-cluster ADRs (see
+ADR-WFL-001 through ADR-WFL-004), "ADR-B2-3" was never this file's own registered title — it
+doesn't appear in the ADR Master Index (J5) under any name. This file's real, canonical ID is
+ADR-API-003. Existing "ADR-B2-3" references elsewhere are not being mass-rewritten, since most
+already link correctly to this file — this note exists so the two names resolve to each other
+regardless of which one a reader encounters first.]`
+
 **Status:** Accepted
 **Date:** June 2026
 **Decided by:** Luke (stakeholder/architect decision — affects which module's router and validation logic becomes authoritative)

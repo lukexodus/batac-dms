@@ -8794,3 +8794,62 @@ authoritative and update the losing side.
 
 ---
 
+### [LOG-0270] New `workflow.listCommitteeReportIntakeTargets` procedure is not catalogued in E1
+
+- date: 2026-08-08
+- task_id: none (ad-hoc intake committee-report integration)
+- status: proposed
+- affects: E1 (procedure catalog), B4 §4.3
+
+To let a councilor submit a committee report from Documents → Intake →
+"Committee Report" instead of only from the workflow panel, a new read
+procedure `workflow.listCommitteeReportIntakeTargets` was added to
+`apps/server/src/modules/workflow/workflow.router.ts`. It returns the active
+multi_referral step instances the current user may submit for: `sp_secretary`
+gets every assigned committee; `sp_member` gets only committees they belong to
+(committee-scoped, mirroring I1 §6.6 `canSubmitCommitteeReport`); committees
+with an existing non-missed submission are excluded, and measures whose
+`lifecycle_state` is completed/cancelled/superseded/disposed/archived are
+filtered out.
+
+Implemented: a `protectedProcedure` that joins `step_instances` → `steps` →
+`instances` → `documents` and derives the committee targets from the
+step's `metadata.assigned_committees` / `metadata.submissions` JSONB shape (B4
+§4.3). Covered by six new cases in `workflow.router.test.ts`.
+
+Note: [Inference] — E1's procedure catalog defines `submitCommitteeReport` but
+has no intake-targets read; the intake form needs the eligible-target list to
+build the same step linkage the panel gets from `getInstance`. The human should
+decide whether E1 gets a catalog entry for this procedure or the intake should
+derive targets differently. This is a new API surface, not a fix to an existing
+catalogued procedure.
+
+---
+
+### [LOG-0271] Committee-report linkage metadata is populated by the intake path but not by the workflow panel path
+
+- date: 2026-08-08
+- task_id: none (ad-hoc intake committee-report integration)
+- status: proposed
+- affects: document-types.seed.ts COMMITTEE_REPORT_SCHEMA, B4
+
+The COMMITTEE_REPORT_SCHEMA in `apps/server/src/database/seeds/document-types.seed.ts`
+declares `step_instance_id`, `measure_document_id`, and `committee_id` as
+nullable logical-FK metadata. The new intake path populates all three when a
+report is submitted from Documents → Intake. The existing Multi-Referral panel
+path (`MultiReferralPanel.tsx` `uploadReportFile`) creates the report document
+with only `{ documentTypeId, title }`, so those fields remain null for
+panel-submitted reports.
+
+This is informational, not a defect: `workflow.consolidateCommitteeReports` reads
+the submission linkage from the step's `metadata.submissions`
+(`contribution_document_id`/`report_text`), never from the document metadata, so
+both paths consolidate identically.
+
+Note: [Inference] — verified by reading both call sites (intake
+`handleSubmitCommitteeReport`, panel `uploadReportFile`); not exercised via a
+live submission in this session. The human may want the panel path to populate
+the same three metadata fields so the two submission paths record identical
+document metadata.
+
+

@@ -1,4 +1,10 @@
-# ADR-L2-07 — Node.js Runtime Version
+# ADR-INF-007 (formerly ADR-L2-07) — Node.js Runtime Version
+
+`[Corrected — this file's own title previously said only "ADR-L2-07," a local per-document
+numbering scheme predating the project-wide reorganization into the current domain-prefixed
+ADR scheme. The filename and ADR Master Index (J5) both use ADR-INF-007. Same pattern found across
+this entire L2 cluster and the D3 cluster (see ADR-WFL-003's title note) — evidently
+project-wide, not confined to one document. "ADR-L2-07" is preserved as a parenthetical alias.]`
 
 **Status:** Decided  
 **Date:** June 2026  

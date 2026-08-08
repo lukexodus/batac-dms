@@ -1,4 +1,10 @@
-# ADR-L2-08 — pnpm Version Pinning via Corepack
+# ADR-INF-008 (formerly ADR-L2-08) — pnpm Version Pinning via Corepack
+
+`[Corrected — this file's own title previously said only "ADR-L2-08," a local per-document
+numbering scheme predating the project-wide reorganization into the current domain-prefixed
+ADR scheme. The filename and ADR Master Index (J5) both use ADR-INF-008. Same pattern found across
+this entire L2 cluster and the D3 cluster (see ADR-WFL-003's title note) — evidently
+project-wide, not confined to one document. "ADR-L2-08" is preserved as a parenthetical alias.]`
 
 **Status:** Decided  
 **Date:** June 2026  

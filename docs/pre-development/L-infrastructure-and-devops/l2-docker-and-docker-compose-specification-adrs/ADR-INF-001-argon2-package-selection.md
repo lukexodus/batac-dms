@@ -1,4 +1,10 @@
-# ADR-L2-01 — Argon2 Package Selection
+# ADR-INF-001 (formerly ADR-L2-01) — Argon2 Package Selection
+
+`[Corrected — this file's own title previously said only "ADR-L2-01," a local per-document
+numbering scheme; the filename and the ADR Master Index (J5) both use the canonical ADR-INF-001
+ID under the project's domain-prefixed scheme. Same pattern as the D3-cluster ADRs (see
+ADR-WFL-003's title note) — this is evidently a project-wide issue, not confined to one
+cluster. "ADR-L2-01" is preserved as a parenthetical alias.]`
 
 **Status:** Decided  
 **Date:** June 2026  
@@ -28,7 +34,7 @@ Rationale:
 
 2. **Removes build tools from the production image.** The `python3`, `make`, `g++` packages in the `deps` stage exist solely for `argon2` compilation. With `@node-rs/argon2`, those tools are no longer needed. The production image becomes smaller and has a reduced attack surface.
 
-3. **Drop-in API compatibility.** `@node-rs/argon2` exports an identical async API (`hash`, `verify`). The OWASP parameters confirmed in L1 §6.4 (`ARGON2_MEMORY_COST=65536`, `ARGON2_TIME_COST=3`, `ARGON2_PARALLELISM=1`, `ARGON2_HASH_LENGTH=32`) apply identically to both packages and remain unchanged.
+3. **Drop-in API compatibility.** `@node-rs/argon2` exports an identical async API (`hash`, `verify`). The OWASP-aligned parameters confirmed in L1 §6.4 and `ADR-AUTH-002` (`ARGON2_MEMORY_COST=65536`, `ARGON2_TIME_COST=2`, `ARGON2_PARALLELISM=1`, `ARGON2_HASH_LENGTH=32`) apply identically to both packages and remain unchanged. `[Corrected — this line previously cited ARGON2_TIME_COST=3, L1's value before it was corrected to match ADR-AUTH-002's explicit t=2 decision. This ADR's own core decision (package choice) is unaffected either way — the two packages' API compatibility doesn't depend on which time-cost value is configured — but the citation itself needs to match the doc it's citing.]`
 
 4. **Reproducible builds.** Prebuilt binaries are version-pinned via the lockfile. There is no compilation step that could produce a different output on different CI runners.
 

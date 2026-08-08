@@ -1,4 +1,10 @@
-# ADR-L2-06 — Production Secrets Management
+# ADR-INF-006 (formerly ADR-L2-06) — Production Secrets Management
+
+`[Corrected — this file's own title previously said only "ADR-L2-06," a local per-document
+numbering scheme predating the project-wide reorganization into the current domain-prefixed
+ADR scheme. The filename and ADR Master Index (J5) both use ADR-INF-006. Same pattern found across
+this entire L2 cluster and the D3 cluster (see ADR-WFL-003's title note) — evidently
+project-wide, not confined to one document. "ADR-L2-06" is preserved as a parenthetical alias.]`
 
 **Status:** Decided (Phase 1 scope)  
 **Date:** June 2026  

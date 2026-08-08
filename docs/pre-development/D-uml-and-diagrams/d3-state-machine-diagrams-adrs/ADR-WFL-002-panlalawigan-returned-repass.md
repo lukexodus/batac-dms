@@ -1,4 +1,7 @@
-# ADR-014: Panlalawigan RETURNED → Repass Modeled as Document Supersession, With Final-Number Reuse on Republication
+# ADR-WFL-002 (formerly ADR-014): Panlalawigan RETURNED → Repass Modeled as Document Supersession, With Final-Number Reuse on Republication
+
+`[Corrected — see ADR-WFL-003's title note for the full explanation of this project-wide
+renumbering. "ADR-014" is preserved as a parenthetical alias.]`
 
 **Status:** Accepted **Date:** 2026-06-17 **Resolves:** O-2 (D3 Appendix C); also addresses O-7 (see ADR-015) and supersedes prior numbering language **Decision owner:** Project stakeholder (team decision, not a stakeholder-interview finding) **Affects:** `documents` schema (new columns); consolidated reference Part 5.2, Part 11.5, **Part 12 Invariant table (formal amendment)**; D3 §1.3, §1.4
 

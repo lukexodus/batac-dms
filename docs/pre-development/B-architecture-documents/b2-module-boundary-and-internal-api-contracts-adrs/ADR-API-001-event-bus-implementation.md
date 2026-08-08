@@ -9,7 +9,7 @@
 
 ## Context
 
-B2 establishes that the internal in-process event bus is the asynchronous communication path between all 11 domain modules, alongside the synchronous Published API path (B2, "Enforcement Model" and "Synchronous vs. Asynchronous — Decision Rule"). Every module that emits domain events (`document.created`, `workflow.step_completed`, `delegation.granted`, etc.) and every module that consumes them (most prominently Audit, which subscribes to all events) depends on this mechanism existing with a stable, typed contract.
+B2 establishes that the internal in-process event bus is the asynchronous communication path between all 11 domain modules, alongside the synchronous Published API path (B2, "Enforcement Model" and "Synchronous vs. Asynchronous — Decision Rule"). Every module that emits domain events (`document.created`, `workflow.step.completed`, `delegation.granted`, etc.) and every module that consumes them (most prominently Audit, which subscribes to all events) depends on this mechanism existing with a stable, typed contract.
 
 B2's "Common Event Envelope" section already specifies the payload shape (`eventId`, `eventType`, `occurredAt`, `cityId`, `schemaVersion`, `payload`) but does not specify the underlying transport mechanism. This decision was left open in B2's Required ADRs table (ADR-API-001) and needs to be resolved before the first module emits or consumes an event.
 
@@ -32,10 +32,13 @@ The two candidate approaches considered:
    interface EventPayloadMap {
      'document.created': DocumentCreatedPayload;
      'document.state_changed': DocumentStateChangedPayload;
-     'workflow.step_assigned': WorkflowStepAssignedPayload;
+     'workflow.step.started': WorkflowStepStartedPayload;
      // ... one entry per event in the Master Event Bus Registry
    }
    ```
+
+   `[Corrected — this example previously used workflow.step_assigned, a pre-B3 event name;
+   see B2's Master Event Bus Registry and B3 §0.2 for the ratified name, workflow.step.started]`
 
    The `EventBus` wrapper exposes `emit<K extends keyof EventPayloadMap>(type: K, envelope: DomainEvent<EventPayloadMap[K]>)` and `on<K extends keyof EventPayloadMap>(type: K, handler: (envelope: DomainEvent<EventPayloadMap[K]>) => void | Promise<void>)`. This makes an attempt to emit or subscribe to an unregistered `eventType`, or with a mismatched payload shape, a compile-time error rather than a runtime surprise.
 
