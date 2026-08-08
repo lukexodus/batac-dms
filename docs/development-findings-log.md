@@ -8982,3 +8982,60 @@ Per this project's rule that agents never edit AGENTS.md or Group B–L document
 directly, that edit is a human action. This entry exists so the next agent
 who hits the same conflict doesn't have to re-derive the resolution — the specific
 lines needing a human edit are named above.
+
+---
+
+### [LOG-0276] Radix Select/Popover dropdown inside a Dialog renders beneath the modal overlay and dismisses the dialog when clicked
+
+- date: 2026-08-08
+- task_id: none — user-reported UI bug (SP Resolution → Log Certification of Urgency dialog)
+- status: proposed
+- affects: F5 (packages/ui), DESIGN.md §3 z-index tokens
+
+**What was found:** In `LogCertificationOfUrgencyDialog`, clicking an item in
+the Certification Document `<Select>` closed the dialog instead of selecting the
+item. The same latent bug exists in every Dialog that embeds a Select/Popover in
+this codebase (`ComplaintDetailPage`, `CommitteeManagementPage`,
+`OrganizationPage`, and any Dialog embedding a `Combobox`).
+
+**Root cause (two coupled layers):**
+1. **Z-index:** `SelectContent`/`PopoverContent`/`TooltipContent` render via a
+   Radix portal into `document.body` at `z-[200]` (the `--z-dropdown` token
+   value), while the dialog overlay and content are `z-[300]` (`--z-modal`).
+   In the root stacking context the overlay therefore covers the dropdown, so a
+   click over a dropdown item physically lands on the overlay — the overlay's
+   own dismiss behavior closes the dialog. The stack was introduced by commit
+   7d6c097 ("elevate Select and Popover z-index above sidebar…"), which moved
+   dropdowns from `z-50` to `z-[200]` and dialogs to `z-[300]` to keep modals
+   above dropdowns — correct for a page-level dropdown, but it made an
+   in-dialog dropdown unreachable.
+2. **Dismiss guard:** Even with the dropdown above the overlay, Radix Dialog's
+   `DismissableLayer` treats any `pointerdown` outside the dialog's DOM subtree
+   (the dropdown is in a separate portal) as an "outside" interaction and calls
+   `onOpenChange(false)`.
+
+**What was implemented:**
+1. `packages/ui/src/components/ui/{select,popover,tooltip}.tsx`: raised the
+   popper content z-index from `z-[200]` to `z-[400]` so an open dropdown renders
+   above any open dialog/sheet overlay. `[Inference]` this is safe globally: a
+   page-level dropdown and a modal cannot be simultaneously visible, because
+   opening one dismisses the other (focus/outside-pointer handling), so a
+   dropdown at `z-[400]` cannot visually collide with an unrelated modal; it only
+   ever overlays the dialog it was opened from. This does contradict DESIGN.md
+   §3's strict `dropdown(200) < modal(300)` ordering, which has no token for
+   "dropdown opened from within a modal" — a human should decide whether DESIGN.md
+   needs a dedicated layer (e.g. `--z-modal-dropdown`) rather than reuse the toast
+   level's numeric value.
+2. `packages/ui/src/components/ui/dialog.tsx`: added `onPointerDownOutside` /
+   `onInteractOutside` guards that `preventDefault()` when the interaction target
+   is inside a Radix popper wrapper (`[data-radix-popper-content-wrapper]`), so
+   interacting with a nested Select/Popover/Tooltip no longer dismisses its parent
+   dialog. Clicking the overlay outside the dropdown still closes the dialog.
+
+**How verified:** `packages/ui` typecheck passes; `apps/web` eslint passes.
+Not browser-tested — the fix reproduces the two-layer mechanism by inspection of
+the installed `@radix-ui/react-dialog` (deferred `POINTER_DOWN_OUTSIDE` dispatch
+on the original pointerdown target) and `@radix-ui/react-select` /
+`@radix-ui/react-popper` sources (popper wrapper `data-radix-popper-content-wrapper`,
+z-index from the content's computed value). Manual verification in the browser is
+still pending.
