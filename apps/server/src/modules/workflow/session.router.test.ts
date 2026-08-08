@@ -760,4 +760,67 @@ describe('Session Router tRPC Procedures', () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe('getScheduledReadingForDocument', () => {
+    it('throws FORBIDDEN for roles that cannot view the Order of Business', async () => {
+      const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      await expect(
+        caller.getScheduledReadingForDocument({ documentId: VALID_UUID }),
+      ).rejects.toThrowError(/You do not have permission/);
+    });
+
+    it('returns null reading when the document has no upcoming scheduled reading', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]); // no OOB item found
+
+      const result = await caller.getScheduledReadingForDocument({ documentId: VALID_UUID });
+
+      expect(result).toEqual({ documentId: VALID_UUID, readingType: null, sessionDate: null });
+    });
+
+    it('returns the scheduled first reading session date', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([{ itemType: 'first_reading', sessionDate: '2026-07-14' }]);
+
+      const result = await caller.getScheduledReadingForDocument({ documentId: VALID_UUID });
+
+      expect(result.readingType).toBe('first_reading');
+      expect(result.sessionDate?.toISOString()).toBe('2026-07-14T00:00:00.000Z');
+    });
+
+    it('returns the earliest upcoming scheduled reading when several exist', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      // The mock resolves rows in the order the real query would return them
+      // (ascending session_date, limited to 1): the earliest upcoming row first.
+      mockDb.mockResponse([
+        { itemType: 'first_reading', sessionDate: '2026-07-14' },
+        { itemType: 'second_reading', sessionDate: '2026-07-21' },
+      ]);
+
+      const result = await caller.getScheduledReadingForDocument({ documentId: VALID_UUID });
+
+      expect(result.readingType).toBe('first_reading');
+      expect(result.sessionDate?.toISOString()).toBe('2026-07-14T00:00:00.000Z');
+    });
+
+    it('limits the lookup to a single upcoming row ordered by session date', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]);
+
+      await caller.getScheduledReadingForDocument({ documentId: VALID_UUID });
+
+      expect(mockDb.limit).toHaveBeenCalledWith(1);
+      expect(mockDb.orderBy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

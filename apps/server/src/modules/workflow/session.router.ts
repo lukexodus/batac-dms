@@ -19,7 +19,7 @@ import {
   delegationGrants,
 } from '@batac/database/schema/organization.schema.js';
 import { documents } from '@batac/database/schema/documents.schema.js';
-import { eq, and, or, ilike, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
+import { eq, and, or, ilike, inArray, isNull, sql, lte, gte, asc, ne } from 'drizzle-orm';
 import type { Context } from '../iam/iam.types.js';
 import { submitStepAction } from './engine/step-handlers/action.handler.js';
 import { sanitizeRichText } from './rich-text.util.js';
@@ -1102,6 +1102,74 @@ export function createSessionRouter() {
             
           return { success: true as const };
         });
+      }),
+
+    getScheduledReadingForDocument: protectedProcedure
+      .input(z.object({ documentId: z.string().uuid() }))
+      .output(
+        z.object({
+          documentId: z.string().uuid(),
+          readingType: z
+            .enum(['first_reading', 'second_reading', 'third_reading'])
+            .nullable(),
+          sessionDate: z.coerce.date().nullable(),
+        }),
+      )
+      .query(async ({ input, ctx }) => {
+        enforceRoles(ctx, [
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'auditor',
+        ]);
+
+        // session_date is stored as a text DATE (YYYY-MM-DD). Zero-padded ISO
+        // dates sort lexicographically the same as chronologically, so gte/asc
+        // on the text column are correct here.
+        const todayStr = formatDate(new Date());
+
+        const [row] = await ctx.db
+          .select({
+            itemType: orderOfBusinessItems.itemType,
+            sessionDate: spSessions.sessionDate,
+          })
+          .from(orderOfBusinessItems)
+          .innerJoin(
+            orderOfBusiness,
+            eq(orderOfBusinessItems.orderOfBusinessId, orderOfBusiness.id),
+          )
+          .innerJoin(spSessions, eq(orderOfBusiness.spSessionId, spSessions.id))
+          .where(
+            and(
+              eq(orderOfBusinessItems.documentId, input.documentId),
+              eq(orderOfBusinessItems.cityId, ctx.auth.cityId),
+              inArray(orderOfBusinessItems.itemType, [
+                'first_reading',
+                'second_reading',
+                'third_reading',
+              ]),
+              gte(spSessions.sessionDate, todayStr),
+              isNull(orderOfBusinessItems.deletedAt),
+              isNull(orderOfBusiness.deletedAt),
+              isNull(spSessions.deletedAt),
+            ),
+          )
+          .orderBy(asc(spSessions.sessionDate))
+          .limit(1);
+
+        if (!row) {
+          return { documentId: input.documentId, readingType: null, sessionDate: null };
+        }
+
+        const [year, month, day] = row.sessionDate.split('-').map(Number);
+        const sessionDate = new Date(Date.UTC(year!, month! - 1, day!, 0, 0, 0));
+
+        return {
+          documentId: input.documentId,
+          readingType: row.itemType as 'first_reading' | 'second_reading' | 'third_reading',
+          sessionDate,
+        };
       }),
 
     enterCommitteeHearingDate: protectedProcedure

@@ -24,11 +24,12 @@
  * [SPEC GAP — DOCS-023-03].
  */
 
+import { format } from 'date-fns';
 import {
-  
   Archive,
   BadgeCheck,
   Ban,
+  CalendarDays,
   EyeOff,
   FileText,
   Files,
@@ -66,7 +67,9 @@ import {
   Label,
   Input,
   Badge,
+  cn,
 } from '@batac/ui';
+import { DATE_FORMATS, phLocale } from '@batac/ui/lib/date-locale';
 
 import { LogCertificationOfUrgencyDialog } from './dialogs/LogCertificationOfUrgencyDialog';
 import { hasRole } from '../../lib/auth-helpers';
@@ -240,6 +243,35 @@ function canLogRoutingEntry(identity: ActiveUserIdentity | null): boolean {
   return hasRole(identity, 'sp_secretary');
 }
 
+// ─── Scheduled reading chip ──────────────────────────────────────────────────
+// Mirrors I2 §8's "View Order of Business (current session)" role set — the
+// scheduled-reading session date is OOB-derived data, so it is only exposed to
+// the roles permitted to view the OOB, not to every document-detail role.
+const SCHEDULED_READING_VIEW_ROLES = [
+  'sp_secretary',
+  'sp_member',
+  'sp_presiding_officer',
+  'mayor',
+  'auditor',
+] as const;
+
+function canViewScheduledReading(identity: ActiveUserIdentity | null): boolean {
+  return hasRole(identity, ...SCHEDULED_READING_VIEW_ROLES);
+}
+
+/** DESIGN.md §6.6 reading-type chip colors (Order of Business row spec). */
+const READING_CHIP_STYLES: Record<string, string> = {
+  first_reading: 'bg-info-100 text-info-900',
+  second_reading: 'bg-warning-100 text-warning-900',
+  third_reading: 'bg-primary-100 text-primary-800',
+};
+
+const READING_TYPE_LABELS: Record<string, string> = {
+  first_reading: '1st Reading',
+  second_reading: '2nd Reading',
+  third_reading: '3rd Reading',
+};
+
 /** tracking.printQrCoverSheet: callable-by sp_secretary only */
 function canPrintQrCoverSheet(identity: ActiveUserIdentity | null): boolean {
   return hasRole(identity, 'sp_secretary');
@@ -298,6 +330,13 @@ export default function DocumentDetailPage() {
   const { data: workflowInstance } = trpc.workflow.getActiveInstanceForDocument.useQuery(
     { documentId: documentId! },
     { enabled: !!documentId },
+  );
+
+  // ── Scheduled reading: next upcoming SP session date (OOB-derived) ────────
+  // Only the OOB-viewing roles can read this; other roles get no badge.
+  const { data: scheduledReading } = trpc.session.getScheduledReadingForDocument.useQuery(
+    { documentId: documentId! },
+    { enabled: !!documentId && canViewScheduledReading(identity) },
   );
 
   const { data: offices } = trpc.organization.listAllOffices.useQuery(undefined, {
@@ -687,6 +726,19 @@ export default function DocumentDetailPage() {
                 <Badge variant="outline" className="text-xs capitalize">
                   {document.classificationLevel}
                 </Badge>
+                {scheduledReading?.readingType && scheduledReading.sessionDate && (
+                  <Badge
+                    className={cn(
+                      'touch-exempt gap-1 border-transparent',
+                      READING_CHIP_STYLES[scheduledReading.readingType],
+                    )}
+                    title={`Scheduled for ${READING_TYPE_LABELS[scheduledReading.readingType]} on ${format(scheduledReading.sessionDate, DATE_FORMATS.display, { locale: phLocale })}`}
+                  >
+                    <CalendarDays className="h-3 w-3" />
+                    {READING_TYPE_LABELS[scheduledReading.readingType]} ·{' '}
+                    {format(scheduledReading.sessionDate, DATE_FORMATS.display, { locale: phLocale })}
+                  </Badge>
+                )}
               </div>
             </div>
 

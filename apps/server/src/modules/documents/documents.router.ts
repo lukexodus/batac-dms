@@ -1,8 +1,8 @@
-import { z } from 'zod';
-import { TRPCError } from '@trpc/server';
-import crypto from 'node:crypto';
-import { router, protectedProcedure } from '../../trpc/trpc.js';
-import type { Context } from '../iam/iam.types.js';
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import crypto from "node:crypto";
+import { router, protectedProcedure } from "../../trpc/trpc.js";
+import type { Context } from "../iam/iam.types.js";
 
 import {
   CreateDocumentInputSchema,
@@ -38,21 +38,29 @@ import {
   PortalPublishInputSchema,
   ArchiveDocumentInputSchema,
   LogSecretariatDecisionInputSchema,
-} from '@batac/shared/schemas/documents';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { env } from '../../config/env.js';
-import { OcrService, StubOcrProvider } from './ocr.service.js';
-import { StubPreviewProvider } from './preview.provider.js';
-import { DocumentsRepository } from './documents.repository.js';
-import type { DocumentRow, DocumentTypeRow } from './documents.repository.js';
-import type { DocumentPolicyGuard } from './documents.policy.js';
-import type { DocumentsPublicAPI } from './documents.types.js';
-import { createPanlalawiganProcedures } from './panlalawigan.router.js';
-import { createSignatureProcedures } from './signatures.router.js';
-import { DesignationMetadataInvalidError } from './designation.handler.js';
-import { eq, and } from 'drizzle-orm';
-import { users, roleAssignments, roles } from '@batac/database/schema/iam.schema.js';
+} from "@batac/shared/schemas/documents";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { env } from "../../config/env.js";
+import { OcrService, StubOcrProvider } from "./ocr.service.js";
+import { StubPreviewProvider } from "./preview.provider.js";
+import { DocumentsRepository } from "./documents.repository.js";
+import type { DocumentRow, DocumentTypeRow } from "./documents.repository.js";
+import type { DocumentPolicyGuard } from "./documents.policy.js";
+import type { DocumentsPublicAPI } from "./documents.types.js";
+import { createPanlalawiganProcedures } from "./panlalawigan.router.js";
+import { createSignatureProcedures } from "./signatures.router.js";
+import { DesignationMetadataInvalidError } from "./designation.handler.js";
+import { eq, and } from "drizzle-orm";
+import {
+  users,
+  roleAssignments,
+  roles,
+} from "@batac/database/schema/iam.schema.js";
 
 /**
  * documents.router.ts -- general CRUD (TASK-DOCS-011)
@@ -116,23 +124,23 @@ const SuccessOutputSchema = z.object({ success: z.literal(true) });
 
 /** I1's SP-office-attribution rule applies to exactly these three document types. */
 const SP_DOCUMENT_TYPE_CODES = new Set([
-  'SP_RESOLUTION',
-  'SP_ORDINANCE',
-  'SP_APPROPRIATION_ORDINANCE',
+  "SP_RESOLUTION",
+  "SP_ORDINANCE",
+  "SP_APPROPRIATION_ORDINANCE",
 ]);
 /** Office code looked up via OrgService.getOfficeByCode, matching the
  * pattern already used in apps/server/src/database/seeds/number-series.seed.ts. */
-const SP_SECRETARIAT_OFFICE_CODE = 'SPS';
+const SP_SECRETARIAT_OFFICE_CODE = "SPS";
 
 let _s3Client: S3Client | null = null;
 function getS3Client(): S3Client {
   if (!_s3Client) {
     _s3Client = new S3Client({
-      region: env.S3_REGION || 'ap-southeast-1',
+      region: env.S3_REGION || "ap-southeast-1",
       endpoint: env.S3_ENDPOINT,
       credentials: {
-        accessKeyId: env.S3_ACCESS_KEY || '',
-        secretAccessKey: env.S3_SECRET_KEY || '',
+        accessKeyId: env.S3_ACCESS_KEY || "",
+        secretAccessKey: env.S3_SECRET_KEY || "",
       },
       forcePathStyle: true,
     });
@@ -146,7 +154,7 @@ function getOcrService(ctx: Context): OcrService {
     new StubOcrProvider(),
     new StubPreviewProvider(),
     getS3Client() as any, // satisfies S3Client interface needed by OcrService
-    env.S3_BUCKET || 'batac-dms',
+    env.S3_BUCKET || "batac-dms",
     ctx.req.server.db as any,
   );
 }
@@ -166,14 +174,15 @@ function getOcrService(ctx: Context): OcrService {
 // ---------------------------------------------------------------------------
 
 function jsonTypeOf(value: unknown): string {
-  if (value === null) return 'null';
-  if (Array.isArray(value)) return 'array';
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
   return typeof value;
 }
 
 function matchesJsonType(value: unknown, type: string): boolean {
   const actual = jsonTypeOf(value);
-  if (type === 'integer') return actual === 'number' && Number.isInteger(value as number);
+  if (type === "integer")
+    return actual === "number" && Number.isInteger(value as number);
   return actual === type;
 }
 
@@ -183,13 +192,17 @@ function validateMetadataNode(
   path: string,
   errors: string[],
 ): void {
-  if (schema == null || typeof schema !== 'object') return;
+  if (schema == null || typeof schema !== "object") return;
   const s = schema as any;
 
-  if ('type' in s) {
-    const types = Array.isArray(s.type) ? (s.type as string[]) : [s.type as string];
+  if ("type" in s) {
+    const types = Array.isArray(s.type)
+      ? (s.type as string[])
+      : [s.type as string];
     if (!types.some((t) => matchesJsonType(value, t))) {
-      errors.push(`${path}: expected type ${types.join(' | ')}, got ${jsonTypeOf(value)}`);
+      errors.push(
+        `${path}: expected type ${types.join(" | ")}, got ${jsonTypeOf(value)}`,
+      );
       return;
     }
   }
@@ -201,28 +214,56 @@ function validateMetadataNode(
     errors.push(`${path}: value not permitted by enum`);
   }
 
-  if (jsonTypeOf(value) === 'object' && value !== null) {
+  if (jsonTypeOf(value) === "object" && value !== null) {
     const obj = value as Record<string, unknown>;
+
+    if (s.properties && typeof s.properties === "object") {
+      for (const [key, propSchema] of Object.entries(
+        s.properties as Record<string, unknown>,
+      )) {
+        if (
+          !(key in obj) &&
+          propSchema &&
+          typeof propSchema === "object" &&
+          "default" in propSchema
+        ) {
+          obj[key] = (propSchema as any).default;
+        }
+      }
+    }
+
     if (Array.isArray(s.required)) {
       for (const key of s.required as string[]) {
-        if (!(key in obj)) errors.push(`${path}.${key}: required property missing`);
+        if (!(key in obj))
+          errors.push(`${path}.${key}: required property missing`);
       }
     }
-    if (s.properties && typeof s.properties === 'object') {
-      for (const [key, propSchema] of Object.entries(s.properties as Record<string, unknown>)) {
-        if (key in obj) validateMetadataNode(obj[key], propSchema, `${path}.${key}`, errors);
+    if (s.properties && typeof s.properties === "object") {
+      for (const [key, propSchema] of Object.entries(
+        s.properties as Record<string, unknown>,
+      )) {
+        if (key in obj)
+          validateMetadataNode(obj[key], propSchema, `${path}.${key}`, errors);
       }
     }
-    if (s.additionalProperties === false && s.properties && typeof s.properties === 'object') {
-      const allowed = new Set(Object.keys(s.properties as Record<string, unknown>));
+    if (
+      s.additionalProperties === false &&
+      s.properties &&
+      typeof s.properties === "object"
+    ) {
+      const allowed = new Set(
+        Object.keys(s.properties as Record<string, unknown>),
+      );
       for (const key of Object.keys(obj)) {
         if (!allowed.has(key))
-          errors.push(`${path}.${key}: additional property not allowed by schema`);
+          errors.push(
+            `${path}.${key}: additional property not allowed by schema`,
+          );
       }
     }
   }
 
-  if (jsonTypeOf(value) === 'array' && s.items) {
+  if (jsonTypeOf(value) === "array" && s.items) {
     (value as unknown[]).forEach((item, i) =>
       validateMetadataNode(item, s.items, `${path}[${i}]`, errors),
     );
@@ -235,7 +276,7 @@ function validateMetadataAgainstSchema(
 ): string[] {
   if (!schema || Object.keys(schema).length === 0) return [];
   const errors: string[] = [];
-  validateMetadataNode(metadata, schema, 'metadata', errors);
+  validateMetadataNode(metadata, schema, "metadata", errors);
   return errors;
 }
 
@@ -253,16 +294,23 @@ function toDocumentTypeSummary(type: DocumentTypeRow) {
   };
 }
 
-async function toDocumentSelect(ctx: Context, row: DocumentRow, documentType: DocumentTypeRow) {
-  const office = await getOrgService(ctx).getOfficeById(row.originatingOfficeId);
+async function toDocumentSelect(
+  ctx: Context,
+  row: DocumentRow,
+  documentType: DocumentTypeRow,
+) {
+  const office = await getOrgService(ctx).getOfficeById(
+    row.originatingOfficeId,
+  );
   if (!office) {
     // Deliberately not fabricating a placeholder office summary here --
     // this would only happen from a genuine data-integrity problem
     // (originating_office_id pointing at a deleted/missing office), and
     // synthesizing fake name/type data for it would misrepresent real data.
     throw new TRPCError({
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'originating office referenced by this document could not be resolved',
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "originating office referenced by this document could not be resolved",
     });
   }
   return {
@@ -317,7 +365,9 @@ async function hasAnyAllowlistEntry(
 ): Promise<boolean> {
   if (roles.length === 0) return false;
   const results = await Promise.all(
-    roles.map((role) => repo.hasClassificationAllowlistEntry(documentTypeId, role, cityId)),
+    roles.map((role) =>
+      repo.hasClassificationAllowlistEntry(documentTypeId, role, cityId),
+    ),
   );
   return results.some(Boolean);
 }
@@ -352,21 +402,28 @@ export function createDocumentsRouter() {
         const repo = getRepository(ctx);
         const guard = getPolicyGuard(ctx);
 
-        const documentType = await repo.findDocumentTypeById(input.documentTypeId);
+        const documentType = await repo.findDocumentTypeById(
+          input.documentTypeId,
+        );
         if (!documentType || !documentType.isActive) {
           throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Document type not found or inactive.',
+            code: "NOT_FOUND",
+            message: "Document type not found or inactive.",
           });
         }
 
-        if (!guard.canCreate(subject, { documentTypeCode: documentType.code })) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Your role cannot create documents.' });
+        if (
+          !guard.canCreate(subject, { documentTypeCode: documentType.code })
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Your role cannot create documents.",
+          });
         }
 
         let finalMetadata = { ...input.metadata } as Record<string, unknown>;
 
-        if (documentType.code === 'CERTIFICATION_OF_URGENCY') {
+        if (documentType.code === "CERTIFICATION_OF_URGENCY") {
           const db = ctx.req.server.db as any;
           const [mayorAssignment] = await db
             .select({
@@ -377,18 +434,20 @@ export function createDocumentsRouter() {
             .innerJoin(roleAssignments, eq(roleAssignments.userId, users.id))
             .innerJoin(roles, eq(roles.id, roleAssignments.roleId))
             .where(
-              and(
-                eq(users.cityId, subject.cityId),
-                eq(roles.code, 'mayor')
-              )
+              and(eq(users.cityId, subject.cityId), eq(roles.code, "mayor")),
             )
             .limit(1);
 
           if (mayorAssignment) {
-            finalMetadata['issuing_authority_user_id'] = mayorAssignment.userId;
-            const allUsers = await (ctx.req.server as any).iamService.listAllUsers(subject.cityId);
-            const mayorDetails = allUsers.find((u: any) => u.id === mayorAssignment.userId);
-            finalMetadata['issuing_authority_display_name'] = mayorDetails?.displayName || mayorAssignment.username;
+            finalMetadata["issuing_authority_user_id"] = mayorAssignment.userId;
+            const allUsers = await (
+              ctx.req.server as any
+            ).iamService.listAllUsers(subject.cityId);
+            const mayorDetails = allUsers.find(
+              (u: any) => u.id === mayorAssignment.userId,
+            );
+            finalMetadata["issuing_authority_display_name"] =
+              mayorDetails?.displayName || mayorAssignment.username;
           }
         }
 
@@ -398,8 +457,8 @@ export function createDocumentsRouter() {
         );
         if (metadataErrors.length > 0) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: `metadata failed document type validation: ${metadataErrors.join('; ')}`,
+            code: "BAD_REQUEST",
+            message: `metadata failed document type validation: ${metadataErrors.join("; ")}`,
           });
         }
 
@@ -426,8 +485,9 @@ export function createDocumentsRouter() {
           );
           if (!spOffice) {
             throw new TRPCError({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: 'SP Secretariat office (code SPS) is not configured for this city.',
+              code: "INTERNAL_SERVER_ERROR",
+              message:
+                "SP Secretariat office (code SPS) is not configured for this city.",
             });
           }
           originatingOfficeId = spOffice.officeId;
@@ -435,8 +495,8 @@ export function createDocumentsRouter() {
         } else {
           if (!subject.officeId) {
             throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Your account has no office assigned.',
+              code: "BAD_REQUEST",
+              message: "Your account has no office assigned.",
             });
           }
           originatingOfficeId = subject.officeId;
@@ -449,8 +509,8 @@ export function createDocumentsRouter() {
           // should be unreachable given the isActive check above -- kept as
           // a defensive check rather than a non-null assertion.
           throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Active document type is missing a retention schedule.',
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Active document type is missing a retention schedule.",
           });
         }
 
@@ -458,7 +518,7 @@ export function createDocumentsRouter() {
           cityId: subject.cityId,
           documentTypeId: documentType.id,
           title: input.title,
-          lifecycleState: 'draft',
+          lifecycleState: "draft",
           classificationLevel,
           // qr_tracking_number is NOT NULL + UNIQUE at the DB level (see
           // documents.schema.ts), so a value must be written now even
@@ -479,7 +539,7 @@ export function createDocumentsRouter() {
         // No domain event or audit event at draft creation -- the
         // event-worthy moment is submit (per this task's brief, B2).
 
-        return { documentId: created.id, lifecycleState: 'draft' as const };
+        return { documentId: created.id, lifecycleState: "draft" as const };
       }),
 
     // -----------------------------------------------------------------
@@ -495,11 +555,11 @@ export function createDocumentsRouter() {
         // this task's brief additionally asks for an explicit redirect
         // rather than a generic deny. See documents.policy.ts's
         // canReadMetadata doc comment for the fuller reasoning.
-        if (subject.roles.includes('sys_admin')) {
+        if (subject.roles.includes("sys_admin")) {
           throw new TRPCError({
-            code: 'FORBIDDEN',
+            code: "FORBIDDEN",
             message:
-              'sys_admin cannot call documents.get; use documents.getMetadataForAdmin instead.',
+              "sys_admin cannot call documents.get; use documents.getMetadataForAdmin instead.",
           });
         }
 
@@ -508,7 +568,7 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const hasAllowlistEntry = await hasAnyAllowlistEntry(
@@ -527,13 +587,16 @@ export function createDocumentsRouter() {
           hasCrossOfficeGrant: false,
           hasAllowlistEntry,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
-        const documentType = await repo.findDocumentTypeById(document.documentTypeId);
+        const documentType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
         if (!documentType) {
           throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'document type referenced by this document no longer exists',
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "document type referenced by this document no longer exists",
           });
         }
 
@@ -548,10 +611,10 @@ export function createDocumentsRouter() {
       .output(AdminDocumentMetadataSchema)
       .query(async ({ ctx, input }) => {
         const subject = ctx.auth;
-        if (!subject.roles.includes('sys_admin')) {
+        if (!subject.roles.includes("sys_admin")) {
           throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'documents.getMetadataForAdmin is sys_admin only.',
+            code: "FORBIDDEN",
+            message: "documents.getMetadataForAdmin is sys_admin only.",
           });
         }
 
@@ -560,7 +623,7 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canReadMetadataAdmin(subject, {
@@ -568,9 +631,9 @@ export function createDocumentsRouter() {
         });
         if (!allowed) {
           throw new TRPCError({
-            code: 'FORBIDDEN',
+            code: "FORBIDDEN",
             message:
-              'Confidential and Restricted documents are not visible in the admin metadata view (Gate 2).',
+              "Confidential and Restricted documents are not visible in the admin metadata view (Gate 2).",
           });
         }
 
@@ -605,8 +668,12 @@ export function createDocumentsRouter() {
           cityId: subject.cityId,
           scope,
           callerRoles: subject.roles,
-          ...(input.documentTypeId !== undefined && { documentTypeId: input.documentTypeId }),
-          ...(input.lifecycleState !== undefined && { lifecycleState: input.lifecycleState }),
+          ...(input.documentTypeId !== undefined && {
+            documentTypeId: input.documentTypeId,
+          }),
+          ...(input.lifecycleState !== undefined && {
+            lifecycleState: input.lifecycleState,
+          }),
           ...(input.officeId !== undefined && { officeId: input.officeId }),
           ...(input.dateFrom !== undefined && { dateFrom: input.dateFrom }),
           ...(input.dateTo !== undefined && { dateTo: input.dateTo }),
@@ -618,15 +685,18 @@ export function createDocumentsRouter() {
         const page = hasMore ? rows.slice(0, input.limit) : rows;
 
         const typeIds = [...new Set(page.map((r) => r.documentTypeId))];
-        const types = await Promise.all(typeIds.map((id) => repo.findDocumentTypeById(id)));
+        const types = await Promise.all(
+          typeIds.map((id) => repo.findDocumentTypeById(id)),
+        );
         const typeCodeById = new Map<string, string>();
         for (const t of types) if (t) typeCodeById.set(t.id, t.code);
 
         return {
           items: page.map((row) =>
-            toDocumentSummary(row, typeCodeById.get(row.documentTypeId) ?? ''),
+            toDocumentSummary(row, typeCodeById.get(row.documentTypeId) ?? ""),
           ),
-          nextCursor: hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
+          nextCursor:
+            hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
         };
       }),
 
@@ -648,7 +718,9 @@ export function createDocumentsRouter() {
           scope,
           callerRoles: subject.roles,
           queryText: input.queryText,
-          ...(input.documentTypeIds !== undefined && { documentTypeIds: input.documentTypeIds }),
+          ...(input.documentTypeIds !== undefined && {
+            documentTypeIds: input.documentTypeIds,
+          }),
           ...(input.classificationLevels !== undefined && {
             classificationLevels: input.classificationLevels,
           }),
@@ -669,7 +741,8 @@ export function createDocumentsRouter() {
             finalNumber: row.finalNumber,
             currentState: row.lifecycleState,
           })),
-          nextCursor: hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
+          nextCursor:
+            hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
         };
       }),
 
@@ -686,14 +759,14 @@ export function createDocumentsRouter() {
 
         if (input.title === undefined && input.metadata === undefined) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Provide at least one of title or metadata.',
+            code: "BAD_REQUEST",
+            message: "Provide at least one of title or metadata.",
           });
         }
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         // checkStateActionCompatibility('update', state): I1 §17's matrix
@@ -705,19 +778,21 @@ export function createDocumentsRouter() {
           lifecycleState: document.lifecycleState,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         let documentType: DocumentTypeRow | null = null;
         if (input.metadata !== undefined) {
-          documentType = await repo.findDocumentTypeById(document.documentTypeId);
+          documentType = await repo.findDocumentTypeById(
+            document.documentTypeId,
+          );
           const metadataErrors = validateMetadataAgainstSchema(
             input.metadata,
             documentType?.metadataSchema as Record<string, unknown> | undefined,
           );
           if (metadataErrors.length > 0) {
             throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: `metadata failed document type validation: ${metadataErrors.join('; ')}`,
+              code: "BAD_REQUEST",
+              message: `metadata failed document type validation: ${metadataErrors.join("; ")}`,
             });
           }
         }
@@ -726,15 +801,18 @@ export function createDocumentsRouter() {
           ...(input.title !== undefined && { title: input.title }),
           ...(input.metadata !== undefined && { metadata: input.metadata }),
         });
-        if (!updated) throw new TRPCError({ code: 'NOT_FOUND' });
+        if (!updated) throw new TRPCError({ code: "NOT_FOUND" });
 
         if (!documentType) {
-          documentType = await repo.findDocumentTypeById(updated.documentTypeId);
+          documentType = await repo.findDocumentTypeById(
+            updated.documentTypeId,
+          );
         }
         if (!documentType) {
           throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'document type referenced by this document no longer exists',
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "document type referenced by this document no longer exists",
           });
         }
 
@@ -754,7 +832,7 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canSoftDelete(subject, {
@@ -762,7 +840,7 @@ export function createDocumentsRouter() {
           lifecycleState: document.lifecycleState,
           workflowInstanceId: document.workflowInstanceId,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         await repo.softDeleteDocument(input.documentId, subject.userId);
 
@@ -783,7 +861,7 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         // checkStateActionCompatibility('cancel', state): I1 §17's matrix
@@ -798,7 +876,7 @@ export function createDocumentsRouter() {
           lifecycleState: document.lifecycleState,
           workflowInstanceId: document.workflowInstanceId,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         // Audit event: transitionState() emits a `document.state_changed`
         // domain event (toState: 'cancelled', reason included in the
@@ -817,30 +895,42 @@ export function createDocumentsRouter() {
         try {
           await service.transitionState(
             input.documentId,
-            'cancelled',
+            "cancelled",
             subject.userId,
             input.reason,
           );
         } catch (err) {
-          if (err instanceof Error && err.message.startsWith('Document not found')) {
-            throw new TRPCError({ code: 'NOT_FOUND' });
+          if (
+            err instanceof Error &&
+            err.message.startsWith("Document not found")
+          ) {
+            throw new TRPCError({ code: "NOT_FOUND" });
           }
-          if (err instanceof Error && err.message.startsWith('invalid state transition')) {
-            throw new TRPCError({ code: 'BAD_REQUEST', message: err.message });
+          if (
+            err instanceof Error &&
+            err.message.startsWith("invalid state transition")
+          ) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
           }
           throw err;
         }
 
-        const docType = await repo.findDocumentTypeById(document.documentTypeId);
+        const docType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
         if (
-          docType?.code === 'DESIGNATION' &&
+          docType?.code === "DESIGNATION" &&
           document.metadata &&
           (document.metadata as any).delegationGrantId
         ) {
           await getDesignationHandler(ctx).handleDesignationCancelled(
             (document.metadata as any).delegationGrantId,
             input.reason,
-            { userId: subject.userId, roles: subject.roles, cityId: subject.cityId },
+            {
+              userId: subject.userId,
+              roles: subject.roles,
+              cityId: subject.cityId,
+            },
           );
         }
 
@@ -860,18 +950,18 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canCreateVersion(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         const s3Key = crypto.randomUUID();
         const command = new PutObjectCommand({
-          Bucket: env.S3_BUCKET || 'batac-dms',
+          Bucket: env.S3_BUCKET || "batac-dms",
           Key: s3Key,
           ContentType: input.mimeType,
         });
@@ -899,14 +989,14 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canCreateVersion(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         const newVersionNumber = document.versionNumber + 1;
 
@@ -932,7 +1022,11 @@ export function createDocumentsRouter() {
 
         // Enqueue OCR extraction
         const ocrService = getOcrService(ctx);
-        await ocrService.enqueueOcrJob(version.id, input.s3Key, input.documentId);
+        await ocrService.enqueueOcrJob(
+          version.id,
+          input.s3Key,
+          input.documentId,
+        );
 
         return { versionId: version.id };
       }),
@@ -950,7 +1044,7 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const hasAllowlistEntry = await hasAnyAllowlistEntry(
@@ -966,7 +1060,7 @@ export function createDocumentsRouter() {
           hasCrossOfficeGrant: false,
           hasAllowlistEntry,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         const versions = await repo.findVersionsByDocument(input.documentId);
         return versions.map((v) => ({
@@ -978,8 +1072,14 @@ export function createDocumentsRouter() {
           mimeType: v.mimeType,
           fileSizeBytes: v.fileSizeBytes ?? 0,
           pageCount: v.pageCount,
-          scanQualityScore: v.scanQualityScore ? Number(v.scanQualityScore) : null,
-          scanQualityCategory: v.scanQualityCategory as 'good' | 'fair' | 'poor' | null,
+          scanQualityScore: v.scanQualityScore
+            ? Number(v.scanQualityScore)
+            : null,
+          scanQualityCategory: v.scanQualityCategory as
+            | "good"
+            | "fair"
+            | "poor"
+            | null,
           ocrProcessed: v.ocrProcessed,
           uploadedBy: v.createdBy,
           createdAt: v.createdAt.toISOString(),
@@ -1001,12 +1101,12 @@ export function createDocumentsRouter() {
 
         const version = await repo.findVersionById(input.versionId);
         if (!version) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const document = await repo.findDocumentById(version.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const hasAllowlistEntry = await hasAnyAllowlistEntry(
@@ -1021,15 +1121,17 @@ export function createDocumentsRouter() {
           classificationLevel: document.classificationLevel,
           hasAllowlistEntry,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         const expiresIn = env.S3_SIGNED_URL_EXPIRES_S || 900;
         const command = new GetObjectCommand({
-          Bucket: env.S3_BUCKET || 'batac-dms',
+          Bucket: env.S3_BUCKET || "batac-dms",
           Key: version.fileKey,
         });
 
-        const downloadUrl = await getSignedUrl(getS3Client(), command, { expiresIn });
+        const downloadUrl = await getSignedUrl(getS3Client(), command, {
+          expiresIn,
+        });
 
         const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
@@ -1052,12 +1154,12 @@ export function createDocumentsRouter() {
 
         const version = await repo.findVersionById(input.versionId);
         if (!version) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const document = await repo.findDocumentById(version.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const hasAllowlistEntry = await hasAnyAllowlistEntry(
@@ -1072,7 +1174,7 @@ export function createDocumentsRouter() {
           classificationLevel: document.classificationLevel,
           hasAllowlistEntry,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         return { ocrText: version.ocrText };
       }),
@@ -1090,23 +1192,25 @@ export function createDocumentsRouter() {
 
         const version = await repo.findVersionById(input.versionId);
         if (!version) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const document = await repo.findDocumentById(version.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canReadScanQuality(subject, {
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         return {
           scanQualityCategory: (version.scanQualityCategory as any) || null,
-          scanQualityScore: version.scanQualityScore ? Number(version.scanQualityScore) : null,
+          scanQualityScore: version.scanQualityScore
+            ? Number(version.scanQualityScore)
+            : null,
           requiresManualVerification: version.requiresManualVerification,
         };
       }),
@@ -1124,12 +1228,12 @@ export function createDocumentsRouter() {
 
         const version = await repo.findVersionById(input.versionId);
         if (!version) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const document = await repo.findDocumentById(version.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canUpdate(subject, {
@@ -1139,8 +1243,8 @@ export function createDocumentsRouter() {
         });
         if (!allowed)
           throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'You must have update rights to trigger Re-OCR.',
+            code: "FORBIDDEN",
+            message: "You must have update rights to trigger Re-OCR.",
           });
 
         const ocrService = getOcrService(ctx);
@@ -1162,12 +1266,12 @@ export function createDocumentsRouter() {
 
         const version = await repo.findVersionById(input.versionId);
         if (!version) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const document = await repo.findDocumentById(version.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         // Same access requirement as Re-OCR (must be able to update)
@@ -1176,7 +1280,7 @@ export function createDocumentsRouter() {
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         await repo.updateVersionFields(input.versionId, {
           requiresManualVerification: true,
@@ -1199,12 +1303,12 @@ export function createDocumentsRouter() {
 
         const version = await repo.findVersionById(input.versionId);
         if (!version) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const document = await repo.findDocumentById(version.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canUpdate(subject, {
@@ -1212,7 +1316,7 @@ export function createDocumentsRouter() {
           ownedByOfficeId: document.ownedByOfficeId,
           createdBy: document.createdBy,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         await repo.updateVersionFields(input.versionId, {
           requiresManualVerification: false,
@@ -1236,25 +1340,27 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const allowed = guard.canSubmit(subject, {
           lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
-        const docType = await repo.findDocumentTypeById(document.documentTypeId);
-        if (!docType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const docType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
+        if (!docType) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         if (
           guard.requiresSpSecretaryForSubmit(docType.code) &&
-          !subject.roles.includes('sp_secretary')
+          !subject.roles.includes("sp_secretary")
         ) {
           throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: 'SP Secretary required to submit SP measures',
+            code: "FORBIDDEN",
+            message: "SP Secretary required to submit SP measures",
           });
         }
 
@@ -1265,11 +1371,15 @@ export function createDocumentsRouter() {
           const txRepo = new DocumentsRepository(tx);
 
           // 1. Assign QR directly
-          await txRepo.updateDocumentNumbering(document.id, { qrTrackingNumber });
+          await txRepo.updateDocumentNumbering(document.id, {
+            qrTrackingNumber,
+          });
 
           // 2. Assign preliminary number if supported (e.g. SP measures)
           if (docType.hasPreliminaryNumbering && docType.numberSeriesId) {
-            const series = await txRepo.findNumberSeriesById(docType.numberSeriesId);
+            const series = await txRepo.findNumberSeriesById(
+              docType.numberSeriesId,
+            );
             if (series) {
               const result = await numberingService.assignPreliminaryNumber(
                 document.id,
@@ -1285,9 +1395,9 @@ export function createDocumentsRouter() {
           // 3. Transition to 'submitted'
           await service.transitionState(
             document.id,
-            'submitted',
+            "submitted",
             subject.userId,
-            'Document submitted',
+            "Document submitted",
             tx,
           );
         });
@@ -1312,26 +1422,33 @@ export function createDocumentsRouter() {
          *
          * [Unverified] Not executed against a real database.
          */
-        if (docType.code === 'DESIGNATION') {
+        if (docType.code === "DESIGNATION") {
           try {
             await getDesignationHandler(ctx).handleDesignationLogged(
               document.id,
               (document.metadata as Record<string, unknown>) ?? {},
               subject.userId,
-              { userId: subject.userId, roles: subject.roles, cityId: subject.cityId },
+              {
+                userId: subject.userId,
+                roles: subject.roles,
+                cityId: subject.cityId,
+              },
             );
           } catch (err) {
             if (err instanceof DesignationMetadataInvalidError) {
-              throw new TRPCError({ code: 'BAD_REQUEST', message: err.message });
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: err.message,
+              });
             }
             throw err;
           }
         }
 
         // Emit document.created event per acceptance criteria
-        ctx.req.server.eventBus.emit('document.created', {
+        ctx.req.server.eventBus.emit("document.created", {
           eventId: crypto.randomUUID(),
-          eventType: 'document.created',
+          eventType: "document.created",
           occurredAt: new Date().toISOString(),
           cityId: document.cityId,
           schemaVersion: 1,
@@ -1345,7 +1462,7 @@ export function createDocumentsRouter() {
         });
 
         return {
-          lifecycleState: 'submitted',
+          lifecycleState: "submitted",
           qrTrackingNumber,
           preliminaryNumber,
         };
@@ -1365,27 +1482,29 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        const docType = await repo.findDocumentTypeById(document.documentTypeId);
-        if (!docType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const docType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
+        if (!docType) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         const allowed = guard.canAssignPreliminaryNumber(subject, {
           documentTypeCode: docType.code,
           lifecycleState: document.lifecycleState,
           preliminaryNumber: document.preliminaryNumber,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         if (!docType.numberSeriesId) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: 'Document type has no number series',
+            code: "BAD_REQUEST",
+            message: "Document type has no number series",
           });
         }
         const series = await repo.findNumberSeriesById(docType.numberSeriesId);
-        if (!series) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        if (!series) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         const result = await numberingService.assignPreliminaryNumber(
           document.id,
@@ -1413,20 +1532,25 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        const docType = await repo.findDocumentTypeById(document.documentTypeId);
-        if (!docType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const docType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
+        if (!docType) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         const allowed = guard.canAssignFinalNumber(subject, {
           documentTypeCode: docType.code,
           preliminaryNumber: document.preliminaryNumber,
           finalNumber: document.finalNumber,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
-        const result = await service.assignFinalNumber(document.id, subject.userId);
+        const result = await service.assignFinalNumber(
+          document.id,
+          subject.userId,
+        );
 
         return {
           finalNumber: result.finalNumber,
@@ -1447,25 +1571,34 @@ export function createDocumentsRouter() {
 
         const certDoc = await repo.findDocumentById(input.certifyingDocumentId);
         if (!certDoc || certDoc.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Certifying document not found' });
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Certifying document not found",
+          });
         }
 
-        const certDocType = await repo.findDocumentTypeById(certDoc.documentTypeId);
-        if (!certDocType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const certDocType = await repo.findDocumentTypeById(
+          certDoc.documentTypeId,
+        );
+        if (!certDocType)
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         const allowed = guard.canCertifyUrgent(subject, {
           certifyingDocumentTypeCode: certDocType.code,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         for (const measureId of input.associatedMeasureIds) {
           const measure = await repo.findDocumentById(measureId);
           if (!measure || measure.cityId !== subject.cityId) {
-            throw new TRPCError({ code: 'NOT_FOUND', message: `Measure ${measureId} not found` });
-          }
-          if (measure.lifecycleState !== 'in_workflow') {
             throw new TRPCError({
-              code: 'BAD_REQUEST',
+              code: "NOT_FOUND",
+              message: `Measure ${measureId} not found`,
+            });
+          }
+          if (measure.lifecycleState !== "in_workflow") {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
               message: `Measure ${measureId} is not in_workflow`,
             });
           }
@@ -1482,19 +1615,23 @@ export function createDocumentsRouter() {
               if (measure.workflowInstanceId) {
                 associatedInstanceIds.push(measure.workflowInstanceId);
               }
-              const currentMetadata = measure.metadata as Record<string, unknown>;
+              const currentMetadata = measure.metadata as Record<
+                string,
+                unknown
+              >;
               await txRepo.updateDocumentMetadata(measureId, {
                 ...currentMetadata,
                 certifiedUrgent: true,
-                certification_of_urgency_document_id: input.certifyingDocumentId,
+                certification_of_urgency_document_id:
+                  input.certifyingDocumentId,
               });
             }
           }
         });
 
-        ctx.req.server.eventBus.emit('document.certification_urgency.logged', {
+        ctx.req.server.eventBus.emit("document.certification_urgency.logged", {
           eventId: crypto.randomUUID(),
-          eventType: 'document.certification_urgency.logged',
+          eventType: "document.certification_urgency.logged",
           occurredAt: new Date().toISOString(),
           cityId: subject.cityId,
           schemaVersion: 1,
@@ -1525,11 +1662,13 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        const docType = await repo.findDocumentTypeById(document.documentTypeId);
-        if (!docType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const docType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
+        if (!docType) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         const allowed = guard.canPublishPortal(subject, {
           documentTypeCode: docType.code,
@@ -1537,7 +1676,7 @@ export function createDocumentsRouter() {
           classificationLevel: document.classificationLevel,
           publicVisibilityRule: docType.publicVisibilityRule as any,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         const currentMetadata = document.metadata as Record<string, unknown>;
         await repo.updateDocumentMetadata(document.id, {
@@ -1562,11 +1701,13 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        const docType = await repo.findDocumentTypeById(document.documentTypeId);
-        if (!docType) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
+        const docType = await repo.findDocumentTypeById(
+          document.documentTypeId,
+        );
+        if (!docType) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
         const allowed = guard.canPublishPortal(subject, {
           documentTypeCode: docType.code,
@@ -1574,7 +1715,7 @@ export function createDocumentsRouter() {
           classificationLevel: document.classificationLevel,
           publicVisibilityRule: docType.publicVisibilityRule as any,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         const currentMetadata = document.metadata as Record<string, unknown>;
         await repo.updateDocumentMetadata(document.id, {
@@ -1601,31 +1742,37 @@ export function createDocumentsRouter() {
 
         const document = await repo.findDocumentById(input.documentId);
         if (!document || document.cityId !== subject.cityId) {
-          throw new TRPCError({ code: 'NOT_FOUND' });
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
         const spsOffice = await getOrgService(ctx).getOfficeByCode(
           SP_SECRETARIAT_OFFICE_CODE,
           subject.cityId,
         );
-        const isSp = spsOffice ? subject.effectiveOfficeIds.includes(spsOffice.officeId) : false;
+        const isSp = spsOffice
+          ? subject.effectiveOfficeIds.includes(spsOffice.officeId)
+          : false;
 
         const allowed = guard.canArchive(subject, {
           lifecycleState: document.lifecycleState,
           ownedByOfficeId: document.ownedByOfficeId,
           isSpSecretariatOffice: isSp,
         });
-        if (!allowed) throw new TRPCError({ code: 'FORBIDDEN' });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         await ctx.db.transaction(async (tx) => {
           await service.transitionState(
             document.id,
-            'archived',
+            "archived",
             subject.userId,
-            'Document archived',
+            "Document archived",
             tx,
           );
-          await workflowService.archiveStepForDocument(document.id, 'archive', tx);
+          await workflowService.archiveStepForDocument(
+            document.id,
+            "archive",
+            tx,
+          );
         });
 
         return { success: true };

@@ -8900,3 +8900,37 @@ F5/F6 describe the client-side DataTable only, so the page-scoped behavior is a
 reasoned default, not a specified guarantee.
 
 
+
+---
+
+### [LOG-0273] New `session.getScheduledReadingForDocument` procedure not catalogued in E1
+
+- date: 2026-08-08
+- task_id: none (ad-hoc document-details feature request)
+- status: proposed
+- affects: E1 (tRPC procedure catalog), I2 §8 (SP OOB view role gate), F4 (document detail page)
+
+**What was found:** No existing procedure exposes the upcoming SP session date
+for a document already scheduled for a reading. The scheduled reading date
+exists only as `order_of_business_items` rows joined to `sp_sessions`, and the
+reading-record metadata (`firstReading.sessionDate` / `secondReading.sessionDate`
+on `documents.metadata`) is never populated by any server code — so it cannot be
+used as a data source. E1 has no procedure returning reading session dates, and
+none of the existing session procedures (getOrderOfBusiness, scheduleDocumentForFirstReading) return per-document upcoming reading info.
+
+**What was implemented:** A new read procedure
+`session.getScheduledReadingForDocument({ documentId })` in
+`apps/server/src/modules/workflow/session.router.ts` returning
+`{ documentId, readingType, sessionDate }`. It finds the earliest upcoming
+(`session_date >= today`, PHT, via text-date `gte` — zero-padded ISO dates sort
+lexicographically the same as chronologically) non-deleted
+`order_of_business_items` row of type `first_reading`/`second_reading`/`third_reading`
+for the document, joined through `order_of_business` to `sp_sessions`, ordered by
+session date ascending, `limit(1)`. Role-gated to the I2 §8 "View Order of
+Business" set (`sp_secretary`, `sp_member`, `sp_presiding_officer`, `mayor`,
+`auditor`), since the reading date is OOB-derived, not general document metadata.
+The Document Detail page (`apps/web/src/pages/documents/DocumentDetailPage.tsx`)
+renders it as a reading-type chip in the header panel when present. The procedure
+is not catalogued in E1; a human must decide whether to add it to E1 and/or
+document it as a spec gap. The completed-reading-date gap (`firstReading.sessionDate`
+metadata never written) is a separate discovery for a human to decide on.
