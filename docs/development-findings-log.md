@@ -8755,3 +8755,42 @@ not present in either prior session's findings.
 
 ---
 
+### [LOG-0269] Sidebar nav for Complaints / Document Requests showed roles the server denies (councilor 403); records_officer matrix-vs-code discrepancy left to a human
+
+- date: 2026-08-08
+- task_id: (QA report — councilor got FORBIDDEN on `documents.listAllDocumentRequests`)
+- status: proposed
+- affects: apps/web/src/components/AuthenticatedLayout.tsx, I2 §12/§13, I1 §10.6, document-requests.router.ts, complaints.router.ts
+
+A councilor (`sp_member`) visiting `/document-requests` got `TRPCError FORBIDDEN`
+from `documents.listAllDocumentRequests` (document-requests.router.ts:629).
+Checked jurisdiction against the source documents: I2 §13 "View all document
+requests" is ✅ only for sp_secretary, sp_presiding_officer, auditor (sp_member ❌,
+mayor ❌); I1 §10.6 `complaint:read_all` gives sp_member committee-scoped read
+(committee_ids on assigned_office_id), with unconditional access for
+sp_secretary/sp_presiding_officer/auditor. So a councilor has no document-request
+jurisdiction but does have committee-scoped complaints/investigation jurisdiction.
+The sidebar's role lists did not match the server's actual authorization: it
+offered Document Requests to sp_member and mayor (both denied server-side → 403)
+and omitted auditor (allowed server-side), and offered Complaints to mayor
+(denied server-side → 403) while omitting auditor.
+
+Implemented: `AuthenticatedLayout.tsx` nav lists now mirror the routers' actual
+callable-by role sets — Document Requests: sp_secretary, sp_presiding_officer,
+records_officer, auditor; Complaints: sp_secretary, sp_member, sp_presiding_officer,
+auditor. Verified with `eslint` + `tsc --noEmit` on @batac/web (both pass). The
+complaints procedures needed no change — they already enforce the committee scope
+for sp_member (complaints.router.ts listAllComplaints/getComplaint).
+
+Note: [Confirmed] — direct read of document-requests.router.ts (allowedRoles at
+lines 626/731) and complaints.router.ts (lines 312–320, 405–420). [Inference] —
+the sidebar's role lists were written loosely against the matrix rather than the
+enforced policies. Flagged for a human, not silently resolved: I2 §13 marks
+`records_officer` ❌ on "View all document requests", but the server and its AC
+tests (document-requests.router.test.ts AC5 lines 587–605, AC-DR1 lines 709–717)
+deliberately allow records_officer. The sidebar keeps records_officer to match the
+tested server behavior; the human must decide whether the matrix or the code is
+authoritative and update the losing side.
+
+---
+

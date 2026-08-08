@@ -170,21 +170,15 @@ export function AuthenticatedLayout() {
     }
 
     // Complaints
-    if (hasRole(identity, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'mayor')) {
+    // Committee-scoped for sp_member (I1 §10.6, I2 §12 note 14); auditor read-only.
+    if (hasRole(identity, 'sp_secretary', 'sp_member', 'sp_presiding_officer', 'auditor')) {
       items.push({ id: 'complaints', icon: AlertCircle, label: 'Complaints', href: '/complaints' });
     }
 
     // Document Requests
-    if (
-      hasRole(
-        identity,
-        'sp_secretary',
-        'mayor',
-        'sp_presiding_officer',
-        'sp_member',
-        'records_officer',
-      )
-    ) {
+    // Matches document-requests.router.ts callable-by set (I2 §13 "View all
+    // document requests"); sp_member and mayor are denied server-side.
+    if (hasRole(identity, 'sp_secretary', 'sp_presiding_officer', 'records_officer', 'auditor')) {
       items.push({
         id: 'document-requests',
         icon: Inbox,
