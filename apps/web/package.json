@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@batac/config": "workspace:^",
+    "@tailwindcss/typography": "^0.5.13",
     "@tailwindcss/vite": "^4.3.1",
     "@trpc/server": "^11.18.0",
     "@types/react": "^18.3.0",
