@@ -489,6 +489,7 @@ export function createTrackingRouter() {
       .input(z.object({ qrTrackingNumber: z.string().uuid() }))
       .output(
         z.object({
+          documentId: z.string().uuid(),
           documentType: z.string(),
           remarks: z.string().nullable(),
           fullRoutingHistory: z.array(
@@ -558,6 +559,7 @@ export function createTrackingRouter() {
         const remarks: string | null = null;
 
         return {
+          documentId: qrCode.documentId,
           documentType: doc.documentTypeCode,
           remarks,
           fullRoutingHistory,
