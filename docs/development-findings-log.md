@@ -9039,3 +9039,123 @@ on the original pointerdown target) and `@radix-ui/react-select` /
 `@radix-ui/react-popper` sources (popper wrapper `data-radix-popper-content-wrapper`,
 z-index from the content's computed value). Manual verification in the browser is
 still pending.
+---
+
+### [LOG-0277] OCR engine changed from tesseract.js to scribe.js-ocr (human decision 2026-08-08)
+
+- date: 2026-08-08
+- task_id: TASK-DOCS-022
+- status: proposed
+- affects: tech-stack.md
+
+**What was found:** `tesseract.js` does not accept PDF input — this is a
+documented limitation of the underlying Tesseract engine, not a usage bug. Every
+PDF upload was being passed to `worker.recognize()` as raw, unrendered PDF bytes
+(`apps/server/src/modules/documents/tesseract-ocr.provider.ts`), which is
+unsupported input for that function. `tech-stack.md` line 159 lists PDF as a
+supported upload format and line 165 states all uploads are OCR'd automatically.
+
+**Resolution, per human decision (2026-08-08):** the OCR library is changed from
+`tesseract.js` to `scribe.js-ocr` (import name `scribe`), superseding the
+`tesseract.js` selection recorded at `tech-stack.md` lines 167-169. This is a
+closed decision, not a reopened debate. `scribe.js-ocr` natively supports image
+and PDF input; text-native PDFs keep their existing text layer instead of being
+rasterized-and-OCRd.
+
+**What was implemented (TASK-DOCS-022):** `TesseractOcrProvider` was replaced by
+`ScribeOcrProvider` in a renamed file
+`apps/server/src/modules/documents/scribe-ocr.provider.ts`; the `OcrProvider`
+interface contract is unchanged. `documents.plugin.ts` wiring and
+`apps/server/package.json` were updated (`tesseract.js` removed,
+`scribe.js-ocr@^0.14.3` added).
+
+**Confirmed against the installed `scribe.js-ocr@0.14.3` source/docs:**
+`openDocument(files)` / `doc.recognize({ langs, ocrPages })` / `doc.ocr.active`
+match the documented shape: pages of `OcrPage.lines[].words[]`, each word having
+`.text` and `.conf` (0-100 scale, 0 when unset). `langs` is `Array<string>` (the
+runtime also tolerates a `'+'`-delimited string, but the type is array) — the
+`OCR_LANGUAGE_PACKS` env value is split on `'+'` before passing, per the
+confirmed array type. Confidence is averaged at the word level and divided by
+100 to normalize to the 0.0-1.0 scale `OcrService.categorize()` expects. Empty
+result returns `confidenceScore: 0`.
+
+**Deviations from TASK-DOCS-022's reference snippet, each verified against the
+installed package:**
+1. `scribe.openDocument([buffer])` (a flat array containing a Node `Buffer`)
+   does not work in 0.14.3: `sortInputFiles` classifies by `file.name`
+   (`js/import/import.js`), and a `Buffer` has no `.name`; a `Buffer` is also
+   not `instanceof ArrayBuffer`, so the `SortedInputFiles` ArrayBuffer fast-path
+   does not match it either. The working Node form for in-memory bytes is a
+   `SortedInputFiles` object of true `ArrayBuffer`s, so the provider converts
+   the Buffer to a true `ArrayBuffer` (respecting `byteOffset`/`byteLength`) and
+   routes by MIME: `application/pdf` → `pdfFiles`, `image/png`/`image/jpeg` →
+   `imageFiles`. Other allowed upload MIME types (docx/xlsx) throw
+   `Unsupported MIME type for OCR`.
+2. `doc.terminate()` exists in 0.14.3 but is deprecated (emits a one-time
+   `console.warn`); the current method is `doc.close()`. `doc.close()` is used.
+3. `doc.recognize`'s default `ocrPages` is `'all'` (`scribeDocDefaults.ocrPages`),
+   not `'autoShallow'` (which is only `scribe.extractText`'s default). Passing
+   `ocrPages: 'autoShallow'` explicitly is what makes text-native PDFs keep
+   their extracted text (native-text words get `conf = 100`) instead of being
+   OCR'd — without it, the text-layer-preservation behavior this task describes
+   would not occur.
+4. `scribe.js-ocr@0.14.3` ships no TypeScript declarations for its public API
+   (no `types` field, no root `.d.ts`; only `js/global.d.ts` ambient types and
+   `lib/zip.js/index.d.ts`). Under this project's `strict` tsconfig the bare
+   import would fail typecheck (TS7016), so a local ambient module declaration
+   covering the used surface was added at
+   `apps/server/src/modules/documents/scribe-ocr.types.d.ts`.
+
+**Dependency notes (the human running TASK-DOCS-022's verification should confirm
+on a clean install):** `scribe.js-ocr`'s only runtime deps are `commander` and
+`@scribe.js/canvas`. `@scribe.js/canvas` is a Skia/Rust canvas that ships a
+prebuilt native N-API addon via per-platform `optionalDependencies` (including
+`linux-x64-gnu` and `linux-x64-musl` for Alpine). It installs with no compile
+step and no system package installs, but unlike `tesseract.js` (pure
+JS/WASM) it is a native binary dependency — the "zero native system
+dependencies" property that partly motivated the original choice is not fully
+preserved. `scribe.js-ocr` is licensed AGPL-3.0 (tesseract.js was Apache-2.0) —
+flagging for human governance review. Also: `scribe.opt.langPath` is `null` by
+default, so `.traineddata` files are fetched from the jsdelivr CDN on first OCR
+use; the L2 Dockerfile's offline language-pack bundling plan
+(`TESSDATA_PREFIX` etc.) will need rework against `scribe.opt.langPath` — out of
+scope for this task, human decision needed.
+
+---
+
+### [LOG-0278] pg-boss 10.4.2 batched work() retry semantics: whole batch fails on handler throw; no per-job isolation
+
+- date: 2026-08-08
+- task_id: TASK-DOCS-022
+- status: proposed
+- affects: none
+
+**What was found:** In pg-boss@10.4.2, when a `boss.work()` batch handler
+throws, `manager.onFetch`'s catch calls `this.fail(name, jobIds, err)` with
+**every** job id in the batch (`manager.js:213,219`). `failJobs`
+(`plans.js:559-708`) then re-inserts each job with state `'retry'` when its own
+`retry_count < retry_limit`, else `'failed'` — the retry budget is per-job, but
+the failure action is batch-wide. `retry_count` is incremented at fetch time
+when the job was already `started_on` (`plans.js:532`). This is the behavior
+TASK-DOCS-022's Required Change 2 asked to confirm.
+
+**Consequence:** with the batch handler throwing after `Promise.allSettled`
+(rather than on the first failure), every job in the batch has already been
+attempted independently, but a job that *succeeded* in a batch that contained
+one failure is still re-delivered with the rest of the batch on the retry, and
+`processJob` → `processOcrCallback` runs again, overwriting the `versions` row's
+OCR columns. `processOcrCallback` is not idempotent-safe against this
+re-delivery. Per TASK-DOCS-022 this is an accepted known limitation; no
+idempotency protection (e.g. a version check before overwrite) was added — that
+is a separate design question about the retry contract. The current queue has no
+`batchSize` set (pg-boss default is 1 job per batch), so the batch-level coupling
+is currently dormant.
+
+**What was implemented:** the `ocr.process` handler in
+`apps/server/src/modules/documents/documents.plugin.ts` now runs the batch
+through `Promise.allSettled`, logs each individual rejection with its `jobId`,
+and only then throws an `AggregateError` (the fail output serializes fine via
+pg-boss's `serialize-error`) so pg-boss's existing `retryLimit: 3` /
+`retryDelay: 30` from `enqueueOcrJob` still applies to the failed jobs, while a
+failure in one job no longer prevents any other job in the same batch from being
+attempted.
