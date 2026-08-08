@@ -14,7 +14,7 @@ const SelectValue = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Value
     ref={ref}
-    className={cn('truncate text-left min-w-0 block flex-1 overflow-hidden text-ellipsis', className)}
+    className={cn('truncate text-left min-w-0 block flex-1 overflow-hidden text-ellipsis !whitespace-nowrap', className)}
     {...props}
   />
 ));
@@ -27,7 +27,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'border-input bg-background ring-offset-background data-[placeholder]:text-muted-foreground focus:ring-ring flex h-10 w-full min-w-0 items-center justify-between rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden [&_span]:truncate [&_span]:text-left [&_span]:min-w-0 [&_span]:block [&_span]:flex-1 [&_span]:overflow-hidden [&_span]:text-ellipsis',
+      'border-input bg-background ring-offset-background data-[placeholder]:text-muted-foreground focus:ring-ring flex h-10 w-full min-w-0 items-center justify-between rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden [&_*]:!whitespace-nowrap [&_*]:!truncate [&_*]:!overflow-hidden [&_*]:!text-ellipsis [&_span]:text-left [&_span]:min-w-0 [&_span]:block [&_span]:flex-1',
       className,
     )}
     {...props}
@@ -130,7 +130,7 @@ const SelectItem = React.forwardRef<
       </SelectPrimitive.ItemIndicator>
     </span>
 
-    <SelectPrimitive.ItemText className="whitespace-normal break-words min-w-0 flex-1">
+    <SelectPrimitive.ItemText>
       {children}
     </SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
