@@ -86,14 +86,19 @@ export function Combobox<T>({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between font-normal text-left h-auto min-h-10 py-2 px-3"
           disabled={disabled}
         >
-          {selectedLabel ?? <span className="text-muted-foreground">{placeholder}</span>}
+          <span
+            className={cn('truncate min-w-0 flex-1 text-left', !selectedLabel && 'text-muted-foreground')}
+            title={selectedLabel ?? placeholder}
+          >
+            {selectedLabel ?? placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 max-w-[95vw]">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={searchPlaceholder}
@@ -118,14 +123,14 @@ export function Combobox<T>({
                   >
                     <Check
                       className={cn(
-                        'mr-2 h-4 w-4',
+                        'mr-2 h-4 w-4 shrink-0',
                         value === id ? 'opacity-100' : 'opacity-0',
                       )}
                     />
-                    <div className="flex flex-col">
-                      <span>{getItemLabel(item)}</span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="whitespace-normal break-words">{getItemLabel(item)}</span>
                       {getItemSublabel && getItemSublabel(item) && (
-                        <span className="text-muted-foreground text-xs">
+                        <span className="text-muted-foreground text-xs whitespace-normal break-words mt-0.5">
                           {getItemSublabel(item)}
                         </span>
                       )}

@@ -184,8 +184,8 @@ function MeasurePickerArrayField({
             <div className="space-y-4 mt-4">
               {values.length === 0 && <p className="text-sm text-muted-foreground">No measures selected.</p>}
               {values.map((v: string, idx: number) => (
-                 <div key={idx} className="flex gap-2">
-                   <div className="flex-1">
+                 <div key={idx} className="flex gap-2 items-center">
+                   <div className="flex-1 min-w-0">
                      <Select
                        onValueChange={(newVal) => {
                          const next = [...values];
