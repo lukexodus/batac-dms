@@ -728,6 +728,7 @@ export default function DocumentDetailPage() {
                 </Badge>
                 {scheduledReading?.readingType && scheduledReading.sessionDate && (
                   <Badge
+                    variant="outline"
                     className={cn(
                       'touch-exempt gap-1 border-transparent',
                       READING_CHIP_STYLES[scheduledReading.readingType],
