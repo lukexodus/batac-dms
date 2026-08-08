@@ -756,18 +756,20 @@ export class DocumentsRepository {
     if (filter.scope.kind === 'none') return [];
     if (filter.scope.kind === 'own' && filter.scope.officeIds.length === 0) return [];
 
-    const tsQuery = sql`plainto_tsquery('english', ${filter.queryText})`;
     const conditions: SQL[] = [
       eq(documents.cityId, filter.cityId),
       isNull(documents.deletedAt),
-      sql`(
+    ];
+    if (filter.queryText.trim().length > 0) {
+      const tsQuery = sql`plainto_tsquery('english', ${filter.queryText})`;
+      conditions.push(sql`(
         ${documents.tsv} @@ ${tsQuery}
         OR EXISTS (
           SELECT 1 FROM documents.versions v
           WHERE v.document_id = ${documents.id} AND v.tsv @@ ${tsQuery} AND v.deleted_at IS NULL
         )
-      )`,
-    ];
+      )`);
+    }
     if (filter.scope.kind === 'own') {
       conditions.push(inArray(documents.ownedByOfficeId, filter.scope.officeIds));
     }

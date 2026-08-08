@@ -298,7 +298,7 @@ export const ListDocumentsOutputSchema = z.object({
 export type ListDocumentsOutput = z.infer<typeof ListDocumentsOutputSchema>;
 
 export const SearchDocumentsInputSchema = z.object({
-  queryText: z.string().min(1).max(256),
+  queryText: z.string().max(256),
   documentTypeIds: z.array(UuidSchema).max(20).optional(),
   classificationLevels: z.array(ClassificationLevelSchema).max(4).optional(),
   dateFrom: DateSchema.optional(),
