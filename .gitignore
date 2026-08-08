@@ -39,3 +39,7 @@ test-result
 git-diff
 
 data/openobserve/
+
+*.js
+*.py
+*.cjs

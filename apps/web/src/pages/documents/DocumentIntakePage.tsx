@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useForm, Controller, useWatch, useFieldArray } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 import { AllowedMimeTypeSchema } from '@batac/shared';
 import {
@@ -20,13 +21,21 @@ import {
   CardContent,
   CardFooter,
   Checkbox,
+  RichTextEditor,
 } from '@batac/ui';
 
 import type { Control, UseFormSetValue, UseFormRegister, FieldErrors, Path } from 'react-hook-form';
 
 import { buildIntakeFormSchema, type IntakeFormValues } from '@/lib/intake-schema';
+import { isRichTextEmpty } from '@/lib/rich-text';
 import { SYSTEM_SET_METADATA_FIELDS } from '@/lib/system-set-metadata-fields';
 import { trpc } from '@/lib/trpc';
+
+// Committee report uploads are merged into the consolidated report by the SP
+// Secretary, so only PDFs and images (JPEG/PNG) are accepted — Word/Excel
+// files cannot be merged. Kept in sync with the panel and the consolidation
+// logic in workflow.consolidateCommitteeReports.
+const CommitteeReportMimeTypeSchema = z.enum(['application/pdf', 'image/png', 'image/jpeg']);
 
 interface SchemaPropertyDescriptor {
   type?: string | string[];
@@ -578,9 +587,16 @@ function DynamicField({
 
 export default function DocumentIntakePage() {
   const navigate = useNavigate();
+  const utils = trpc.useUtils();
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Committee Report mode state (Documents → Intake → "Committee Report")
+  const [reportTargetKey, setReportTargetKey] = useState('');
+  const [reportText, setReportText] = useState('');
+  const [reportFile, setReportFile] = useState<File | null>(null);
+  const [reportFileError, setReportFileError] = useState<string | null>(null);
 
   const { data: documentTypes } = trpc.documents.documentTypes.useQuery();
   const createDocument = trpc.documents.create.useMutation();
@@ -600,6 +616,7 @@ export default function DocumentIntakePage() {
     register,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<IntakeFormValues>({
     resolver: intakeResolver,
@@ -617,6 +634,24 @@ export default function DocumentIntakePage() {
     required?: string[];
   } | null | undefined;
 
+  const isCommitteeReportMode = selectedType?.code === 'COMMITTEE_REPORT';
+
+  // Active multi-referral steps the current user can submit a report for —
+  // only fetched once a committee report type is selected.
+  const { data: reportTargets, isLoading: isTargetsLoading } =
+    trpc.workflow.listCommitteeReportIntakeTargets.useQuery(undefined, {
+      enabled: isCommitteeReportMode,
+    });
+
+  const submitCommitteeReport = trpc.workflow.submitCommitteeReport.useMutation({
+    onSuccess: () => {
+      toast.success('Committee report submitted to the multi-referral step.');
+      void utils.workflow.listCommitteeReportIntakeTargets.invalidate();
+      void utils.workflow.listMyAssignedSteps.invalidate();
+      void utils.documents.list.invalidate();
+    },
+  });
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) {
@@ -632,10 +667,18 @@ export default function DocumentIntakePage() {
       return;
     }
 
-    const mimeTypeCheck = AllowedMimeTypeSchema.safeParse(selected.type);
+    // Committee report uploads must be mergeable into the consolidated report,
+    // so only PDF/JPEG/PNG are accepted (mirrors the Multi-Referral panel).
+    const mimeTypeCheck = isCommitteeReportMode
+      ? CommitteeReportMimeTypeSchema.safeParse(selected.type)
+      : AllowedMimeTypeSchema.safeParse(selected.type);
     if (!mimeTypeCheck.success) {
       setFile(null);
-      setFileError('Invalid file type. Must be PDF, Word (.docx), Excel (.xlsx), JPEG, or PNG');
+      setFileError(
+        isCommitteeReportMode
+          ? 'Invalid file type. Must be a PDF, JPEG, or PNG image'
+          : 'Invalid file type. Must be PDF, Word (.docx), Excel (.xlsx), JPEG, or PNG',
+      );
       return;
     }
 
@@ -643,7 +686,139 @@ export default function DocumentIntakePage() {
     setFileError(null);
   };
 
+  const handleReportTargetChange = (key: string) => {
+    setReportTargetKey(key);
+    const [stepInstanceId, committeeId] = key.split('|');
+    const target = (reportTargets ?? []).find(
+      (t) => t.stepInstanceId === stepInstanceId && t.committeeId === committeeId,
+    );
+    if (!target) return;
+
+    setValue(
+      'metadata',
+      {
+        step_instance_id: stepInstanceId,
+        measure_document_id: target.measureDocumentId,
+        committee_id: committeeId,
+      },
+      { shouldValidate: true },
+    );
+    // Mirror the panel's auto-generated title so the uploaded report matches
+    // how the same report is titled from the workflow panel.
+    const generatedTitle = `${target.committeeName} — ${target.measureTitle}`;
+    if (!getValues('title')) {
+      setValue('title', generatedTitle, { shouldValidate: true });
+    }
+  };
+
+  const handleReportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) {
+      setReportFile(null);
+      setReportFileError(null);
+      return;
+    }
+    const MAX = 26214400; // 25 MiB
+    if (selected.size > MAX) {
+      setReportFileError('File exceeds 25 MiB limit');
+      setReportFile(null);
+      return;
+    }
+    if (!CommitteeReportMimeTypeSchema.safeParse(selected.type).success) {
+      setReportFileError('Invalid file type. Must be a PDF, JPEG, or PNG image');
+      setReportFile(null);
+      return;
+    }
+    setReportFileError(null);
+    setReportFile(selected);
+  };
+
+  // Committee Report intake: creates the report document (linkable to the
+  // active multi-referral step via metadata), uploads the file if present,
+  // then routes the submission through workflow.submitCommitteeReport — the
+  // same procedure the workflow panel uses, so both paths produce identical
+  // step state.
+  const handleSubmitCommitteeReport = async (data: IntakeFormValues) => {
+    if (!reportTargetKey) {
+      toast.error('Select the measure and committee this report is for');
+      return;
+    }
+    if (isRichTextEmpty(reportText) && !reportFile) {
+      toast.error('Provide report text and/or an uploaded report document');
+      return;
+    }
+
+    const [stepInstanceId, committeeId] = reportTargetKey.split('|');
+    const target = (reportTargets ?? []).find(
+      (t) => t.stepInstanceId === stepInstanceId && t.committeeId === committeeId,
+    );
+    if (!target) {
+      toast.error('The selected referral is no longer available. Choose another target.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+
+      const { documentId } = await createDocument.mutateAsync({
+        documentTypeId: data.documentTypeId,
+        title: data.title,
+        metadata: data.metadata,
+      });
+
+      let uploadedDocumentId: string | undefined;
+      if (reportFile) {
+        const mimeTypeCheck = CommitteeReportMimeTypeSchema.safeParse(reportFile.type);
+        if (!mimeTypeCheck.success) {
+          throw new Error('Unsupported file type');
+        }
+        const { uploadUrl, s3Key } = await requestUploadUrl.mutateAsync({
+          documentId,
+          mimeType: mimeTypeCheck.data,
+        });
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: reportFile,
+          headers: { 'Content-Type': reportFile.type },
+        });
+        if (!uploadRes.ok) {
+          throw new Error('Failed to upload file to S3');
+        }
+        await confirmUpload.mutateAsync({
+          documentId,
+          s3Key,
+          originalFilename: reportFile.name,
+          mimeType: mimeTypeCheck.data,
+          fileSizeBytes: reportFile.size,
+        });
+        uploadedDocumentId = documentId;
+      }
+
+      await submitCommitteeReport.mutateAsync({
+        stepInstanceId: target.stepInstanceId,
+        committeeId: target.committeeId,
+        ...(isRichTextEmpty(reportText) ? {} : { reportText }),
+        ...(uploadedDocumentId ? { documentId: uploadedDocumentId } : {}),
+      });
+
+      setReportTargetKey('');
+      setReportText('');
+      setReportFile(null);
+      setReportFileError(null);
+      navigate(`/documents/${documentId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit committee report');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const onSubmit = async (data: IntakeFormValues) => {
+    if (isCommitteeReportMode) {
+      await handleSubmitCommitteeReport(data);
+      return;
+    }
+
     if (!file) {
       setFileError('File is required');
       return;
@@ -742,6 +917,10 @@ export default function DocumentIntakePage() {
                   <Select
                     onValueChange={(val) => {
                       field.onChange(val);
+                      setReportTargetKey('');
+                      setReportText('');
+                      setReportFile(null);
+                      setReportFileError(null);
                       const type = documentTypes?.find((t) => t.id === val);
                       const defaultMetadata: Record<string, unknown> = {};
                       const schema = type?.metadataSchema as {
@@ -798,9 +977,14 @@ export default function DocumentIntakePage() {
               <Label htmlFor="title">Title</Label>
               <Input id="title" {...register('title')} placeholder="Enter document title" />
               {errors.title && <p className="text-destructive text-sm">{errors.title.message}</p>}
+              {isCommitteeReportMode && (
+                <p className="text-muted-foreground text-xs">
+                  Auto-filled from the selected measure and committee — edit if needed.
+                </p>
+              )}
             </div>
 
-            {metadataSchema?.properties && (
+            {!isCommitteeReportMode && metadataSchema?.properties && (
               <div className="space-y-4 border-t pt-4">
                 <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
                   Additional Information
@@ -834,17 +1018,98 @@ export default function DocumentIntakePage() {
               </div>
             )}
 
-            <div className="space-y-2 border-t pt-4">
-              <Label htmlFor="file">File (PDF, JPEG, PNG, max 25MiB)</Label>
-              <Input
-                id="file"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileChange}
-                className="cursor-pointer"
-              />
-              {fileError && <p className="text-destructive text-sm">{fileError}</p>}
-            </div>
+            {isCommitteeReportMode ? (
+              <div className="space-y-3 border-t pt-4">
+                <h3 className="text-sm font-semibold tracking-wider text-neutral-500 uppercase">
+                  Committee Report Submission
+                </h3>
+                <div className="space-y-1 text-muted-foreground text-xs">
+                  <p>You can submit your committee report in any of these three ways:</p>
+                  <ul className="list-disc space-y-1 pl-4">
+                    <li>
+                      Type the full report in the text editor only (no file
+                      upload).
+                    </li>
+                    <li>Upload a PDF or image file only (no text).</li>
+                    <li>
+                      Type notes in the text editor and upload a PDF or image file
+                      — the uploaded file is treated as the main report, and the
+                      text is appended as comments/supplementary content.
+                    </li>
+                  </ul>
+                  <p>
+                    When the SP Secretary consolidates the reports, uploaded files
+                    are merged into the consolidated PDF and any text you typed is
+                    included in the final unified committee report.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="report-target">Measure / Committee</Label>
+                  <Select
+                    value={reportTargetKey}
+                    onValueChange={handleReportTargetChange}
+                    disabled={isTargetsLoading}
+                  >
+                    <SelectTrigger id="report-target">
+                      <SelectValue placeholder="Select the measure your committee is assigned to…" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      {(reportTargets ?? []).length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          {isTargetsLoading
+                            ? 'Loading…'
+                            : 'No active referrals for your committees'}
+                        </SelectItem>
+                      ) : (
+                        (reportTargets ?? []).map((t) => (
+                          <SelectItem key={`${t.stepInstanceId}|${t.committeeId}`} value={`${t.stepInstanceId}|${t.committeeId}`}>
+                            {t.committeeName} — {t.measureTitle}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!isTargetsLoading && (reportTargets ?? []).length === 0 && (
+                    <p className="text-muted-foreground text-xs">
+                      Active multi-referral steps assigned to your committees will
+                      appear here. No eligible measures right now.
+                    </p>
+                  )}
+                </div>
+                <RichTextEditor
+                  value={reportText}
+                  onChange={setReportText}
+                  placeholder="Type your report here (or add notes/comments if you are uploading a file)…"
+                />
+                <div className="space-y-1">
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleReportFileChange}
+                    className="cursor-pointer"
+                  />
+                  {reportFileError && <p className="text-danger-600 text-xs">{reportFileError}</p>}
+                  {reportFile && (
+                    <p className="text-muted-foreground text-xs">
+                      Attached: {reportFile.name} — PDFs and images are merged into the
+                      consolidated report.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="file">File (PDF, JPEG, PNG, max 25MiB)</Label>
+                <Input
+                  id="file"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleFileChange}
+                  className="cursor-pointer"
+                />
+                {fileError && <p className="text-destructive text-sm">{fileError}</p>}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button
@@ -855,8 +1120,19 @@ export default function DocumentIntakePage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || isUploading || !file || !!fileError}>
-              {isUploading ? 'Uploading...' : 'Submit'}
+            <Button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                isUploading ||
+                (isCommitteeReportMode ? !reportTargetKey || !!reportFileError : !file || !!fileError)
+              }
+            >
+              {isUploading
+                ? 'Uploading...'
+                : isCommitteeReportMode
+                  ? 'Submit Committee Report'
+                  : 'Submit'}
             </Button>
           </CardFooter>
         </form>

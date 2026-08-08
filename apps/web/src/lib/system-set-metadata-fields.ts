@@ -9,6 +9,11 @@
  * in this set from rendering at intake, regardless of which document type is
  * selected — the field name itself is what marks it system-set, not the
  * document type. Added by TASK-DOCS-FE-022.
+ *
+ * The COMMITTEE_REPORT linkage fields are populated by the intake's
+ * Committee Report mode (targeting an active multi-referral step) or by the
+ * workflow panel — never typed by hand, so they must not render as raw UUID
+ * fields at intake.
  */
 export const SYSTEM_SET_METADATA_FIELDS = new Set([
   'certification_of_urgency_document_id',
@@ -16,4 +21,7 @@ export const SYSTEM_SET_METADATA_FIELDS = new Set([
   'certified_urgent',
   'issuing_authority_user_id',
   'issuing_authority_display_name',
+  'step_instance_id',
+  'measure_document_id',
+  'committee_id',
 ]);

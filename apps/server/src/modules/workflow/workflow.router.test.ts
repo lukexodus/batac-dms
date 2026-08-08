@@ -88,7 +88,7 @@ function makeMockDb() {
   return db;
 }
 
-function makeCtx(subject: AuthContext, db: ReturnType<typeof makeMockDb>): Context {
+function makeCtx(subject: AuthContext | null, db: ReturnType<typeof makeMockDb>): Context {
   return {
     auth: subject,
     db: db as any,
@@ -278,6 +278,137 @@ describe('Workflow Router Read Procedures', () => {
       const result = await caller.getActiveInstanceForDocument({ documentId: VALID_UUID });
       expect(result).not.toBeNull();
       expect(result?.instanceId).toBe(VALID_UUID);
+    });
+  });
+
+  describe('listCommitteeReportIntakeTargets', () => {
+    const STEP_UUID = '99999999-9999-4999-8999-999999999999';
+    const COMM_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const COMM_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    const COMM_C = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const COMM_X = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+    it('returns only the sp_member committees with no existing submission', async () => {
+      const subject = makeSubject({
+        roles: ['sp_member'],
+        effectiveRoles: ['sp_member'],
+        committeeIds: [COMM_A, COMM_B],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([
+        {
+          stepInstanceId: STEP_UUID,
+          instanceId: VALID_UUID,
+          measureDocumentId: VALID_UUID,
+          measureTitle: 'Measure 1',
+          stepMetadata: {
+            assigned_committees: [
+              { committee_id: COMM_A },
+              { committee_id: COMM_B },
+              { committee_id: COMM_C },
+            ],
+            // comm-b already submitted -> excluded; comm-c not mine -> excluded
+            submissions: [{ committee_id: COMM_B, missed: false }],
+          },
+        },
+      ]);
+      mockDb.mockResponse([{ name: 'Committee A' }]);
+
+      const result = await caller.listCommitteeReportIntakeTargets();
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        stepInstanceId: STEP_UUID,
+        instanceId: VALID_UUID,
+        measureDocumentId: VALID_UUID,
+        measureTitle: 'Measure 1',
+        committeeId: COMM_A,
+        committeeName: 'Committee A',
+      });
+    });
+
+    it('excludes committees with only missed submissions from the already-submitted check', async () => {
+      const subject = makeSubject({
+        roles: ['sp_member'],
+        effectiveRoles: ['sp_member'],
+        committeeIds: [COMM_A],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([
+        {
+          stepInstanceId: STEP_UUID,
+          instanceId: VALID_UUID,
+          measureDocumentId: VALID_UUID,
+          measureTitle: 'Measure 1',
+          stepMetadata: {
+            assigned_committees: [{ committee_id: COMM_A }],
+            submissions: [{ committee_id: COMM_A, missed: true }],
+          },
+        },
+      ]);
+      mockDb.mockResponse([{ name: 'Committee A' }]);
+
+      const result = await caller.listCommitteeReportIntakeTargets();
+      expect(result).toHaveLength(1);
+      expect(result[0]?.committeeId).toBe(COMM_A);
+    });
+
+    it('sp_secretary sees every assigned committee regardless of membership', async () => {
+      const subject = makeSubject({
+        roles: ['sp_secretary'],
+        effectiveRoles: ['sp_secretary'],
+        committeeIds: [], // not a member of any committee
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([
+        {
+          stepInstanceId: STEP_UUID,
+          instanceId: VALID_UUID,
+          measureDocumentId: VALID_UUID,
+          measureTitle: 'Measure 1',
+          stepMetadata: {
+            assigned_committees: [{ committee_id: COMM_X }],
+            submissions: [],
+          },
+        },
+      ]);
+      mockDb.mockResponse([{ name: 'Committee X' }]);
+
+      const result = await caller.listCommitteeReportIntakeTargets();
+      expect(result).toHaveLength(1);
+      expect(result[0]?.committeeId).toBe(COMM_X);
+    });
+
+    it('returns an empty list when no active multi-referral steps exist', async () => {
+      const subject = makeSubject({
+        roles: ['sp_secretary'],
+        effectiveRoles: ['sp_secretary'],
+      });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([]);
+
+      const result = await caller.listCommitteeReportIntakeTargets();
+      expect(result).toEqual([]);
+    });
+
+    it('rejects roles other than sp_secretary/sp_member', async () => {
+      const subject = makeSubject({ roles: ['dept_encoder'], effectiveRoles: ['dept_encoder'] });
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      await expect(caller.listCommitteeReportIntakeTargets()).rejects.toThrow(
+        'Only the SP Secretary and SP Members can submit committee reports.',
+      );
+    });
+
+    it('rejects unauthenticated calls via the protected procedure middleware', async () => {
+      const caller = callerFor(makeCtx(null, mockDb));
+
+      await expect(caller.listCommitteeReportIntakeTargets()).rejects.toThrow(
+        'You must be logged in to access this resource.',
+      );
     });
   });
 

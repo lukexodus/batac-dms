@@ -2219,15 +2219,131 @@ export function createWorkflowRouter() {
       }),
 
     /**
+     * `workflow.listCommitteeReportIntakeTargets`
+     *
+     * Lists the active multi-referral steps the current user can submit a
+     * committee report for, used by the Documents → Intake "Committee Report"
+     * path. Target eligibility mirrors the Multi-Referral panel:
+     *   - sp_secretary: every assigned committee (may submit on behalf of any)
+     *   - sp_member: only committees the user belongs to (committee-scoped ABAC)
+     *
+     * Only active multi_referral step instances on active instances whose
+     * measure document has not been completed/terminated are returned, and
+     * committees that already have a non-missed submission are excluded.
+     *
+     * Source: E1 §938; I1 §6.6; B4 §4.3
+     */
+    listCommitteeReportIntakeTargets: protectedProcedure
+      .output(
+        z.array(
+          z.object({
+            stepInstanceId: z.string().uuid(),
+            instanceId: z.string().uuid(),
+            measureDocumentId: z.string().uuid(),
+            measureTitle: z.string(),
+            committeeId: z.string().uuid(),
+            committeeName: z.string(),
+          }),
+        ),
+      )
+      .query(async ({ ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const hasRole = (role: string) =>
+          ctx.auth!.roles.includes(role) || ctx.auth!.effectiveRoles.includes(role);
+        const isSpSecretary = hasRole('sp_secretary');
+        const isSpMember = hasRole('sp_member');
+
+        if (!isSpSecretary && !isSpMember) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Only the SP Secretary and SP Members can submit committee reports.',
+          });
+        }
+
+        const rows = await ctx.db
+          .select({
+            stepInstanceId: stepInstances.id,
+            instanceId: instances.id,
+            measureDocumentId: documents.id,
+            measureTitle: documents.title,
+            stepMetadata: stepInstances.metadata,
+          })
+          .from(stepInstances)
+          .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+          .innerJoin(instances, eq(stepInstances.instanceId, instances.id))
+          .innerJoin(documents, eq(instances.documentId, documents.id))
+          .where(
+            and(
+              eq(stepInstances.cityId, ctx.auth.cityId),
+              eq(stepInstances.status, 'active'),
+              eq(steps.stepType, 'multi_referral'),
+              isNull(stepInstances.deletedAt),
+              isNull(instances.deletedAt),
+              isNull(documents.deletedAt),
+              notInArray(documents.lifecycleState, [
+                'completed',
+                'cancelled',
+                'superseded',
+                'disposed',
+                'archived',
+              ]),
+            ),
+          )
+          .orderBy(asc(documents.title));
+
+        const userCommitteeIds = new Set(ctx.auth.committeeIds ?? []);
+        const targets: Array<{
+          stepInstanceId: string;
+          instanceId: string;
+          measureDocumentId: string;
+          measureTitle: string;
+          committeeId: string;
+          committeeName: string;
+        }> = [];
+
+        for (const row of rows) {
+          const metadata = (row.stepMetadata as Record<string, any>) ?? {};
+          const assignedCommittees =
+            (metadata['assigned_committees'] as Array<{ committee_id: string }>) ?? [];
+          const submissions = (metadata['submissions'] as Array<any>) ?? [];
+          const submittedIds = new Set(
+            submissions.filter((s) => !s.missed).map((s) => s.committee_id),
+          );
+
+          for (const ac of assignedCommittees) {
+            if (!isSpSecretary && !userCommitteeIds.has(ac.committee_id)) continue;
+            if (submittedIds.has(ac.committee_id)) continue;
+            const committeeName =
+              (await resolveCommitteeName(ctx.db, ac.committee_id)) ?? ac.committee_id;
+            targets.push({
+              stepInstanceId: row.stepInstanceId,
+              instanceId: row.instanceId,
+              measureDocumentId: row.measureDocumentId,
+              measureTitle: row.measureTitle,
+              committeeId: ac.committee_id,
+              committeeName,
+            });
+          }
+        }
+
+        return targets;
+      }),
+
+    /**
      * `workflow.consolidateCommitteeReports`
      *
      * SP Secretary consolidates the submitted committee reports into a single
-     * document: a title page followed by each committee's uploaded PDF (PDF
-     * submissions are merged page-by-page; text-only and non-PDF submissions
-     * are listed on the title page). The consolidated PDF is stored as a
-     * COMMITTEE_REPORT DMS document and its ID is recorded on the step as
-     * `metadata.unified_report_document_id`. The secretary reviews it, then
-     * completes the step via `workflow.acceptUnifiedReport`.
+     * document: a title page followed by each committee's uploaded file —
+     * PDFs are merged page-by-page and images (JPEG/PNG) are embedded as
+     * pages — then any editor text is appended (text-only submissions render
+     * as report pages; text submitted alongside a file is appended as
+     * comments/supplementary after the file). The consolidated PDF is stored
+     * as a COMMITTEE_REPORT DMS document and its ID is recorded on the step
+     * as `metadata.unified_report_document_id`. The secretary reviews it,
+     * then completes the step via `workflow.acceptUnifiedReport`.
      *
      * ABAC: reuses I1 §6.8 (sp_secretary only) — consolidation is part of the
      * accept flow.
@@ -2282,13 +2398,14 @@ export function createWorkflowRouter() {
           });
         }
 
-        // ---- Gather source PDFs + title-page entries -----------------------
+        // ---- Gather source files + title-page entries -----------------------
         const sourceEntries: Array<{
           title: string;
           submittedAt: string | null;
           status: 'merged' | 'text_only' | 'not_merged';
+          mergedKind?: 'pdf' | 'image';
         }> = [];
-        const sourcePdfBuffers: Buffer[] = [];
+        const sourceFileBuffers: Array<{ bytes: Buffer; mimeType: string }> = [];
         const textOnlyContents: Array<{ committeeName: string; text: string }> = [];
         let mergedPageCount = 0;
         let textOnlyCount = 0;
@@ -2298,6 +2415,7 @@ export function createWorkflowRouter() {
           const committeeName = await resolveCommitteeName(ctx.db, sub.committee_id);
           let entryTitle = committeeName ?? sub.committee_id;
           let status: 'merged' | 'text_only' | 'not_merged' = 'text_only';
+          let mergedKind: 'pdf' | 'image' | undefined;
 
           if (sub.contribution_document_id) {
             const [subDoc] = await ctx.db
@@ -2313,15 +2431,29 @@ export function createWorkflowRouter() {
                 .where(eq(versions.documentId, subDoc.id))
                 .orderBy(desc(versions.versionNumber))
                 .limit(1);
-              if (latestVersion?.fileKey && latestVersion.mimeType === 'application/pdf') {
+              if (latestVersion?.fileKey) {
                 const bytes = await fetchS3Object(latestVersion.fileKey);
-                try {
-                  const { PDFDocument } = await import('pdf-lib');
-                  const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
-                  sourcePdfBuffers.push(bytes);
-                  mergedPageCount += src.getPageCount();
+                if (latestVersion.mimeType === 'application/pdf') {
+                  try {
+                    const { PDFDocument } = await import('pdf-lib');
+                    const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+                    sourceFileBuffers.push({ bytes, mimeType: latestVersion.mimeType });
+                    mergedPageCount += src.getPageCount();
+                    status = 'merged';
+                    mergedKind = 'pdf';
+                  } catch {
+                    status = 'not_merged';
+                    skippedCount++;
+                  }
+                } else if (
+                  latestVersion.mimeType === 'image/png' ||
+                  latestVersion.mimeType === 'image/jpeg'
+                ) {
+                  sourceFileBuffers.push({ bytes, mimeType: latestVersion.mimeType });
+                  mergedPageCount += 1;
                   status = 'merged';
-                } catch {
+                  mergedKind = 'image';
+                } else {
                   status = 'not_merged';
                   skippedCount++;
                 }
@@ -2342,10 +2474,11 @@ export function createWorkflowRouter() {
             title: entryTitle,
             submittedAt: sub.submitted_at ?? null,
             status,
+            ...(mergedKind ? { mergedKind } : {}),
           });
         }
 
-        if (sourcePdfBuffers.length === 0 && textOnlyCount === 0 && sourceEntries.length === 0) {
+        if (sourceFileBuffers.length === 0 && textOnlyCount === 0 && sourceEntries.length === 0) {
           throw new TRPCError({
             code: 'CONFLICT',
             message: 'No committee report content is available to consolidate.',
@@ -2422,9 +2555,9 @@ export function createWorkflowRouter() {
             : '';
           const statusSuffix =
             entry.status === 'merged'
-              ? ' — PDF merged'
+              ? ` — ${entry.mergedKind === 'image' ? 'image' : 'PDF'} merged`
               : entry.status === 'not_merged'
-                ? ' — attachment submitted, not merged (non-PDF)'
+                ? ' — attachment submitted, not merged'
                 : ' — text-only report';
           titlePage.drawText(`• ${entry.title}${dateSuffix}${statusSuffix}`, {
             x: 60,
@@ -2448,7 +2581,46 @@ export function createWorkflowRouter() {
           },
         );
 
-        // Render text-only committee reports as PDF pages (word-wrapped).
+        // Merge each submitted file into the consolidated report: PDFs are
+        // copied page-by-page; images (JPEG/PNG) are embedded as full pages.
+        // Files are merged before any text so that an uploaded file is the
+        // main report and editor text is appended after it as
+        // comments/supplementary.
+        for (const file of sourceFileBuffers) {
+          if (file.mimeType === 'application/pdf') {
+            const src = await PDFDoc.load(file.bytes, { ignoreEncryption: true });
+            const pages = await outPdf.copyPages(src, src.getPageIndices());
+            for (const page of pages) {
+              outPdf.addPage(page);
+            }
+          } else if (file.mimeType === 'image/png' || file.mimeType === 'image/jpeg') {
+            const page = outPdf.addPage([pageW, pageH]);
+            // pdf-lib's image embedders read via `new DataView(bytes.buffer)`
+            // without honoring `byteOffset`, so pass a zero-offset copy of the
+            // buffer (S3 fetches can return small pooled Buffers whose
+            // `byteOffset` is non-zero).
+            const imageBytes = new Uint8Array(file.bytes);
+            const img =
+              file.mimeType === 'image/png'
+                ? await outPdf.embedPng(imageBytes)
+                : await outPdf.embedJpg(imageBytes);
+            const maxWidth = pageW - 120;
+            const maxHeight = pageH - 120;
+            const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+            const drawWidth = img.width * scale;
+            const drawHeight = img.height * scale;
+            page.drawImage(img, {
+              x: (pageW - drawWidth) / 2,
+              y: (pageH - drawHeight) / 2,
+              width: drawWidth,
+              height: drawHeight,
+            });
+          }
+        }
+
+        // Render committee report text as PDF pages (word-wrapped). Text from
+        // submissions that also carry an uploaded file is appended here, after
+        // the file, as comments/supplementary.
         let textReportPagesCount = 0;
         if (textOnlyContents.length > 0) {
           const textSize = 11;
@@ -2640,15 +2812,6 @@ export function createWorkflowRouter() {
           }
         }
 
-        // Merge each source PDF page-by-page (pdf-lib page copying).
-        for (const bytes of sourcePdfBuffers) {
-          const src = await PDFDoc.load(bytes, { ignoreEncryption: true });
-          const pages = await outPdf.copyPages(src, src.getPageIndices());
-          for (const page of pages) {
-            outPdf.addPage(page);
-          }
-        }
-
         const outBytes = await outPdf.save();
 
         // ---- Persist as a COMMITTEE_REPORT DMS document --------------------
@@ -2739,7 +2902,7 @@ export function createWorkflowRouter() {
           unifiedReportDocumentId: createdDocumentId!,
           unifiedReportDocumentTitle: unifiedTitle,
           unifiedReportDocumentUrl: viewUrl,
-          mergedPdfCount: sourcePdfBuffers.length,
+          mergedFileCount: sourceFileBuffers.length,
           textOnlyCount,
           textReportPagesCount,
           skippedCount,

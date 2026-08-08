@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
-import { AllowedMimeTypeSchema } from '@batac/shared';
 import {
   Card,
   CardHeader,
@@ -25,6 +25,16 @@ import { hasRole } from '@/lib/auth-helpers';
 import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 import { useSessionStore } from '@/stores';
+
+// File types accepted for committee report uploads. The uploaded file is merged
+// into the consolidated report by the SP Secretary, so only PDFs and images
+// (JPEG/PNG) are accepted — Word/Excel files cannot be merged. Kept in sync with
+// the consolidation logic in workflow.consolidateCommitteeReports.
+const CommitteeReportMimeTypeSchema = z.enum([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+]);
 
 // Per F1 §8.2 Multi-Referral role gates:
 //   submitCommitteeReport  → sp_secretary OR sp_member (committee-scoped)
@@ -111,8 +121,8 @@ export function MultiReferralPanel({
       setReportFile(null);
       return;
     }
-    if (!AllowedMimeTypeSchema.safeParse(selected.type).success) {
-      setReportFileError('Invalid file type. Must be PDF, Word (.docx), Excel (.xlsx), JPEG, or PNG');
+    if (!CommitteeReportMimeTypeSchema.safeParse(selected.type).success) {
+      setReportFileError('Invalid file type. Must be a PDF, JPEG, or PNG image');
       setReportFile(null);
       return;
     }
@@ -169,7 +179,7 @@ export function MultiReferralPanel({
   const consolidateReportsMutation = trpc.workflow.consolidateCommitteeReports.useMutation({
     onSuccess: (result) => {
       toast.success(
-        `Reports consolidated: ${result.mergedPdfCount} PDF(s) merged, ${result.textOnlyCount} text-only, ${result.skippedCount} attachment(s) not merged.`,
+        `Reports consolidated: ${result.mergedFileCount} file(s) merged, ${result.textOnlyCount} text-only, ${result.skippedCount} attachment(s) not merged.`,
       );
       void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
       void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
@@ -195,7 +205,7 @@ export function MultiReferralPanel({
     if (!committeeReportTypeId) {
       throw new Error('Committee Report document type is not configured. Run the document-types seed.');
     }
-    const mimeTypeCheck = AllowedMimeTypeSchema.safeParse(file.type);
+    const mimeTypeCheck = CommitteeReportMimeTypeSchema.safeParse(file.type);
     if (!mimeTypeCheck.success) {
       throw new Error('Unsupported file type');
     }
@@ -423,6 +433,26 @@ export function MultiReferralPanel({
         {(isSpSecretary || isSpMember) && (
           <div className="space-y-3 rounded-md border p-4">
             <h3 className="text-sm font-medium">Submit Committee Report</h3>
+            <div className="space-y-1 text-muted-foreground text-xs">
+              <p>You can submit your committee report in any of these three ways:</p>
+              <ul className="list-disc space-y-1 pl-4">
+                <li>
+                  Type the full report in the text editor only (no file
+                  upload).
+                </li>
+                <li>Upload a PDF or image file only (no text).</li>
+                <li>
+                  Type notes in the text editor and upload a PDF or image file
+                  — the uploaded file is treated as the main report, and the
+                  text is appended as comments/supplementary content.
+                </li>
+              </ul>
+              <p>
+                When the SP Secretary consolidates the reports, uploaded files
+                are merged into the consolidated PDF and any text you typed is
+                included in the final unified committee report.
+              </p>
+            </div>
             <Select value={committeeId} onValueChange={setCommitteeId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select committee…" />
@@ -444,20 +474,20 @@ export function MultiReferralPanel({
             <RichTextEditor
               value={reportText}
               onChange={setReportText}
-              placeholder="Report text (or describe the attached document)…"
+              placeholder="Type your report here (or add notes/comments if you are uploading a file)…"
             />
             <div className="space-y-1">
               <Input
                 type="file"
-                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleReportFileChange}
                 className="cursor-pointer"
               />
               {reportFileError && <p className="text-danger-600 text-xs">{reportFileError}</p>}
               {reportFile && (
                 <p className="text-muted-foreground text-xs">
-                  Attached: {reportFile.name} — PDFs are merged into the consolidated report;
-                  other formats are listed as attachments.
+                  Attached: {reportFile.name} — PDFs and images are merged into the
+                  consolidated report.
                 </p>
               )}
             </div>
@@ -504,16 +534,29 @@ export function MultiReferralPanel({
             <h3 className="text-sm font-medium">Consolidate &amp; Accept Unified Committee Report</h3>
             <p className="text-muted-foreground text-xs">
               Consolidate the submitted committee reports into a single document: a title page
-              followed by each committee&apos;s uploaded PDF and any text-only submissions. Review
+              followed by each committee&apos;s uploaded PDF or image, then any editor text
+              (appended as comments/supplementary where a file was also uploaded). Review
               the result, then accept it to complete this step. All assigned committees must
               have submitted first.
             </p>
-            <Button
-              onClick={handleConsolidateReports}
-              disabled={!allCommitteesSubmitted || isConsolidating}
-            >
-              {isConsolidating ? 'Consolidating…' : 'Consolidate Committee Reports'}
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={handleConsolidateReports}
+                disabled={!allCommitteesSubmitted || isConsolidating}
+              >
+                {isConsolidating ? 'Consolidating…' : 'Consolidate Committee Reports'}
+              </Button>
+              <Button
+                onClick={handleAcceptUnifiedReport}
+                disabled={
+                  !allCommitteesSubmitted ||
+                  !instance.unifiedReportDocumentId ||
+                  isAcceptingReport
+                }
+              >
+                {isAcceptingReport ? 'Accepting…' : 'Accept Reports'}
+              </Button>
+            </div>
             {instance.unifiedReportDocumentUrl && (
               <div className="space-y-1">
                 <a
@@ -526,16 +569,6 @@ export function MultiReferralPanel({
                 </a>
               </div>
             )}
-            <Button
-              onClick={handleAcceptUnifiedReport}
-              disabled={
-                !allCommitteesSubmitted ||
-                !instance.unifiedReportDocumentId ||
-                isAcceptingReport
-              }
-            >
-              {isAcceptingReport ? 'Accepting…' : 'Accept Reports'}
-            </Button>
             {!allCommitteesSubmitted && (
               <p className="text-muted-foreground text-xs">
                 Waiting for all assigned committees to submit before the unified report can be
