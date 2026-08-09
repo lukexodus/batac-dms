@@ -676,7 +676,7 @@ async function resolveCommitteeReportMetadata(ctx: any, metadata: Record<string,
   const committeesTable = committees;
   // eq, inArray, isNull, and are already imported at the top of the file
 
-  const assignedCommitteeIds = (metadata['assigned_committees'] as string[]) || [];
+  const assignedCommitteeIds = ((metadata['assigned_committees'] || []) as Array<{ committee_id: string }>).map((c) => c.committee_id);
   const submissionsData = (metadata['submissions'] as any[]) || [];
   const correctionsData = (metadata['corrections'] as any[]) || [];
 
