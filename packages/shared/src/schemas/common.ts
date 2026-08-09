@@ -82,6 +82,24 @@ export const ApiErrorSchema = z.object({
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
+export const ErrorResponseSchema = z.object({
+  statusCode: z.number().int(),
+  error: z.string(),
+  message: z.string(),
+});
+export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
+
+export const ValidationErrorResponseSchema = ErrorResponseSchema.extend({
+  details: z.array(
+    z.object({
+      field: z.string(),
+      message: z.string(),
+      code: z.string(),
+    })
+  ),
+});
+export type ValidationErrorResponse = z.infer<typeof ValidationErrorResponseSchema>;
+
 // ─── File upload ─────────────────────────────────────────────────────────────
 
 export const AllowedMimeTypeSchema = z.enum([

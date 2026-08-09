@@ -249,6 +249,7 @@ export const serverEnvSchema = z
 
     // ─── Portal (Phase 3 — fields declared now so the schema does not break later) ──
     PORTAL_URL: z.string().url().optional(),
+    PORTAL_BASE_URL: z.string().url().optional(),
     PORTAL_API_URL: z.string().url().optional(),
     PORTAL_CDN_URL: z.string().url().optional(),
     PORTAL_CITIZEN_OTP_EXPIRY_S: positiveInt.default(300),

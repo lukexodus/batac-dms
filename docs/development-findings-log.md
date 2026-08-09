@@ -9456,3 +9456,58 @@ Note: tested via unit tests (`numbering.service.test.ts` patterns) as part of th
 **What was implemented:** The two new series (`CITIZEN_COMPLAINT_REF`, prefix COMP; `DOCUMENT_REQUEST_REF`, prefix DREQ) were added to `number-series.seed.ts` alongside the existing 11 series, which now total 13. The seed's console log was updated from 11 to 13. The TASK-PORTAL-003 deliverable wording (migration vs seed) is flagged here for the human to reconcile rather than silently creating a migration that would duplicate the seed's work on the next seed run.
 
 ---
+
+### [LOG-0293] — `archive` workflow step does not call `documents.archive`
+**Status:** Confirmed. **Severity:** High — silent data-integrity gap in the terminal step of the workflow.
+Completing the `archive` step (`step_key: 'archive'`, action-type, `auto_complete: false`) via the normal
+assigned-steps UI goes through the fully generic `GenericActionPanel.tsx` → `workflow.completeActionStep`
+→ `submitStepAction` (`apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts:12-84`) path.
+None of these three layers inspect `stepKey`, so none of them call `documents.archive` or
+`archiveStepForDocument`. The step instance completes and the workflow instance advances to
+`final_outcome_check` normally, but `document.lifecycleState` never transitions to `'archived'`.
+The only working path is the standalone "Archive" button on `DocumentDetailPage.tsx` (line 390,
+`trpc.documents.archive.useMutation`), which is entirely workflow-unaware (its `canArchive` gate,
+line 193, checks only role + `lifecycleState`, with no reference to the workflow instance or step state)
+and happens to call the correct, atomic `documents.archive` → `archiveStepForDocument` chain
+(`apps/server/src/modules/documents/documents.router.ts:1767-1817`).
+Design decision needed: should `submitStepAction`/`completeActionStep` gain a `stepKey === 'archive'`
+special case that calls `archiveStepForDocument`'s underlying logic, or should the `GenericActionPanel`
+route for this specific step key redirect to/reuse the detail-page archive action instead? Both are
+reasonable; picking one is a design call, not mine to make.
+
+### [LOG-0294] — `canPublishToPortal` (frontend) and `canPublishPortal` (server) allow different lifecycle states
+**Status:** Confirmed. **Severity:** Medium — button visibility doesn't match server authorization.
+`apps/web/src/pages/documents/DocumentDetailPage.tsx:204-207` allows `{'released', 'superseded'}`.
+`apps/server/src/modules/documents/documents.policy.ts:685-700` (`canPublishPortal`) allows
+`{'released', 'archived'}`. Only `'released'` is common to both. Practical effect: the Publish button
+is invisible for `archived` documents (the range's actual terminal state, once LOG-XXXX above is fixed)
+and visible-but-guaranteed-to-403 for `superseded` documents (the state produced by an ADR-014 repass).
+Fix is presumably to change `superseded` → `archived` in the frontend list to match the server, but
+flagging as a decision rather than assuming, since I can't rule out the server policy being the one
+that's wrong instead.
+
+### [LOG-0295] — `OPERATIVE_IN_ITS_ENTIRETY` is a reachable dead-end for SP Resolution
+**Status:** Confirmed. **Severity:** Low-Medium — real UI dead-end, but narrow (one dropdown value, one
+document type).
+`PanlalawiganOutcomePanel.tsx`'s outcome `<Select>` offers `OPERATIVE_IN_ITS_ENTIRETY` unconditionally.
+`approval.handler.ts:96-99` throws `OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE` unless
+`context['document_type'] === 'appropriation_ordinance'`. For an SP Resolution, selecting this option
+and submitting always fails. Likely fix: filter the dropdown's options by `instance`'s document type
+client-side. Flagging rather than fixing since I haven't checked whether `instance` (the panel's prop)
+actually carries a `document_type`/`documentTypeCode` field the panel could filter on — that's the
+next thing to verify before writing a prompt for this.
+
+### [LOG-0296] — Inconsistent "& Advance Workflow" button copy across two mutations on one panel
+**Status:** Confirmed. **Severity:** Low — UX/trust issue, not a functional break.
+On `PanlalawiganOutcomePanel.tsx`: "Record Outcome & Advance Workflow" (line 131, calls
+`recordPanlalawiganOutcome` → `submitStepApproval` → `resolveNextStep`, synchronous, accurate) sits
+directly above "Confirm Deemed Approved & Advance Workflow" (line 191, calls
+`confirmPanlalawiganDeemedApproved`, which only writes `deemed_approved_confirmed_at`/`_by` metadata —
+the actual advance happens later via the `evaluatePanlalawiganTimers` daily job). Same pattern as the
+already-logged `MayorLapseConfirmationPanel` copy issue. Suggested fix: reword the second button to
+something like "Confirm Deemed Approved" (drop "& Advance Workflow") and/or add a one-line note that
+the workflow advances automatically once confirmed. Purely a copy change — no design decision needed,
+safe to auto-fold into a prompt if you want it fixed alongside LOG-XXXX above rather than as its own task.
+
+---
+

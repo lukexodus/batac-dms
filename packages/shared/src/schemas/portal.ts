@@ -319,6 +319,9 @@ export const SubmitComplaintInputSchema = z
   );
 export type SubmitComplaintInput = z.infer<typeof SubmitComplaintInputSchema>;
 
+export const ComplaintSubmissionRequestSchema = SubmitComplaintInputSchema;
+export type ComplaintSubmissionRequest = SubmitComplaintInput;
+
 /**
  * Data returned on successful complaint submission.
  *

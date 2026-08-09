@@ -15,6 +15,7 @@
       "@batac/trpc": ["./src/trpc.ts"]
     },
     "types": ["node"],
+    "jsx": "react-jsx",
     "skipLibCheck": true,
     "exactOptionalPropertyTypes": false
   },

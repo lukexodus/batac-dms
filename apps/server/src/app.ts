@@ -57,6 +57,7 @@ import documentsPlugin from './modules/documents/documents.plugin.js';
 import trackingPlugin from './modules/tracking/tracking.plugin.js';
 import workflowPlugin from './modules/workflow/workflow.plugin.js';
 import notificationsPlugin from './modules/notifications/notifications.plugin.js';
+import portalPlugin from './modules/portal/portal.plugin.js';
 
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
@@ -236,6 +237,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await fastify.register(trackingPlugin);
   await fastify.register(workflowPlugin);
   await fastify.register(notificationsPlugin);
+  await fastify.register(portalPlugin);
 
 
   // Merged tRPC router — must come last so every module's decorations are
