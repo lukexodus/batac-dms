@@ -18,4 +18,6 @@ export * from './schemas/organization.js';
 export * from './schemas/common.js';
 export * from './schemas/documents.js';
 export * from './schemas/document-metadata.js';
+export * from './schemas/tracking.js';
+export * from './schemas/portal.js';
 export * from './workflow/index.js';
