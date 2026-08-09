@@ -105,7 +105,9 @@ export function PanlalawiganOutcomePanel({
             <SelectContent>
               <SelectItem value="VALID">Valid</SelectItem>
               <SelectItem value="VALID_IN_PART">Valid in Part</SelectItem>
-              <SelectItem value="OPERATIVE_IN_ITS_ENTIRETY">Operative in its Entirety</SelectItem>
+              {instance.documentTypeCode === 'appropriation_ordinance' && (
+                <SelectItem value="OPERATIVE_IN_ITS_ENTIRETY">Operative in its Entirety</SelectItem>
+              )}
               <SelectItem value="RETURNED">Returned</SelectItem>
             </SelectContent>
           </Select>
@@ -181,15 +183,18 @@ export function PanlalawiganOutcomePanel({
             <h3 className="text-sm font-medium">Confirm 30-Day Deemed Approved</h3>
             <p className="text-muted-foreground text-xs">RA 7160 §56(d) — 30-day window elapsed.</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() =>
-              confirmDeemedMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
-            }
-            disabled={confirmDeemedMutation.isPending}
-          >
-            Confirm Deemed Approved & Advance Workflow
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              variant="outline"
+              onClick={() =>
+                confirmDeemedMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
+              }
+              disabled={confirmDeemedMutation.isPending}
+            >
+              Confirm Deemed Approved
+            </Button>
+            <p className="text-xs text-muted-foreground">Advances automatically</p>
+          </div>
         </div>
       </CardContent>
     </Card>

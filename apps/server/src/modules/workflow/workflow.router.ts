@@ -1397,6 +1397,7 @@ export function createWorkflowRouter() {
           instanceId: z.string().uuid(),
           documentId: z.string().uuid(),
           documentTitle: z.string().nullable(),
+          documentTypeCode: z.string().nullable(),
           definitionVersionId: z.string().uuid(),
           currentStepType: z.enum([
             'action',
@@ -1507,6 +1508,17 @@ export function createWorkflowRouter() {
             code: 'NOT_FOUND',
             message: 'Parent document not found',
           });
+        }
+
+        let documentTypeCode: string | null = null;
+        if (doc.documentTypeId) {
+          const [dt] = await ctx.db
+            .select({ code: documentTypes.code })
+            .from(documentTypes)
+            .where(eq(documentTypes.id, doc.documentTypeId));
+          if (dt) {
+            documentTypeCode = dt.code;
+          }
         }
 
         const isAllowed = await checkWorkflowInstanceReadPermission(ctx, doc);
@@ -1711,6 +1723,7 @@ export function createWorkflowRouter() {
           instanceId: instance.id,
           documentId: instance.documentId,
           documentTitle: doc.title || null,
+          documentTypeCode,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
           currentStepName: currentStep ? getHumanReadableStepName(currentStep.stepName, currentStep.stepKey, currentStepType) : null,
