@@ -970,6 +970,12 @@ Same as Input + `resize-y min-h-24`. Character count: right-aligned `text-xs tex
 
 ---
 
+#### RichTextEditor
+
+Replaces `Textarea` for workflow comment, remarks, and report fields per ADR-UI-017. Toolbar container uses `border-b border-border-default p-1 bg-neutral-50` with active toggles styled via `bg-neutral-200`. Features a two-tier button model: 10 toggle-style marks with `aria-pressed` state and 3 action-style buttons (Horizontal Rule, Undo, Redo) with no active state. See `packages/ui/src/components/domain/RichTextEditor.tsx`.
+
+---
+
 #### Select / Combobox
 
 Searchable via shadcn `Command` inside a `Popover`. Matches Input height and border styling.

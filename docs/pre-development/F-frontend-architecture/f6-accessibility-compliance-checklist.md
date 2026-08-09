@@ -250,6 +250,27 @@ Based on inspection of the Sonner source repository (`github.com/emilkowalski/so
 
 ---
 
+### 3.11 `RichTextEditor`
+
+`RichTextEditor` replaces `Textarea` for workflow comment, remarks, and report fields per DESIGN.md §6.4 and ADR-UI-017.
+
+**Required ARIA attributes**
+- Toolbar container: `role="toolbar"`, `aria-label="Formatting toolbar"`.
+- Toggle-style buttons (Bold, Italic, Bullet List, Ordered List, Underline, Strikethrough, Heading 3, Heading 4, Blockquote, Link): `aria-pressed={editor.isActive(...)}` reflecting active state, each with a descriptive `aria-label`.
+- Action-style buttons (Horizontal Rule, Undo, Redo): carry descriptive `aria-label` without `aria-pressed`, as they perform insert/history actions rather than toggling state.
+
+**Keyboard interaction contract**
+- The editable surface carries `role="textbox"` and `aria-multiline="true"`.
+- Toolbar controls use native `<button type="button">`, receiving standard Tab navigation and Enter/Space activation automatically.
+- Undo and Redo actions support standard browser keyboard shortcuts (`Mod-Z`, `Mod-Shift-Z`) via TipTap's bundled History extension, functioning independently of toolbar button focus.
+
+**Screen reader announcement**
+- Toolbar controls announce as interactive buttons with their accessible name (from `aria-label`). Toggle buttons announce state changes (between "pressed" and "not pressed") when activated. **[Inference]** — exact verbosity and announcement sequence depend on screen reader settings.
+
+**PR check:** confirm `role="toolbar"` + `aria-label="Formatting toolbar"` on container, `aria-pressed` present on all 10 toggle buttons and absent on the 3 action buttons, and `aria-label` present on every button.
+
+---
+
 ## 4. Form Accessibility Rules
 
 Every form field — `Input`, `Textarea`, `Select`, `Checkbox`, `DatePicker`, and the multi-select `Combobox` — must satisfy three rules without exception, regardless of which container element wraps it. DESIGN.md §8 Rule 8's prohibition on `<form>` elements is a constraint on the *container*, not an exemption from these field-level rules; a field inside a `<div>` or `<section>` needs the same label association and error announcement a field inside a native `<form>` would.
@@ -323,6 +344,7 @@ Paste this section directly into a PR review comment. Every item is checkable by
 - [ ] `DataTable`: real `<table>`/`<thead>`/`<tbody>` (check rendered DOM, not source); `aria-sort` on `<th>`, not the inner sort button; row navigation works via keyboard
 - [ ] `FileUpload`: `role="region"` + `aria-label` + `aria-describedby` on dropzone; error messages in a distinct `aria-live="assertive"` region (not the drag-over `polite` region); click-to-browse works with Tab + Enter alone, no mouse
 - [ ] Toast: error/warning toasts use the `role="alert"` override (not Sonner's default `toast.error()`/`toast.warning()` call), and this was verified with live NVDA testing
+- [ ] `RichTextEditor`: `role="toolbar"` + `aria-label="Formatting toolbar"` on toolbar container; `aria-pressed` on 10 toggle buttons (absent on 3 action buttons: Horizontal Rule, Undo, Redo); `aria-label` on all 13 buttons
 
 ### Forms
 - [ ] Every field has a `<label htmlFor>` matching a stable field `id` (no `aria-label`-only labels except icon-only fields)

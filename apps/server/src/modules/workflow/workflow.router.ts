@@ -756,16 +756,636 @@ async function resolveCommitteeReportMetadata(ctx: any, metadata: Record<string,
 }
 
 async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string, stepInstanceId: string, metadata: Record<string, any>, res: any, tx: any) {
-  // Re-use logic from consolidateCommitteeReports or just duplicate it
-  // For simplicity and speed in this task, I will mock the return to fix typescript
-  // The actual implementation is already in consolidateCommitteeReports, I can just copy that logic or throw for now
+  const nonMissedSubmissions = res.committeeSubmissions.filter((s: any) => !s.missed);
+
+  // ---- Gather source files + title-page entries -----------------------
+  const sourceEntries: Array<{
+    title: string;
+    submittedAt: string | null;
+    status: 'merged' | 'text_only' | 'not_merged';
+    mergedKind?: 'pdf' | 'image';
+  }> = [];
+  const sourceFileBuffers: Array<{ bytes: Buffer; mimeType: string }> = [];
+  const textOnlyContents: Array<{ committeeName: string; text: string }> = [];
+  let mergedPageCount = 0;
+  let textOnlyCount = 0;
+  let skippedCount = 0;
+
+  for (const sub of nonMissedSubmissions) {
+    const committeeName = await resolveCommitteeName(tx, sub.committeeId);
+    let entryTitle = committeeName ?? sub.committeeId;
+    let status: 'merged' | 'text_only' | 'not_merged' = 'text_only';
+    let mergedKind: 'pdf' | 'image' | undefined;
+
+    if (sub.contributionDocumentId) {
+      const [subDoc] = await tx
+        .select({ id: documents.id, title: documents.title })
+        .from(documents)
+        .where(eq(documents.id, sub.contributionDocumentId))
+        .limit(1);
+      if (subDoc) {
+        entryTitle = subDoc.title || committeeName || subDoc.id;
+        const [latestVersion] = await tx
+          .select({ fileKey: versions.fileKey, mimeType: versions.mimeType })
+          .from(versions)
+          .where(eq(versions.documentId, subDoc.id))
+          .orderBy(desc(versions.versionNumber))
+          .limit(1);
+        if (latestVersion?.fileKey) {
+          const bytes = await fetchS3Object(latestVersion.fileKey);
+          if (latestVersion.mimeType === 'application/pdf') {
+            try {
+              const { PDFDocument } = await import('pdf-lib');
+              const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+              sourceFileBuffers.push({ bytes, mimeType: latestVersion.mimeType });
+              mergedPageCount += src.getPageCount();
+              status = 'merged';
+              mergedKind = 'pdf';
+            } catch {
+              status = 'not_merged';
+              skippedCount++;
+            }
+          } else if (
+            latestVersion.mimeType === 'image/png' ||
+            latestVersion.mimeType === 'image/jpeg'
+          ) {
+            sourceFileBuffers.push({ bytes, mimeType: latestVersion.mimeType });
+            mergedPageCount += 1;
+            status = 'merged';
+            mergedKind = 'image';
+          } else {
+            status = 'not_merged';
+            skippedCount++;
+          }
+        } else {
+          status = 'not_merged';
+          skippedCount++;
+        }
+      }
+    } else if (sub.contributionText) {
+      textOnlyCount++;
+    }
+
+    if (sub.contributionText) {
+      textOnlyContents.push({ committeeName: committeeName ?? sub.committeeId, text: sub.contributionText });
+    }
+
+    sourceEntries.push({
+      title: entryTitle,
+      submittedAt: sub.submittedAt ? sub.submittedAt.toISOString() : null,
+      status,
+      ...(mergedKind ? { mergedKind } : {}),
+    });
+  }
+
+  if (sourceFileBuffers.length === 0 && textOnlyCount === 0 && sourceEntries.length === 0) {
+    throw new TRPCError({
+      code: 'CONFLICT',
+      message: 'No committee report content is available to consolidate.',
+    });
+  }
+
+  // ---- Build the consolidated PDF ------------------------------------
+  const { PDFDocument: PDFDoc, rgb, StandardFonts } = await import('pdf-lib');
+  const outPdf = await PDFDoc.create();
+  const helveticaBold = await outPdf.embedFont(StandardFonts.HelveticaBold);
+  const helvetica = await outPdf.embedFont(StandardFonts.Helvetica);
+  const helveticaOblique = await outPdf.embedFont(StandardFonts.HelveticaOblique);
+  const helveticaBoldOblique = await outPdf.embedFont(StandardFonts.HelveticaBoldOblique);
+
+  const pageW = 595.28;
+  const pageH = 841.89;
+  const margin = 54;
+  const contentW = pageW - margin * 2;
+  const titlePage = outPdf.addPage([pageW, pageH]);
+
+  let currentY = pageH - 54;
+
+  // ---- Official Header (Centered) -----------------------------------
+  const headerLines = [
+    { text: 'REPUBLIC OF THE PHILIPPINES', font: helvetica, size: 9.5, color: rgb(0.3, 0.3, 0.35) },
+    { text: 'PROVINCE OF ILOCOS NORTE', font: helvetica, size: 8.5, color: rgb(0.35, 0.35, 0.4) },
+    { text: 'CITY OF BATAC', font: helveticaBold, size: 11, color: rgb(0.1, 0.1, 0.1) },
+    { text: 'OFFICE OF THE SANGGUNIANG PANLUNGSOD', font: helveticaBold, size: 12, color: rgb(0.06, 0.25, 0.48) },
+  ];
+
+  for (const line of headerLines) {
+    const textW = line.font.widthOfTextAtSize(line.text, line.size);
+    const x = (pageW - textW) / 2;
+    titlePage.drawText(line.text, {
+      x,
+      y: currentY,
+      size: line.size,
+      font: line.font,
+      color: line.color,
+    });
+    currentY -= line.size + 3.5;
+  }
+
+  currentY -= 6;
+  titlePage.drawLine({
+    start: { x: margin, y: currentY },
+    end: { x: pageW - margin, y: currentY },
+    thickness: 1,
+    color: rgb(0.8, 0.82, 0.86),
+  });
+  currentY -= 30;
+
+  // ---- Title Banner --------------------------------------------------
+  const docTitleText = 'CONSOLIDATED COMMITTEE REPORT';
+  const docTitleW = helveticaBold.widthOfTextAtSize(docTitleText, 18);
+  titlePage.drawText(docTitleText, {
+    x: (pageW - docTitleW) / 2,
+    y: currentY,
+    size: 18,
+    font: helveticaBold,
+    color: rgb(0.08, 0.08, 0.1),
+  });
+  currentY -= 28;
+
+  // ---- Measure Details Card Container --------------------------------
+  const [instanceRow] = await tx.select({ documentId: instances.documentId }).from(instances).where(eq(instances.id, instanceId)).limit(1);
+  const [docRow] = await tx.select({ title: documents.title }).from(documents).where(eq(documents.id, instanceRow.documentId)).limit(1);
+  const measureTitle = docRow?.title ?? 'Legislative measure';
   
-  // wait, the reconsolidate function needs this!
-  // I'll just copy the implementation from consolidateCommitteeReports later.
+  const cardX = margin;
+  const cardWidth = contentW;
+  const cardPaddingX = 16;
+  const cardPaddingY = 14;
+
+  const measureTitleLines = wrapPdfText(measureTitle, helveticaBold, 10.5, cardWidth - cardPaddingX * 2);
+  const cardHeight = cardPaddingY * 2 + 8 + 14 + (measureTitleLines.length * 14.5) + 14 + 14;
+
+  titlePage.drawRectangle({
+    x: cardX,
+    y: currentY - cardHeight,
+    width: cardWidth,
+    height: cardHeight,
+    color: rgb(0.96, 0.97, 0.98),
+    borderColor: rgb(0.86, 0.88, 0.92),
+    borderWidth: 1,
+  });
+
+  let cardY = currentY - cardPaddingY - 8;
+
+  // Measure Header Label
+  titlePage.drawText('MEASURE', {
+    x: cardX + cardPaddingX,
+    y: cardY,
+    size: 8.5,
+    font: helveticaBold,
+    color: rgb(0.4, 0.45, 0.5),
+  });
+  cardY -= 14;
+
+  // Measure Title Text (wrapped cleanly)
+  for (const line of measureTitleLines) {
+    titlePage.drawText(line, {
+      x: cardX + cardPaddingX,
+      y: cardY,
+      size: 10.5,
+      font: helveticaBold,
+      color: rgb(0.1, 0.1, 0.12),
+    });
+    cardY -= 14.5;
+  }
+
+  cardY -= 2;
+  titlePage.drawLine({
+    start: { x: cardX + cardPaddingX, y: cardY },
+    end: { x: cardX + cardWidth - cardPaddingX, y: cardY },
+    thickness: 0.5,
+    color: rgb(0.86, 0.88, 0.92),
+  });
+  cardY -= 12;
+
+  // Submitter Row
+  titlePage.drawText('SUBMITTED TO:', {
+    x: cardX + cardPaddingX,
+    y: cardY,
+    size: 8.5,
+    font: helveticaBold,
+    color: rgb(0.4, 0.45, 0.5),
+  });
+  titlePage.drawText('SP Secretariat', {
+    x: cardX + cardPaddingX + 90,
+    y: cardY,
+    size: 9.5,
+    font: helvetica,
+    color: rgb(0.15, 0.15, 0.2),
+  });
+
+  currentY -= cardHeight + 28;
+
+  // ---- Committee Reports Included Section ---------------------------
+  titlePage.drawText('COMMITTEE REPORTS INCLUDED', {
+    x: margin,
+    y: currentY,
+    size: 11.5,
+    font: helveticaBold,
+    color: rgb(0.08, 0.08, 0.1),
+  });
+  currentY -= 14;
+
+  titlePage.drawLine({
+    start: { x: margin, y: currentY },
+    end: { x: pageW - margin, y: currentY },
+    thickness: 1,
+    color: rgb(0.06, 0.25, 0.48),
+  });
+  currentY -= 18;
+
+  for (const entry of sourceEntries) {
+    const dateSuffix = entry.submittedAt
+      ? ` (${new Date(entry.submittedAt).toLocaleDateString('en-PH')})`
+      : '';
+    const statusSuffix =
+      entry.status === 'merged'
+        ? ` — ${entry.mergedKind === 'image' ? 'image' : 'PDF'} merged`
+        : entry.status === 'not_merged'
+          ? ' — attachment submitted, not merged'
+          : ' — text-only report';
+
+    const fullEntryText = `${entry.title}${dateSuffix}${statusSuffix}`;
+    const entryLines = wrapPdfText(fullEntryText, helvetica, 9.5, contentW - 20);
+
+    titlePage.drawText('•', {
+      x: margin + 4,
+      y: currentY,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0.06, 0.25, 0.48),
+    });
+
+    for (let i = 0; i < entryLines.length; i++) {
+      const line = entryLines[i]!;
+      titlePage.drawText(line, {
+        x: margin + 18,
+        y: currentY,
+        size: 9.5,
+        font: helvetica,
+        color: rgb(0.15, 0.15, 0.2),
+      });
+      currentY -= 14;
+    }
+    currentY -= 4;
+  }
+
+  // ---- Footer --------------------------------------------------------
+  titlePage.drawLine({
+    start: { x: margin, y: 56 },
+    end: { x: pageW - margin, y: 56 },
+    thickness: 0.75,
+    color: rgb(0.82, 0.84, 0.88),
+  });
+
+  titlePage.drawText(
+    `Consolidated by the SP Secretariat on ${new Date().toLocaleDateString('en-PH')}`,
+    {
+      x: margin,
+      y: 42,
+      size: 8.5,
+      font: helvetica,
+      color: rgb(0.45, 0.45, 0.5),
+    },
+  );
+
+  const pageLabel = 'Page 1 of Consolidated Document';
+  const pageLabelW = helvetica.widthOfTextAtSize(pageLabel, 8.5);
+  titlePage.drawText(pageLabel, {
+    x: pageW - margin - pageLabelW,
+    y: 42,
+    size: 8.5,
+    font: helvetica,
+    color: rgb(0.45, 0.45, 0.5),
+  });
+
+  // Merge each submitted file into the consolidated report: PDFs are
+  // copied page-by-page; images (JPEG/PNG) are embedded as full pages.
+  // Files are merged before any text so that an uploaded file is the
+  // main report and editor text is appended after it as
+  // comments/supplementary.
+  for (const file of sourceFileBuffers) {
+    if (file.mimeType === 'application/pdf') {
+      const src = await PDFDoc.load(file.bytes, { ignoreEncryption: true });
+      const pages = await outPdf.copyPages(src, src.getPageIndices());
+      for (const page of pages) {
+        outPdf.addPage(page);
+      }
+    } else if (file.mimeType === 'image/png' || file.mimeType === 'image/jpeg') {
+      const page = outPdf.addPage([pageW, pageH]);
+      // pdf-lib's image embedders read via `new DataView(bytes.buffer)`
+      // without honoring `byteOffset`, so pass a zero-offset copy of the
+      // buffer (S3 fetches can return small pooled Buffers whose
+      // `byteOffset` is non-zero).
+      const imageBytes = new Uint8Array(file.bytes);
+      const img =
+        file.mimeType === 'image/png'
+          ? await outPdf.embedPng(imageBytes)
+          : await outPdf.embedJpg(imageBytes);
+      const maxWidth = pageW - 120;
+      const maxHeight = pageH - 120;
+      const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+      const drawWidth = img.width * scale;
+      const drawHeight = img.height * scale;
+      page.drawImage(img, {
+        x: (pageW - drawWidth) / 2,
+        y: (pageH - drawHeight) / 2,
+        width: drawWidth,
+        height: drawHeight,
+      });
+    }
+  }
+
+  // Render committee report text as PDF pages (word-wrapped). Text from
+  // submissions that also carry an uploaded file is appended here, after
+  // the file, as comments/supplementary.
+  let textReportPagesCount = 0;
+  if (textOnlyContents.length > 0) {
+    const textSize = 11;
+    const textLineHeight = 16;
+    const contentMaxWidth = pageW - 120;
+    const contentTopY = pageH - 100;
+    const contentBottomY = 70;
+
+    const courier = await outPdf.embedFont(StandardFonts.Courier);
+
+    const fontsForWrapping = {
+      regular: helvetica,
+      bold: helveticaBold,
+      italic: helveticaOblique,
+      boldItalic: helveticaBoldOblique,
+    };
+    const fontByVariant: Record<DrawableRunFragment['font'], typeof helvetica> = {
+      regular: helvetica,
+      bold: helveticaBold,
+      italic: helveticaOblique,
+      boldItalic: helveticaBoldOblique,
+      code: helvetica,
+    };
+
+    for (const item of textOnlyContents) {
+      let textPage = outPdf.addPage([pageW, pageH]);
+      textReportPagesCount++;
+      let textY = contentTopY;
+
+      textPage.drawText(item.committeeName, {
+        x: 60,
+        y: textY,
+        size: 13,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+        maxWidth: contentMaxWidth,
+      });
+      textY -= 24;
+
+      const activeRules: { marginX: number; startY: number; page: any; color: any; width: number }[] = [];
+
+      const checkPageOverflow = () => {
+        if (textY < contentBottomY) {
+          for (const rule of activeRules) {
+            rule.page.drawRectangle({
+              x: rule.marginX,
+              y: textY + 12,
+              width: rule.width,
+              height: rule.startY - (textY + 12),
+              color: rule.color,
+            });
+          }
+          textPage = outPdf.addPage([pageW, pageH]);
+          textReportPagesCount++;
+          textY = contentTopY;
+          for (const rule of activeRules) {
+            rule.startY = textY + 12;
+            rule.page = textPage;
+          }
+        }
+      };
+
+      const drawBlock = (block: PdfBlock, marginX: number, forceItalic: boolean) => {
+        if (block.type === 'paragraph') {
+          const lines = wrapRunsForPdf(block.runs, fontsForWrapping, textSize, contentMaxWidth - (marginX - 60));
+          for (const line of lines) {
+            checkPageOverflow();
+            let cursorX = marginX;
+            for (const fragment of line) {
+              const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
+              const font = fontByVariant[variant === 'code' ? 'regular' : variant];
+              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: rgb(0, 0, 0) });
+              cursorX += font.widthOfTextAtSize(fragment.text, textSize);
+            }
+            textY -= textLineHeight;
+          }
+        } else if (block.type === 'heading') {
+          const hSize = PDF_REPORT_STYLE.headingSizes[`h${block.level}` as keyof typeof PDF_REPORT_STYLE.headingSizes];
+          textY -= PDF_REPORT_STYLE.headingSpacingBefore;
+          const lines = wrapRunsForPdf(block.runs, fontsForWrapping, hSize, contentMaxWidth - (marginX - 60));
+          for (const line of lines) {
+            checkPageOverflow();
+            let cursorX = marginX;
+            for (const fragment of line) {
+              const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
+              const font = fontByVariant[variant === 'code' ? 'regular' : variant];
+              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: rgb(0, 0, 0) });
+              cursorX += font.widthOfTextAtSize(fragment.text, hSize);
+            }
+            textY -= (hSize + 4);
+          }
+          textY -= PDF_REPORT_STYLE.headingSpacingAfter;
+        } else if (block.type === 'blockquote') {
+          const ruleMarginX = marginX;
+          const newMarginX = marginX + PDF_REPORT_STYLE.blockquote.leftPadding;
+          const rule = {
+            marginX: ruleMarginX,
+            startY: textY + 12,
+            page: textPage,
+            color: rgb(...PDF_REPORT_STYLE.blockquote.ruleColorRgb),
+            width: PDF_REPORT_STYLE.blockquote.ruleWidth,
+          };
+          activeRules.push(rule);
+
+          for (const b of block.blocks) {
+            drawBlock(b, newMarginX, PDF_REPORT_STYLE.blockquote.italic || forceItalic);
+          }
+
+          activeRules.pop();
+          rule.page.drawRectangle({
+            x: rule.marginX,
+            y: textY + 12,
+            width: rule.width,
+            height: rule.startY - (textY + 12),
+            color: rule.color,
+          });
+        } else if (block.type === 'list') {
+          const newMarginX = marginX + PDF_REPORT_STYLE.list.indentPerLevel;
+          for (let i = 0; i < block.items.length; i++) {
+            const item = block.items[i]!;
+            checkPageOverflow();
+            const bullet = block.ordered ? `${i + 1}${PDF_REPORT_STYLE.list.orderedSeparator}` : PDF_REPORT_STYLE.list.bulletChar;
+
+            textPage.drawText(bullet, {
+              x: marginX,
+              y: textY,
+              size: textSize,
+              font: helvetica,
+              color: rgb(0, 0, 0),
+            });
+
+            const initialTextY = textY;
+            for (const b of item) {
+              drawBlock(b, newMarginX, forceItalic);
+            }
+
+            if (initialTextY === textY) {
+              textY -= textLineHeight;
+            }
+          }
+        } else if (block.type === 'codeBlock') {
+          const codeMaxWidth = contentMaxWidth - (marginX - 60) - PDF_REPORT_STYLE.codeBlock.leftPadding;
+          const lines = wrapPdfText(block.text, courier, textSize, codeMaxWidth);
+
+          checkPageOverflow();
+          textPage.drawRectangle({
+            x: marginX,
+            y: textY + 12,
+            width: contentMaxWidth - (marginX - 60),
+            height: PDF_REPORT_STYLE.codeBlock.topBottomPadding,
+            color: rgb(...PDF_REPORT_STYLE.codeBlock.backgroundColorRgb),
+          });
+
+          for (const line of lines) {
+            checkPageOverflow();
+            textPage.drawRectangle({
+              x: marginX,
+              y: textY - 4,
+              width: contentMaxWidth - (marginX - 60),
+              height: textLineHeight,
+              color: rgb(...PDF_REPORT_STYLE.codeBlock.backgroundColorRgb),
+            });
+            textPage.drawText(line, {
+              x: marginX + PDF_REPORT_STYLE.codeBlock.leftPadding,
+              y: textY,
+              size: textSize,
+              font: courier,
+              color: rgb(0, 0, 0),
+            });
+            textY -= textLineHeight;
+          }
+
+          checkPageOverflow();
+          textPage.drawRectangle({
+            x: marginX,
+            y: textY + 12 - PDF_REPORT_STYLE.codeBlock.topBottomPadding,
+            width: contentMaxWidth - (marginX - 60),
+            height: PDF_REPORT_STYLE.codeBlock.topBottomPadding,
+            color: rgb(...PDF_REPORT_STYLE.codeBlock.backgroundColorRgb),
+          });
+          textY -= PDF_REPORT_STYLE.codeBlock.topBottomPadding;
+        }
+      };
+
+      const blocks = parseRichTextForPdf(item.text);
+      for (const block of blocks) {
+        drawBlock(block, 60, false);
+      }
+    }
+  }
+
+  const outBytes = await outPdf.save();
+
+  // ---- Persist as a COMMITTEE_REPORT DMS document --------------------
+  const documentsRepository = ctx.req.server.documentsRepository;
+
+  const committeeReportTypeId = await resolveCommitteeReportTypeId(
+    tx,
+    ctx.auth.cityId,
+  );
+  const spsOffice = await getOrgService(ctx).getOfficeByCode(
+    SP_SECRETARIAT_OFFICE_CODE,
+    ctx.auth.cityId,
+  );
+  if (!spsOffice) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'SP Secretariat office (code SPS) is not configured for this city.',
+    });
+  }
+
+  const documentType = await documentsRepository.findDocumentTypeById(
+    committeeReportTypeId,
+  );
+  if (!documentType || !documentType.retentionScheduleId) {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Document type ${COMMITTEE_REPORT_TYPE_CODE} is missing a retention schedule.`,
+    });
+  }
+
+  const retentionScheduleId = documentType.retentionScheduleId;
+
+  const unifiedTitle = `Unified Committee Report — ${measureTitle}`;
+  const s3Key = randomUUID();
+  await putS3Object(s3Key, Buffer.from(outBytes), 'application/pdf');
+
+  let createdDocumentId: string;
+  const txDocumentsRepository = new DocumentsRepository(tx);
+  const created = await txDocumentsRepository.insertDocument({
+    cityId: ctx.auth!.cityId,
+    documentTypeId: committeeReportTypeId,
+    title: unifiedTitle,
+    lifecycleState: 'draft',
+    classificationLevel: 'internal',
+    qrTrackingNumber: randomUUID(),
+    originatingOfficeId: spsOffice.officeId,
+    ownedByOfficeId: spsOffice.officeId,
+    createdBy: ctx.auth!.userId,
+    versionNumber: 1,
+    metadata: {
+      step_instance_id: stepInstanceId,
+      measure_document_id: instanceRow.documentId,
+      committee_id: null,
+    },
+    retentionScheduleId,
+  });
+  createdDocumentId = created.id;
+
+  await txDocumentsRepository.insertVersion({
+    cityId: ctx.auth!.cityId,
+    documentId: created.id,
+    versionNumber: 1,
+    fileKey: s3Key,
+    originalFilename: `${unifiedTitle.replace(/[^\w\s-]/g, '').trim()}.pdf`,
+    mimeType: 'application/pdf',
+    fileSizeBytes: outBytes.length,
+    pageCount: 1 + mergedPageCount + textReportPagesCount,
+    ocrProcessed: false,
+    requiresManualVerification: false,
+    createdBy: ctx.auth!.userId,
+  });
+
+  const freshMetadata = { ...metadata };
+  freshMetadata['unified_report_document_id'] = created.id;
+  freshMetadata['unified_report_created_at'] = new Date().toISOString();
+  await new WorkflowRepository(tx).updateStepInstance(
+    stepInstanceId,
+    { metadata: freshMetadata },
+    tx,
+  );
+
+  const viewUrl = await buildViewUrl(s3Key);
+
   return {
-    unifiedReportDocumentId: metadata['unified_report_document_id'] || 'fake-id',
+    success: true as const,
+    unifiedReportDocumentId: createdDocumentId!,
+    unifiedReportDocumentTitle: unifiedTitle,
+    unifiedReportDocumentUrl: viewUrl,
+    mergedFileCount: sourceFileBuffers.length,
+    textOnlyCount,
+    textReportPagesCount,
+    skippedCount,
   };
 }
+
 
 export function createWorkflowRouter() {
   return router({
