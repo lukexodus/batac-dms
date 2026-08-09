@@ -47,6 +47,7 @@ export function LogCertificationOfUrgencyDialog({ documentId }: LogCertification
       toast.success('Certification of Urgency logged successfully. Bypassed committee referral.');
       void utils.documents.get.invalidate({ documentId });
       void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId });
+      void utils.tracking.getRoutingHistory.invalidate({ documentId });
       setOpen(false);
       setSelectedCertId('');
     },
