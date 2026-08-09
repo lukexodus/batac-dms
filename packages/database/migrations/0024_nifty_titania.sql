@@ -4,7 +4,9 @@ ALTER TABLE "documents"."document_types" ALTER COLUMN "classification_default" S
 ALTER TABLE "documents"."document_types" ALTER COLUMN "public_visibility_rule" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "documents"."documents" ALTER COLUMN "lifecycle_state" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "documents"."documents" ALTER COLUMN "lifecycle_state" SET DEFAULT 'draft';--> statement-breakpoint
+DROP POLICY IF EXISTS documents_it_admin_no_confidential ON documents.documents;--> statement-breakpoint
 ALTER TABLE "documents"."documents" ALTER COLUMN "classification_level" SET DATA TYPE text;--> statement-breakpoint
+CREATE POLICY documents_it_admin_no_confidential ON documents.documents FOR SELECT TO batac_it_admin USING (classification_level NOT IN ('confidential','restricted'));--> statement-breakpoint
 ALTER TABLE "documents"."number_series" ALTER COLUMN "series_type" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "documents"."number_series" ALTER COLUMN "phase" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "documents"."number_series" ALTER COLUMN "phase" SET DEFAULT '1';--> statement-breakpoint
