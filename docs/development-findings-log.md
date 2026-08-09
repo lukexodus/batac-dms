@@ -9233,6 +9233,7 @@ this note explaining why.
 
 ---
 
+### [LOG-0282] listMyAssignedSteps is architecturally pending-only — no procedure exists to list a user's completed/actioned steps
 
 [Insert LOG-0280 and LOG-0281 exactly as given in the planning-layer response above, verbatim, no paraphrasing, no reformatting.]
 
@@ -9266,3 +9267,46 @@ Resolution: `portal.ts` imports `ComplaintViolationTypeSchema` from `document-me
 
 [Inference]: The E3 catalog specifies file locations but does not address cross-file import ordering within `packages/shared`. The `document-metadata.ts` origin is functionally correct because complaint metadata JSONB and the portal complaint form schema must agree on the enum values. Treating `document-metadata.ts` as the canonical source and having `portal.ts` re-export it is consistent with the "no duplication" rule in E3's governance section.
 
+- date: 2026-08-09
+- task_id: none (found while investigating a "past tasks" section for My Assigned Steps)
+- status: proposed
+- affects: E1 (workflow.listMyAssignedSteps), F1 (My Tasks / My Assigned Steps route)
+
+**What was found:** `workflow.listMyAssignedSteps` (`apps/server/src/modules/workflow/workflow.router.ts:1201-1359`) hard-filters to `inArray(stepInstances.status, ['active', 'pending'])` at line 1247. No sibling procedure (`listMyCompletedSteps`, `listMyHistory`, or similar) exists anywhere in the router — confirmed via full-file grep for those and related names, all zero matches. The frontend (`apps/web/src/pages/workflow/MyAssignedStepsPage.tsx:39-132`) renders exactly one query and has no concept of a second section.
+
+The full `workflow_step_status_enum` (`packages/database/schema/workflow.schema.ts:92-100`) is `['pending', 'active', 'completed', 'bypassed', 'cancelled', 'failed', 'returned']`. The five non-active/pending values are not currently retrievable through any "my steps" query. `stepInstances.completedAt`, `.outcome`, and `.outcomeComment` (`workflow.schema.ts:343-345`) already exist as columns and are already populated by existing completion code paths (confirmed via `submitStepMultiReferral` and other handlers setting `outcome`/`outcomeComment` on completion) — the data needed to build a "past tasks" view exists in the schema today; it is only the query and UI surface that are missing.
+
+Note: [Speculation] — which of `completed`/`bypassed`/`cancelled`/`failed`/`returned` should semantically appear in a user-facing "past tasks I actioned" list is a product decision, not something inferable from the schema. `completed` and `bypassed` plausibly represent a real action by the assignee; `cancelled`/`failed`/`returned` may represent system-driven or upstream outcomes the assignee never personally acted on. This entry does not resolve that question — it is being asked directly of the human rather than logged as an implementation decision, per project convention for genuine design forks.
+
+No fix was implemented as part of this entry; this is a planning-layer investigation finding only, not yet actioned by an executor.
+
+---
+
+### [LOG-0283] Committee cannot resubmit a report once submitted — hard reject in the multi-referral engine handler, one layer below LOG-0220's tested consolidation flow
+
+- date: 2026-08-09
+- task_id: none (found while investigating an SP Secretary "reconsolidate" action for committee reports)
+- status: proposed
+- affects: B4 (multi-referral step), E1 (workflow.submitCommitteeReport), workflow.router.ts, multi-referral.handler.ts, MultiReferralPanel.tsx
+- supersedes: none — refines LOG-0220's scope. LOG-0220 is [Tested] for consolidate/accept behavior and separately carries an [Inference] (not [Tested]) that re-running `consolidateCommitteeReports` after a unified report already exists is safe. This entry does not dispute that inference — it identifies a distinct, earlier blocking point in the same pipeline that the LOG-0220 inference does not address: a committee cannot get a second entry into `metadata.submissions` in the first place, regardless of what consolidation does once it's there.
+
+**What was found:** `submitCommitteeReport`, the engine-level handler (`apps/server/src/modules/workflow/engine/step-handlers/multi-referral.handler.ts:44-48`), hard-rejects any second submission attempt for the same committee on the same step instance:
+
+```ts
+const alreadySubmitted = submissions.some((s) => s.committee_id === committeeId);
+if (alreadySubmitted) {
+  throw new Error('CONFLICT: committee has already submitted');
+}
+```
+
+There is no upsert/replace path anywhere in this function — `submissions.push(newSubmission)` (line 61) is the only write, and it is only reached when `alreadySubmitted` is false. This is consistent with (and likely the reason for) `listCommitteeReportIntakeTargets`'s deliberate exclusion of already-submitted committees from its target list (`workflow.router.ts:2318`, also independently documented as intentional in LOG-0270: "committees with an existing non-missed submission are excluded"). The two together indicate "no resubmission" was a deliberate design choice at build time, not an omission.
+
+Separately, all three committee-report procedures (`submitCommitteeReport` line 20 of the handler; `consolidateCommitteeReports`, `workflow.router.ts:2381-2383`; `acceptUnifiedReport`, `workflow.router.ts:3228-3230`) require `stepInstance.status === 'active'` and throw otherwise. Once `acceptUnifiedReport` completes the step (via `submitStepMultiReferral`, called at `workflow.router.ts:3268-3277`), the step's status moves off `active` and all three procedures become permanently unusable for that step instance through their current guard conditions — not just for resubmission, but for consolidation and acceptance too.
+
+Separately, `workflow.getInstance` (`workflow.router.ts:803-817, 940-991`) resolves exactly one step instance per call — the single most-recently-created one for the workflow instance — and only populates `assignedCommittees`/`committeeSubmissions`/`unifiedReportDocumentId` when that step is itself `multi_referral` (guard at line 940). This is the same limitation LOG-0219 and LOG-0220 already documented ("populated only for `multi_referral` current steps"); this entry does not re-log it as new, only notes it compounds with the resubmission block: even if resubmission were allowed, once the workflow has advanced past committee referral (confirmed via `docs/requirements-gathering/workflows/sp-resolution-workflow.md` — [Unverified against live seed data, the seed source file is not present in this upload] — that committee_referral is early/mid-flow, followed by second_reading_vote and more, not terminal), there is no procedure that can read that step's committee-submission data back out, since `getInstance` only surfaces it for the *current* step and `stepHistory` (`workflow.router.ts:748-760, 856-883`) carries only summary fields (never `metadata`) for past steps. `computePanelHint` (`workflow.router.ts:519-598`, guard at line 546) independently confirms the same single-current-step model from the panel-routing side.
+
+Note: [Inference] — LOG-0220's "acceptable re-consolidation semantics" note was not independently re-verified in this session; this investigation did not read far enough into `consolidateCommitteeReports`'s document-persistence logic (past line 2420) to confirm or dispute it. This entry's finding is upstream of that point in the pipeline and stands regardless of how that inference resolves.
+
+No fix was implemented as part of this entry; this is a planning-layer investigation finding only, not yet actioned by an executor. Two genuine design forks follow from this finding (reopen a completed step vs. treat a correction as a new/superseding operation) that are being put to the human directly rather than resolved here, per project convention.
+
+---
