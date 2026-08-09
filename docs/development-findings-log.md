@@ -9165,3 +9165,73 @@ attempted.
 - **Affects:** tech-stack.md
 - **Finding:** DOCX and XLSX uploads are skipped during the OCR phase because they are not image formats and cannot be OCR'd. The pipeline still completes, but `scanQualityCategory` is set to 'good' and extraction is skipped.
 - **Note:** [Inference] This means `tech-stack.md` line 165's claim that "all uploaded documents are scanned" does not literally hold for DOCX/XLSX post this task. A human may want to clarify that wording (e.g., "scanned" applying specifically to image/PDF uploads).
+
+---
+
+### [LOG-0280] — RichTextEditor toolbar extension proceeded on a still-`proposed` foundation entry
+
+**Date:** 2026-08-09
+**Module:** FE (packages/ui)
+**Related files:** `packages/ui/src/components/domain/RichTextEditor.tsx`, `docs/development-findings-log.md:7965` (LOG-0244), `docs/pre-development/J-software-design-patterns-and-standards/j5-initial-adrs/ADR-UI-017-richtext-editor-library-tiptap.md:3`
+**Status:** proposed
+
+**Finding:** LOG-0244, the entry that introduced `RichTextEditor` as the 17th Tier 3
+component, has `status: proposed` and explicitly asks a human to confirm or reject
+ADR-UI-017 (see LOG-0244's own "Human action needed" field). ADR-UI-017's own status
+field independently says "Accepted," and its "Deciders" field reads "Development team
+(planning-layer research, human-confirmed)" — apparently asserting the same
+confirmation LOG-0244 says is still pending. Toolbar-extension work (TASK-WF-FE-041-B
+and this follow-up bugfix/extension pass) proceeded on top of this still-`proposed`
+foundation without resolving the tension, per planning-layer instruction that not
+extending an already-shipped, already-production-integrated component (used in 13
+panels, already sanitized server-side) does not reduce the risk the unconfirmed status
+represents — that risk is already fully realized regardless of this PR. Flagging for a
+human to reconcile LOG-0244's status against ADR-UI-017's status field, independent of
+this PR's outcome.
+
+**What was implemented:** N/A — this is a traceability note, not a fix.
+
+---
+
+### [LOG-0281] — findings-log entry numbering gap: LOG-0250 through LOG-0255 absent (pre-existing, from prior investigation) — plus a new heading collision at LOG-0263/LOG-0264 from this task's own executor pass
+
+**Date:** 2026-08-09
+**Module:** DOCS (development-findings-log.md itself)
+**Related files:** `docs/development-findings-log.md` (heading sequence around lines 8145–8296 for the original gap; lines 8531 and 8657 for the new collision)
+**Status:** proposed
+
+**Finding, part 1 (carried forward, unresolved):** The entry heading sequence still
+contains a gap — LOG-0250 through LOG-0255 (6 entries) are absent, first identified
+2026-08-07. No new information found this session explaining it.
+
+**Finding, part 2 (new):** A second, distinct problem: this task's standalone executor
+prompt instructed appending two specific, verbatim findings-log entries numbered
+LOG-0263 and LOG-0264, with an instruction not to renumber. The executor instead wrote
+its own paraphrased entries on similar subject matter (TipTap StarterKit default
+extensions; DOMPurify default allowlist behavior) and independently numbered them
+LOG-0263/LOG-0264, using the old deprecated unbracketed `### LOG-NNNN:` heading format.
+By the time of this upload, an unrelated concurrent session had already legitimately
+claimed LOG-0263 and LOG-0264 (headings at `docs/development-findings-log.md:8531` —
+"`logCertificationOfUrgency` writes `certificationDocumentId`..." — and `:8579` —
+"`associated_measure_ids` upper-bound mismatch...", the latter later resolved as
+LOG-0267 at line ~8657-adjacent). The result is two genuinely duplicated heading
+numbers in the file, each with two different bodies. Confirmed via systematic
+heading-level duplicate check across the full file — these are the only two duplicated
+identifiers among 272 total entries; all other repeated LOG-number occurrences in the
+file are ordinary in-text cross-references (e.g., "supersedes: LOG-0117"), not
+duplicate headings.
+
+**What was implemented:** N/A — flagging only. Correct, non-colliding replacement
+entries for the executor's intended content have been issued as LOG-0280 (this entry's
+predecessor) and this entry, continuing from the confirmed true highest heading in the
+file at the time of writing, LOG-0279. The two miswritten entries at lines 8657 and
+8664 (`### LOG-0263: TipTap v3 StarterKit Extensions Default Inclusion` and
+`### LOG-0264: DOMPurify Default Allowlist Behavior`) are left in place rather than
+deleted, per this project's append-only convention — a human should decide whether to
+relabel them with non-colliding numbers or leave them as an accepted anomaly alongside
+this note explaining why.
+
+---
+
+
+[Insert LOG-0280 and LOG-0281 exactly as given in the planning-layer response above, verbatim, no paraphrasing, no reformatting.]

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Italic, List, ListOrdered, Underline, Strikethrough, Heading3, Heading4, Quote, Minus, Link } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Underline, Strikethrough, Heading3, Heading4, Quote, Minus, Link, Undo2, Redo2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 
@@ -39,7 +39,7 @@ export function RichTextEditor({
         role: 'textbox',
         'aria-multiline': 'true',
         class: cn(
-          'max-w-none focus:outline-none w-full p-3 [&_p]:m-0 [&_p+p]:mt-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_em]:italic',
+          'max-w-none focus:outline-none w-full p-3 [&_p]:m-0 [&_p+p]:mt-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_strong]:font-semibold [&_em]:italic [&_u]:underline [&_s]:line-through [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1 [&_h4]:text-base [&_h4]:font-semibold [&_h4]:mt-2 [&_h4]:mb-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border-default [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-text-muted [&_a]:underline [&_a]:text-text-link [&_a]:cursor-pointer [&_hr]:my-3 [&_hr]:border-border-default',
           `min-h-[${minHeight}]`
         ),
       },
@@ -212,6 +212,26 @@ export function RichTextEditor({
           aria-pressed={editor.isActive('link')}
         >
           <Link className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={disabled || !editor.can().chain().focus().undo().run()}
+          aria-label="Undo"
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={disabled || !editor.can().chain().focus().redo().run()}
+          aria-label="Redo"
+        >
+          <Redo2 className="h-4 w-4" />
         </Button>
       </div>
       <div className="relative flex-grow">
