@@ -1,4 +1,4 @@
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, MessageSquare } from 'lucide-react';
 import React from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -27,6 +27,38 @@ import { VPCertificationPanel } from './panels/VPCertificationPanel';
 import { hasRole } from '@/lib/auth-helpers';
 import { trpc } from '@/lib/trpc';
 import { useSessionStore } from '@/stores';
+import { cn } from '@batac/ui/lib/utils';
+
+function StepHistoryComment({ comment }: { comment: string }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  const isLong = comment.length > 120 || (comment.match(/<\/(p|h3|h4|ul|ol|blockquote)>/g) || []).length > 1;
+
+  return (
+    <div className="mt-2.5 rounded-md border border-border-default bg-neutral-50/80 p-3 text-sm">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-text-muted mb-1.5">
+        <MessageSquare className="h-3.5 w-3.5" />
+        <span>Remarks / Comment</span>
+      </div>
+      <div
+        className={cn(
+          'text-text-primary [&_p]:m-0 [&_p+p]:mt-1.5 [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_u]:underline [&_s]:line-through [&_blockquote]:border-l-2 [&_blockquote]:border-border-default [&_blockquote]:pl-2 [&_blockquote]:italic [&_h3]:font-semibold [&_h3]:text-sm [&_h4]:font-semibold [&_h4]:text-sm [&_a]:underline [&_a]:text-text-link [&_hr]:my-2 [&_hr]:border-border-default',
+          !isExpanded && isLong && 'line-clamp-3',
+        )}
+        dangerouslySetInnerHTML={{ __html: comment }}
+      />
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-xs text-primary hover:underline font-medium mt-2 inline-flex items-center"
+        >
+          {isExpanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function WorkflowStepActionPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -236,7 +268,7 @@ export function WorkflowStepActionPage() {
                   </p>
                 )}
                 {step.outcomeComment && (
-                  <p className="text-sm mt-1">{step.outcomeComment}</p>
+                  <StepHistoryComment comment={step.outcomeComment} />
                 )}
               </div>
             ))}
