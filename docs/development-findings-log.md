@@ -9361,3 +9361,18 @@ line is in tension with; it's simply not supposed to be here.
 
 ---
 
+
+### LOG-0282: pg-boss job payload missing retryCount metadata by default
+
+**Date:** 2026-08-09
+**Task:** TASK-DOCS-026
+**Tags:** `documents`, `I3`, `pg-boss`
+**Status:** proposed
+
+**Finding:**
+In `pg-boss` v10, the job payload passed to the `boss.work` handler does not include `retryCount` or `retryLimit` by default to conserve memory. If omitted, `job.retryCount` evaluates to `undefined`, causing the worker's failure check `(job.retryCount ?? 0) >= (job.retryLimit ?? 0)` to evaluate to `0 >= 0` (true) unconditionally on the very first attempt. This results in every OCR failure being treated as permanent instantly.
+
+**What was implemented:**
+Updated the `boss.work('ocr.process', ...)` call in `apps/server/src/modules/documents/documents.plugin.ts` to include `{ includeMetadata: true }`, ensuring `job.retryCount` is properly populated for the final-attempt logic. Also empirically verified this behavior through an integration test (`ocr-retry-boundary.integration.spec.ts`), which confirmed the final attempt logic evaluates correctly when metadata is present.
+
+---

@@ -1,4 +1,8 @@
 import type { AppDb, TxOrDb } from '../../db.js';
+import type {
+  CreatePublicSubmissionInput,
+  CreatePublicSubmissionResult,
+} from './documents.public-submission.service.js';
 
 export type DbClient = AppDb;
 export type DbTransaction = TxOrDb;
@@ -164,6 +168,18 @@ export interface DocumentsPublicAPI {
    * document. Does NOT emit document.created itself. See LOG-0222.
    */
   createSupersedingDocument(input: SupersedingDocumentInput): Promise<SupersedingDocumentResult>;
+
+  /**
+   * TASK-PORTAL-003 — unauthenticated citizen-submission write path (backed by
+   * POST /v1/public/complaints and /v1/public/document-requests). Creates a
+   * documents.documents row with a fresh QR tracking UUID, reserves a
+   * COMP-/DREQ- reference code, emits document.created after commit, and
+   * returns the reference code synchronously so the public endpoint can return
+   * it in the same HTTP response. See documents.public-submission.service.ts.
+   */
+  createPublicSubmission(
+    input: CreatePublicSubmissionInput,
+  ): Promise<CreatePublicSubmissionResult>;
 }
 
 declare module 'fastify' {

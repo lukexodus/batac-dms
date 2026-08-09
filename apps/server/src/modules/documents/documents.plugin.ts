@@ -135,7 +135,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
   if ((fastify as any).boss) {
     const boss = (fastify as any).boss;
     await boss.createQueue('ocr.process');
-    await boss.work('ocr.process', async (jobs: any[]) => {
+    await boss.work('ocr.process', { includeMetadata: true }, async (jobs: any[]) => {
       const results = await Promise.allSettled(
         jobs.map((job) => ocrService.processJob(job.data)),
       );

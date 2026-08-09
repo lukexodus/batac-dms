@@ -416,6 +416,28 @@ export class DocumentsRepository {
   }
 
   /**
+   * Find a single non-deleted document type by its (cityId, code) pair.
+   * `document_types` has a unique constraint on (city_id, code), so this
+   * returns at most one row.
+   */
+  async findDocumentTypeByCode(
+    code: string,
+    cityId: string,
+  ): Promise<DocumentTypeRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(documentTypes)
+      .where(
+        and(
+          eq(documentTypes.code, code),
+          eq(documentTypes.cityId, cityId),
+          isNull(documentTypes.deletedAt),
+        ),
+      );
+    return row ?? null;
+  }
+
+  /**
    * List all active document types.
    */
   async listActiveDocumentTypes() {

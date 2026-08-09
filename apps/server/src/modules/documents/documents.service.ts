@@ -17,6 +17,7 @@ import type {
 } from './documents.types.js';
 import { DocumentsRepository } from './documents.repository.js';
 import type { NumberingService } from './numbering.service.js';
+import { createPublicSubmission } from './documents.public-submission.service.js';
 import type { ServerEnv } from '../../config/env.server.js';
 
 export interface DocumentsServiceDeps {
@@ -27,6 +28,7 @@ export interface DocumentsServiceDeps {
   env: ServerEnv;
   eventBus: any;
   auditService?: any;
+  logger?: any;
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {

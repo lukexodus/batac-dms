@@ -36,7 +36,7 @@ describe('OCR Retry Boundary (Integration)', () => {
     await boss.send(queueName, { versionId: 'test-1' }, { retryLimit: 0, retryDelay: 1 });
 
     await new Promise<void>((resolve, reject) => {
-      boss.work(queueName, { newJobCheckInterval: 500 }, async (jobs: any[]) => {
+      boss.work(queueName, { newJobCheckInterval: 500, includeMetadata: true }, async (jobs: any[]) => {
         console.log(`[retryLimit 0] Picked up ${jobs.length} jobs`);
         const job = jobs[0];
         handledCount++;
@@ -65,10 +65,8 @@ describe('OCR Retry Boundary (Integration)', () => {
     await boss.send(queueName, { versionId: 'test-2' }, { retryLimit: 1, retryDelay: 1, retryBackoff: true });
 
     await new Promise<void>((resolve, reject) => {
-      boss.work(queueName, { newJobCheckInterval: 500 }, async (jobs: any[]) => {
-        console.log(`[retryLimit 1] Picked up ${jobs.length} jobs`);
+      boss.work(queueName, { newJobCheckInterval: 500, includeMetadata: true }, async (jobs: any[]) => {
         const job = jobs[0];
-        console.log('JOB:', job);
         handledCount++;
         retryCounts.push(job.retryCount ?? 0);
         
