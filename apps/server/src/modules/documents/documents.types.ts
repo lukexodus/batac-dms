@@ -180,6 +180,9 @@ export interface DocumentsPublicAPI {
   createPublicSubmission(
     input: CreatePublicSubmissionInput,
   ): Promise<CreatePublicSubmissionResult>;
+
+  listPublishedDocuments(query: import('@batac/shared').PublicDocumentsQuery): Promise<import('@batac/shared').PublishedDocumentListResponse>;
+  getPublishedDocumentDetail(documentId: string): Promise<import('@batac/shared').PublishedDocumentDetail | null>;
 }
 
 declare module 'fastify' {

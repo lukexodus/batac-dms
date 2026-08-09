@@ -18,6 +18,7 @@ import type {
 import { DocumentsRepository } from './documents.repository.js';
 import type { NumberingService } from './numbering.service.js';
 import { createPublicSubmission } from './documents.public-submission.service.js';
+import { listPublishedDocuments, getPublishedDocumentDetail } from './documents.public-read.service.js';
 import type { ServerEnv } from '../../config/env.server.js';
 
 export interface DocumentsServiceDeps {
@@ -428,5 +429,13 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
         input,
       );
     },
+
+    async listPublishedDocuments(query) {
+      return listPublishedDocuments({ db: deps.db, portalBaseUrl: deps.env.PORTAL_BASE_URL }, query);
+    },
+
+    async getPublishedDocumentDetail(documentId) {
+      return getPublishedDocumentDetail({ db: deps.db, portalBaseUrl: deps.env.PORTAL_BASE_URL }, documentId);
+    }
   };
 }
