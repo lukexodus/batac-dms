@@ -467,6 +467,13 @@ export default function DocumentDetailPage() {
   const [showFlagDialog, setShowFlagDialog] = useState(false);
   const [flagVersionId, setFlagVersionId] = useState<string | null>(null);
 
+  // ── OCR Text Panel state & query ──────────────────────────────────────────
+  const [openOcrTextVersionId, setOpenOcrTextVersionId] = useState<string | null>(null);
+  const ocrTextQuery = trpc.documents.getOcrText.useQuery(
+    { versionId: openOcrTextVersionId! },
+    { enabled: openOcrTextVersionId !== null },
+  );
+
   const cancelMutation = trpc.documents.cancel.useMutation({
     onSuccess: () => {
       toast.success('Document cancelled');
@@ -1346,12 +1353,64 @@ export default function DocumentDetailPage() {
                                 Accept as Official
                               </Button>
                             )}
+
+                            {/*
+                              View OCR text — intentionally NOT gated by a
+                              frontend role/identity check. getOcrText's
+                              authorization (canReadOcrText ->
+                              canReadContent) depends on classificationLevel
+                              and allowlist-entry status, neither of which
+                              is available on the frontend identity object.
+                              The query itself enforces access; a FORBIDDEN
+                              result is handled in the panel below, not by
+                              hiding this button.
+                            */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setOpenOcrTextVersionId(
+                                  openOcrTextVersionId === v.id ? null : v.id,
+                                )
+                              }
+                            >
+                              {openOcrTextVersionId === v.id ? 'Hide OCR Text' : 'View OCR Text'}
+                            </Button>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
                   );
                 })}
+            </div>
+          )}
+
+          {/* OCR text panel (inline) */}
+          {openOcrTextVersionId && (
+            <div className="bg-surface-base mt-4 space-y-2 rounded-md border p-4">
+              {ocrTextQuery.isLoading ? (
+                <p className="text-text-muted text-sm">Loading OCR text…</p>
+              ) : ocrTextQuery.error ? (
+                ocrTextQuery.error.data?.code === 'FORBIDDEN' ? (
+                  <p className="text-text-muted text-sm">
+                    You don't have permission to view this version's OCR text.
+                  </p>
+                ) : (
+                  <p className="text-danger-700 text-sm">
+                    Could not load OCR text: {ocrTextQuery.error.message}
+                  </p>
+                )
+              ) : ocrTextQuery.data?.ocrText === null ? (
+                <p className="text-text-muted text-sm italic">
+                  OCR has not been run for this version yet.
+                </p>
+              ) : ocrTextQuery.data?.ocrText === '' ? (
+                <p className="text-text-muted text-sm italic">
+                  OCR ran but found no extractable text in this version.
+                </p>
+              ) : (
+                <p className="whitespace-pre-wrap text-sm">{ocrTextQuery.data?.ocrText}</p>
+              )}
             </div>
           )}
 
