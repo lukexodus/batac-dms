@@ -269,14 +269,14 @@ export function MultiReferralPanel({
           `${committeeName} (Corrected) — ${instance.documentTitle ?? 'Legislative Measure'}`,
         );
         await recordCorrectionMutation.mutateAsync({
-          stepInstanceId: stepDetail!.stepInstanceId,
+          instanceId: instance.instanceId,
           committeeId: correctionCommitteeId,
           ...(correctionReportText ? { correctedReportText: correctionReportText } : {}),
           correctedDocumentId: documentId,
         });
       } else {
         await recordCorrectionMutation.mutateAsync({
-          stepInstanceId: stepDetail!.stepInstanceId,
+          instanceId: instance.instanceId,
           committeeId: correctionCommitteeId,
           correctedReportText: correctionReportText,
         });
@@ -291,7 +291,6 @@ export function MultiReferralPanel({
     try {
       await reconsolidateMutation.mutateAsync({
         instanceId: instance.instanceId,
-        stepInstanceId: stepDetail!.stepInstanceId,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to reconsolidate reports.');
