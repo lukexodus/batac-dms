@@ -55,9 +55,27 @@ export function MultiReferralPanel({
   const isSpSecretary = hasRole(identity, 'sp_secretary');
   const isSpMember = hasRole(identity, 'sp_member');
 
+  const { data: stepDetail, isLoading: isLoadingStepDetail } = trpc.workflow.getCommitteeReportStepDetail.useQuery({
+    instanceId: instance.instanceId,
+  });
+
+  const isCurrentActive = instance.currentStepType === 'multi_referral' && instance.status === 'Active';
+  const actualStatus = isCurrentActive ? 'active' : stepDetail?.status;
+
+  const effectiveAssignedCommittees = isCurrentActive ? instance.assignedCommittees : stepDetail?.assignedCommittees;
+  const effectiveSubmissions = isCurrentActive ? instance.committeeSubmissions : stepDetail?.committeeSubmissions;
+  
+  // Correction state (sp_secretary only)
+  const [correctionCommitteeId, setCorrectionCommitteeId] = useState('');
+  const [correctionReportText, setCorrectionReportText] = useState('');
+  const [correctionReportFile, setCorrectionReportFile] = useState<File | null>(null);
+  const [correctionReportFileError, setCorrectionReportFileError] = useState<string | null>(null);
+  const [isReconsolidating, setIsReconsolidating] = useState(false);
+
+
   // Assign Committees state (sp_secretary only)
   const [selectedCommittees, setSelectedCommittees] = useState<string[]>(
-    instance.assignedCommittees?.map((c) => c.committeeId) || []
+    effectiveAssignedCommittees?.map((c) => c.committeeId) || []
   );
 
   // Committee report state
@@ -88,7 +106,7 @@ export function MultiReferralPanel({
     enabled: isSpSecretary || isSpMember,
   });
 
-  const assignedCommitteeIds = new Set(instance.assignedCommittees?.map((c) => c.committeeId) ?? []);
+  const assignedCommitteeIds = new Set(effectiveAssignedCommittees?.map((c) => c.committeeId) ?? []);
   const selectableCommittees = (committees ?? []).filter((c) => {
     if (!assignedCommitteeIds.has(c.committeeId)) return false;
     if (isSpSecretary) return true;
@@ -98,8 +116,8 @@ export function MultiReferralPanel({
 
   // Committee submission status — read from getInstance metadata, cross-referenced
   // against assignedCommittees. Committees with no non-missed submission are pending.
-  const assignedCommitteeCount = instance.assignedCommittees?.length ?? 0;
-  const nonMissedSubmissions = instance.committeeSubmissions?.filter((s) => !s.missed) ?? [];
+  const assignedCommitteeCount = effectiveAssignedCommittees?.length ?? 0;
+  const nonMissedSubmissions = effectiveSubmissions?.filter((s) => !s.missed) ?? [];
   const allCommitteesSubmitted =
     assignedCommitteeCount > 0 && nonMissedSubmissions.length >= assignedCommitteeCount;
 
@@ -188,6 +206,99 @@ export function MultiReferralPanel({
       void utils.documents.list.invalidate();
     },
   });
+
+
+  const recordCorrectionMutation = trpc.workflow.recordCommitteeReportCorrection.useMutation({
+    onSuccess: () => {
+      toast.success('Correction recorded.');
+      void utils.workflow.getCommitteeReportStepDetail.invalidate({ instanceId: instance.instanceId });
+      setCorrectionReportFile(null);
+      setCorrectionReportText('');
+    },
+    onError: (err) => toast.error(err.message || 'Failed to record correction.'),
+  });
+
+  const reconsolidateMutation = trpc.workflow.reconsolidateCommitteeReports.useMutation({
+    onSuccess: (result) => {
+      toast.success(
+        `Reports reconsolidated: ${result.mergedFileCount} file(s) merged, ${result.textOnlyCount} text-only.`
+      );
+      void utils.workflow.getCommitteeReportStepDetail.invalidate({ instanceId: instance.instanceId });
+    },
+    onError: (err) => toast.error(err.message || 'Failed to reconsolidate.'),
+  });
+
+  const handleCorrectionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) {
+      setCorrectionReportFile(null);
+      setCorrectionReportFileError(null);
+      return;
+    }
+    const MAX = 26214400; // 25 MiB
+    if (selected.size > MAX) {
+      setCorrectionReportFileError('File exceeds 25 MiB limit');
+      setCorrectionReportFile(null);
+      return;
+    }
+    if (!CommitteeReportMimeTypeSchema.safeParse(selected.type).success) {
+      setCorrectionReportFileError('Invalid file type. Must be a PDF, JPEG, or PNG image');
+      setCorrectionReportFile(null);
+      return;
+    }
+    setCorrectionReportFileError(null);
+    setCorrectionReportFile(selected);
+  };
+
+  const handleRecordCorrection = async () => {
+    if (!correctionCommitteeId) {
+      toast.error('Select a committee');
+      return;
+    }
+    if (isRichTextEmpty(correctionReportText) && !correctionReportFile) {
+      toast.error('Provide report text and/or an uploaded report document');
+      return;
+    }
+    try {
+      if (correctionReportFile) {
+        const committeeName =
+          (committees ?? []).find((c: { committeeId: string }) => c.committeeId === correctionCommitteeId)
+            ?.name ?? 'Committee Report';
+        const documentId = await uploadReportFile(
+          correctionReportFile,
+          `${committeeName} (Corrected) — ${instance.documentTitle ?? 'Legislative Measure'}`,
+        );
+        await recordCorrectionMutation.mutateAsync({
+          stepInstanceId: stepDetail!.stepInstanceId,
+          committeeId: correctionCommitteeId,
+          ...(correctionReportText ? { correctedReportText: correctionReportText } : {}),
+          correctedDocumentId: documentId,
+        });
+      } else {
+        await recordCorrectionMutation.mutateAsync({
+          stepInstanceId: stepDetail!.stepInstanceId,
+          committeeId: correctionCommitteeId,
+          correctedReportText: correctionReportText,
+        });
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit correction.');
+    }
+  };
+
+  const handleReconsolidate = async () => {
+    setIsReconsolidating(true);
+    try {
+      await reconsolidateMutation.mutateAsync({
+        instanceId: instance.instanceId,
+        stepInstanceId: stepDetail!.stepInstanceId,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reconsolidate reports.');
+    } finally {
+      setIsReconsolidating(false);
+    }
+  };
 
   const acceptUnifiedReportMutation = trpc.workflow.acceptUnifiedReport.useMutation({
     onSuccess: () => {
@@ -320,7 +431,7 @@ export function MultiReferralPanel({
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Assign Committees — sp_secretary only */}
-        {isSpSecretary && (
+        {isSpSecretary && actualStatus === 'active' && (
           <div className="space-y-3 rounded-md border p-4">
             <h3 className="text-sm font-medium">Assign Committees</h3>
             <div className="space-y-2">
@@ -361,12 +472,12 @@ export function MultiReferralPanel({
 
         {/* Committee Submissions status — read-only, shown to both roles */}
         {(isSpSecretary || isSpMember) &&
-          instance.assignedCommittees &&
-          instance.assignedCommittees.length > 0 && (
+          effectiveAssignedCommittees &&
+          effectiveAssignedCommittees.length > 0 && (
             <div className="space-y-3 rounded-md border p-4">
               <h3 className="text-sm font-medium">Committee Submissions</h3>
               <ul className="space-y-2 text-sm">
-                {instance.assignedCommittees.map((c) => {
+                {effectiveAssignedCommittees.map((c) => {
                   const submission = (instance.committeeSubmissions ?? []).find(
                     (s) => s.committeeId === c.committeeId,
                   );
@@ -429,8 +540,95 @@ export function MultiReferralPanel({
             </div>
           )}
 
+
+        {/* Correct a Committee Submission — sp_secretary only, completed steps only */}
+        {isSpSecretary && actualStatus === 'completed' && (
+          <div className="space-y-3 rounded-md border p-4">
+            <h3 className="text-sm font-medium">Correct a Committee Submission</h3>
+            <div className="space-y-1 text-muted-foreground text-xs">
+              <p>Submit a corrected report for a committee. This supersedes the previous submission.</p>
+            </div>
+            <Select value={correctionCommitteeId} onValueChange={setCorrectionCommitteeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select committee…" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {(effectiveAssignedCommittees || []).length === 0 ? (
+                  <SelectItem value="none" disabled>
+                    No eligible committees
+                  </SelectItem>
+                ) : (
+                  (effectiveAssignedCommittees || []).map((c: any) => (
+                    <SelectItem key={c.committeeId} value={c.committeeId}>
+                      {c.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            <RichTextEditor
+              value={correctionReportText}
+              onChange={setCorrectionReportText}
+              placeholder="Type corrected report here…"
+            />
+            <div className="space-y-1">
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleCorrectionFileChange}
+                className="cursor-pointer"
+              />
+              {correctionReportFileError && <p className="text-danger-600 text-xs">{correctionReportFileError}</p>}
+              {correctionReportFile && (
+                <p className="text-muted-foreground text-xs">
+                  Attached: {correctionReportFile.name}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleRecordCorrection}
+              disabled={recordCorrectionMutation.isPending}
+            >
+              {recordCorrectionMutation.isPending ? 'Recording…' : 'Record Correction'}
+            </Button>
+            
+            <hr className="my-4 border-slate-200" />
+            <h3 className="text-sm font-medium">Reconsolidate Committee Reports</h3>
+            <p className="text-muted-foreground text-xs">
+              Generate a new unified report incorporating any recent corrections.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={handleReconsolidate}
+                disabled={isReconsolidating}
+              >
+                {isReconsolidating ? 'Reconsolidating…' : 'Reconsolidate Committee Reports'}
+              </Button>
+            </div>
+            {stepDetail?.unifiedReportDocumentUrl && (
+              <div className="space-y-1">
+                <a
+                  href={stepDetail.unifiedReportDocumentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary text-sm underline"
+                >
+                  View consolidated report{stepDetail.unifiedReportDocumentTitle ? ` — ${stepDetail.unifiedReportDocumentTitle}` : ''}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Not supported message */}
+        {actualStatus && actualStatus !== 'active' && actualStatus !== 'completed' && (
+          <div className="p-4 rounded-md border bg-slate-50 text-sm text-slate-700">
+            This step's status does not currently support corrections.
+          </div>
+        )}
+
         {/* Submit Committee Report — sp_secretary or sp_member */}
-        {(isSpSecretary || isSpMember) && (
+        {(isSpSecretary || isSpMember) && actualStatus === 'active' && (
           <div className="space-y-3 rounded-md border p-4">
             <h3 className="text-sm font-medium">Submit Committee Report</h3>
             <div className="space-y-1 text-muted-foreground text-xs">
@@ -501,7 +699,7 @@ export function MultiReferralPanel({
         )}
 
         {/* Enter Hearing Date — sp_secretary only */}
-        {isSpSecretary && (
+        {isSpSecretary && actualStatus === 'active' && (
           <div className="space-y-3 rounded-md border p-4">
             <h3 className="text-sm font-medium">Enter Committee Hearing Date</h3>
             <Input
@@ -529,7 +727,7 @@ export function MultiReferralPanel({
         )}
 
         {/* Consolidate & Accept Unified Report — sp_secretary only */}
-        {isSpSecretary && (
+        {isSpSecretary && actualStatus === 'active' && (
           <div className="space-y-3 rounded-md border p-4">
             <h3 className="text-sm font-medium">Consolidate &amp; Accept Unified Committee Report</h3>
             <p className="text-muted-foreground text-xs">
@@ -584,7 +782,7 @@ export function MultiReferralPanel({
         )}
 
         {/* Manually Advance — sp_secretary only */}
-        {isSpSecretary && (
+        {isSpSecretary && actualStatus === 'active' && (
           <div className="space-y-3 rounded-md border p-4">
             <h3 className="text-sm font-medium">Manually Advance Step</h3>
             <p className="text-muted-foreground text-xs">

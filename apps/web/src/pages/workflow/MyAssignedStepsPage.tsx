@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 
 import { EmptyState, Button } from '@batac/ui';
 
-import { columns } from './columns';
+import { columns, pastColumns } from './columns';
 import { DataTable } from '../../components/DataTable';
 import { hasRole } from '../../lib/auth-helpers';
 import { trpc } from '../../lib/trpc';
@@ -58,11 +58,19 @@ function MyAssignedStepsContent() {
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const currentCursor = cursorHistory[cursorHistory.length - 1] || undefined;
 
+  const [pastCursorHistory, setPastCursorHistory] = useState<string[]>([]);
+  const currentPastCursor = pastCursorHistory[pastCursorHistory.length - 1] || undefined;
+
   // cursor/limit are the only inputs — no filter params exist server-side yet.
   // Keeping the query call clean / filter-free makes it easy to add a
   // filter param later if the server grows one (per TASK-WF-FE-001 spec note).
   const { data, isLoading } = trpc.workflow.listMyAssignedSteps.useQuery({
     cursor: currentCursor,
+    limit: 20,
+  });
+
+  const { data: pastData, isLoading: isPastLoading } = trpc.workflow.listMyPastSteps.useQuery({
+    cursor: currentPastCursor,
     limit: 20,
   });
 
@@ -80,8 +88,25 @@ function MyAssignedStepsContent() {
     setCursorHistory((prev) => prev.slice(0, -1));
   };
 
+  const handlePastSortOrFilterChange = () => {
+    setPastCursorHistory([]);
+  };
+
+  const handlePastNext = () => {
+    if (pastData?.nextCursor) {
+      setPastCursorHistory((prev) => [...prev, pastData.nextCursor!]);
+    }
+  };
+
+  const handlePastPrev = () => {
+    setPastCursorHistory((prev) => prev.slice(0, -1));
+  };
+
   const hasNextPage = !!data?.nextCursor;
   const hasPrevPage = cursorHistory.length > 0;
+
+  const hasPastNextPage = !!pastData?.nextCursor;
+  const hasPastPrevPage = pastCursorHistory.length > 0;
 
   // True initial load only (not page-nav refetches)
   if (isLoading && cursorHistory.length === 0) {
@@ -127,6 +152,45 @@ function MyAssignedStepsContent() {
           Next
         </Button>
       </div>
+
+      <hr className="my-8 border-slate-200" />
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">Past Tasks</h2>
+      </div>
+
+      {isPastLoading && pastCursorHistory.length === 0 ? (
+        <div className="flex h-[20vh] items-center justify-center">
+          <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+        </div>
+      ) : !isPastLoading && pastData?.items.length === 0 && pastCursorHistory.length === 0 ? (
+        <div className="p-8">
+          <EmptyState
+            icon={ClipboardList}
+            heading="No past tasks"
+            body="You have no past workflow tasks."
+          />
+        </div>
+      ) : (
+        <>
+          <DataTable
+            columns={pastColumns}
+            data={pastData?.items ?? []}
+            globalFilterPlaceholder="Search past tasks…"
+            onSortingChange={handlePastSortOrFilterChange}
+            onGlobalFilterChange={handlePastSortOrFilterChange}
+          />
+
+          <div className="flex items-center justify-end space-x-2 py-4">
+            <Button variant="outline" size="sm" onClick={handlePastPrev} disabled={!hasPastPrevPage}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePastNext} disabled={!hasPastNextPage}>
+              Next
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

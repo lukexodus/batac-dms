@@ -385,6 +385,18 @@ export interface EventPayloadMap {
     instanceId: string;
     stepInstanceId: string;
   };
+  'workflow.multi_referral.committee_report_corrected': {
+    stepInstanceId: string;
+    committeeId: string;
+    correctedBy: string;
+    correctedAt: string;
+  };
+  'workflow.multi_referral.committee_reports_reconsolidated': {
+    stepInstanceId: string;
+    reconsolidatedBy: string;
+    reconsolidatedAt: string;
+    newUnifiedReportDocumentId: string;
+  };
   'workflow.multi_referral.secretary_advanced': {
     stepInstanceId: string;
     actorId: string;

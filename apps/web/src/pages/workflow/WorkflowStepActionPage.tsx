@@ -1,6 +1,6 @@
 import { FileText, Loader2 } from 'lucide-react';
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 
@@ -32,6 +32,7 @@ export function WorkflowStepActionPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
   const navigate = useNavigate();
   const identity = useSessionStore((s) => s.identity);
+  const [searchParams] = useSearchParams();
 
   const {
     data: instance,
@@ -68,7 +69,8 @@ export function WorkflowStepActionPage() {
   const renderPanel = () => {
     let canAct = false;
 
-    switch (instance.panelHint) {
+    const panelHintToUse = searchParams.get('forcePanel') || instance.panelHint;
+    switch (panelHintToUse) {
       case 'generic_action':
         canAct = hasRole(
           identity,

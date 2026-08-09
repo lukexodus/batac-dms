@@ -332,6 +332,13 @@ export default function DocumentDetailPage() {
     { enabled: !!documentId },
   );
 
+
+  // ── Multi-Referral completion check ───────────────────────────────────────
+  const { data: completedMultiReferral } = trpc.workflow.getCommitteeReportStepDetail.useQuery(
+    { documentId: documentId! },
+    { enabled: !!documentId && hasRole(identity, 'sp_secretary') }
+  );
+
   // ── Scheduled reading: next upcoming SP session date (OOB-derived) ────────
   // Only the OOB-viewing roles can read this; other roles get no badge.
   const { data: scheduledReading } = trpc.session.getScheduledReadingForDocument.useQuery(
@@ -757,14 +764,24 @@ export default function DocumentDetailPage() {
             </div>
 
             {/* Workflow link-out */}
-            {workflowInstance && workflowInstance.status === 'Active' && (
-              <Link
-                to={`/workflow/steps/${workflowInstance.instanceId}`}
-                className="text-primary text-sm whitespace-nowrap underline"
-              >
-                View workflow step →
-              </Link>
-            )}
+            <div className="flex flex-col items-end gap-2">
+              {workflowInstance && workflowInstance.status === 'Active' && (
+                <Link
+                  to={`/workflow/steps/${workflowInstance.instanceId}`}
+                  className="text-primary text-sm whitespace-nowrap underline"
+                >
+                  View workflow step →
+                </Link>
+              )}
+              {completedMultiReferral && completedMultiReferral.status === 'completed' && hasRole(identity, 'sp_secretary') && (
+                <Link
+                  to={`/workflow/steps/${completedMultiReferral.instanceId}?forcePanel=multi_referral`}
+                  className="text-primary text-sm whitespace-nowrap underline"
+                >
+                  Correct a Committee Report →
+                </Link>
+              )}
+            </div>
           </div>
         </CardHeader>
 

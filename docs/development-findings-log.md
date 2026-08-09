@@ -9310,3 +9310,16 @@ Note: [Inference] — LOG-0220's "acceptable re-consolidation semantics" note wa
 No fix was implemented as part of this entry; this is a planning-layer investigation finding only, not yet actioned by an executor. Two genuine design forks follow from this finding (reopen a completed step vs. treat a correction as a new/superseding operation) that are being put to the human directly rather than resolved here, per project convention.
 
 ---
+
+### [LOG-0284] documents.versions table and createVersion repository method exist but have zero call sites — no working multi-version-upload feature exists despite the schema supporting it
+
+- date: 2026-08-09
+- task_id: none (found while evaluating document-versioning as a mechanism for post-acceptance committee report corrections)
+- status: proposed
+- affects: C1 (documents.versions schema), documents.repository.ts
+
+**What was found:** `documents.versions` (`packages/database/schema/documents.schema.ts:375-420`) is a fully-developed table — `versionNumber`, OCR fields, scan-quality tracking — clearly designed to support multiple versions per document. `documents.repository.ts:936` has a working `createVersion` method. However, a full-codebase grep for `.createVersion(` across `apps/server/src` (test files excluded) returns zero call sites. No procedure in `documents.router.ts` (or anywhere else checked) exposes an "upload a new version of an existing document" operation. In current practice, a `versions` row is written exactly once per document, at initial upload, through whichever procedure actually handles that (not traced in this session — out of scope for what was being investigated).
+
+Note: [Inference] — this does not mean versioning is broken; it means it was never built as a reachable feature, only scaffolded at the schema/repository layer. Anyone assuming "documents already support version history, I can just add a new version" should verify this entry's grep result still holds before relying on it, since a future task may have since wired `createVersion` up.
+
+No fix was implemented as part of this entry; this is a planning-layer investigation finding only.

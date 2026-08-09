@@ -5,6 +5,7 @@ import type { RouterOutputs } from '../../lib/trpc';
 import type { ColumnDef } from '@tanstack/react-table';
 
 type AssignedStepRow = RouterOutputs['workflow']['listMyAssignedSteps']['items'][number];
+type PastStepRow = RouterOutputs['workflow']['listMyPastSteps']['items'][number];
 
 // ─── Step Type Badge ─────────────────────────────────────────────────────────
 // No pre-development document specifies human-readable labels for the
@@ -58,6 +59,44 @@ const STEP_TYPE_META: Record<StepType, { label: string; className: string }> = {
 
 function StepTypeBadge({ stepType }: { stepType: string }) {
   const meta = STEP_TYPE_META[stepType as StepType];
+  if (!meta) return null;
+  return <span className={meta.className}>{meta.label}</span>;
+}
+
+// ─── Step Status Badge ───────────────────────────────────────────────────────
+
+type StepStatus = 'completed' | 'bypassed' | 'cancelled' | 'failed' | 'returned';
+
+const STEP_STATUS_META: Record<StepStatus, { label: string; className: string }> = {
+  completed: {
+    label: 'Completed',
+    className:
+      'inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700',
+  },
+  bypassed: {
+    label: 'Bypassed',
+    className:
+      'inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-600',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    className:
+      'inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700',
+  },
+  failed: {
+    label: 'Failed',
+    className:
+      'inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700',
+  },
+  returned: {
+    label: 'Returned',
+    className:
+      'inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700',
+  },
+};
+
+function StepStatusBadge({ status }: { status: string }) {
+  const meta = STEP_STATUS_META[status as StepStatus];
   if (!meta) return null;
   return <span className={meta.className}>{meta.label}</span>;
 }
@@ -117,5 +156,63 @@ export const columns: ColumnDef<AssignedStepRow>[] = [
         </span>
       );
     },
+  },
+];
+
+export const pastColumns: ColumnDef<PastStepRow>[] = [
+  {
+    accessorKey: 'documentTitle',
+    header: 'Document',
+    cell: ({ row }) => {
+      return (
+        <Link
+          to={`/workflow/steps/${row.original.instanceId}`}
+          className="text-primary font-medium hover:underline"
+        >
+          {row.getValue('documentTitle')}
+        </Link>
+      );
+    },
+  },
+  {
+    accessorKey: 'stepName',
+    header: 'Step',
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-slate-700">
+          {row.original.stepName || row.original.stepType}
+        </span>
+        <StepTypeBadge stepType={row.original.stepType} />
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <StepStatusBadge status={row.original.status} />
+    ),
+  },
+  {
+    accessorKey: 'completedAt',
+    header: 'Completed',
+    cell: ({ row }) => {
+      const completedAt = row.original.completedAt;
+      if (!completedAt) return <span className="text-muted-foreground">—</span>;
+      return (
+        <span className="text-muted-foreground">
+          {format(new Date(completedAt), 'PP')}
+        </span>
+      );
+    }
+  },
+  {
+    accessorKey: 'outcome',
+    header: 'Outcome',
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {row.original.outcome || '—'}
+      </span>
+    ),
   },
 ];
