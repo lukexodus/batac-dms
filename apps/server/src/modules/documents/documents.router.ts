@@ -514,11 +514,13 @@ export function createDocumentsRouter() {
           });
         }
 
+        const initialLifecycleState = documentType.code === "CERTIFICATION_OF_URGENCY" ? "completed" : "draft";
+
         const created = await repo.insertDocument({
           cityId: subject.cityId,
           documentTypeId: documentType.id,
           title: input.title,
-          lifecycleState: "draft",
+          lifecycleState: initialLifecycleState,
           classificationLevel,
           // qr_tracking_number is NOT NULL + UNIQUE at the DB level (see
           // documents.schema.ts), so a value must be written now even
@@ -539,7 +541,7 @@ export function createDocumentsRouter() {
         // No domain event or audit event at draft creation -- the
         // event-worthy moment is submit (per this task's brief, B2).
 
-        return { documentId: created.id, lifecycleState: "draft" as const };
+        return { documentId: created.id, lifecycleState: initialLifecycleState };
       }),
 
     // -----------------------------------------------------------------
@@ -1270,11 +1272,12 @@ export function createDocumentsRouter() {
           throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        const allowed = guard.canUpdate(subject, {
-          lifecycleState: document.lifecycleState,
-          ownedByOfficeId: document.ownedByOfficeId,
-          createdBy: document.createdBy,
-        });
+        // I2 §17 "Trigger manual re-OCR on existing file" — records_officer /
+        // sp_secretary, role gate only (E1: "ABAC conditions: None beyond role
+        // gate"). Deliberately NOT guard.canUpdate: canUpdate requires the
+        // parent document to be in Draft state, but re-OCR legitimately runs on
+        // in-workflow/released versions too.
+        const allowed = guard.canTriggerManualReOcr(subject);
         if (!allowed)
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -1308,12 +1311,10 @@ export function createDocumentsRouter() {
           throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        // Same access requirement as Re-OCR (must be able to update)
-        const allowed = guard.canUpdate(subject, {
-          lifecycleState: document.lifecycleState,
-          ownedByOfficeId: document.ownedByOfficeId,
-          createdBy: document.createdBy,
-        });
+        // Consolidated ref Part 11.4 / I2 §9 "Flag scanned-back document for
+        // manual verification" — records_officer only, role gate only. Not
+        // guard.canUpdate (see triggerManualReOcr's comment).
+        const allowed = guard.canFlagScannedBack(subject);
         if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         await repo.updateVersionFields(input.versionId, {
@@ -1345,11 +1346,10 @@ export function createDocumentsRouter() {
           throw new TRPCError({ code: "NOT_FOUND" });
         }
 
-        const allowed = guard.canUpdate(subject, {
-          lifecycleState: document.lifecycleState,
-          ownedByOfficeId: document.ownedByOfficeId,
-          createdBy: document.createdBy,
-        });
+        // I2 §9 "Accept scanned-back signed document as official copy" —
+        // records_officer / sp_secretary, role gate only. Not guard.canUpdate
+        // (see triggerManualReOcr's comment).
+        const allowed = guard.canAcceptScannedBack(subject);
         if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
 
         await repo.updateVersionFields(input.versionId, {

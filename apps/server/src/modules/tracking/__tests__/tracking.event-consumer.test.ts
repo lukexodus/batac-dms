@@ -185,4 +185,73 @@ describe('TrackingEventConsumer', () => {
       );
     });
   });
+
+  describe('handleCertificationUrgencyLogged', () => {
+    const event: DomainEvent<EventPayloadMap['document.certification_urgency.logged']> = {
+      eventId: 'evt-3',
+      eventType: 'document.certification_urgency.logged',
+      occurredAt: new Date().toISOString(),
+      cityId: 'city-1',
+      schemaVersion: 1,
+      payload: {
+        certificationDocumentId: 'cert-1',
+        associatedDocumentIds: ['doc-1', 'doc-2'],
+        associatedInstanceIds: ['inst-1', 'inst-2'],
+        loggedBy: 'actor-1',
+        loggedAt: new Date().toISOString(),
+      } as DocumentCertificationUrgencyLoggedPayload,
+    };
+
+    it('appends a routing entry for each associated document', async () => {
+      repository.findTrackingRecordByDocumentId.mockResolvedValue({ id: 'tr-1' } as any);
+
+      await consumer.handleCertificationUrgencyLogged(event);
+
+      expect(repository.findTrackingRecordByDocumentId).toHaveBeenCalledTimes(2);
+      expect(repository.appendRoutingEntry).toHaveBeenCalledTimes(2);
+      expect(repository.appendRoutingEntry).toHaveBeenNthCalledWith(
+        1,
+        {
+          trackingRecordId: 'tr-1',
+          fromOfficeId: null,
+          toOfficeId: null,
+          actorId: 'actor-1',
+          actionDescription: 'Certified Urgent — logged',
+        },
+        undefined,
+      );
+      expect(repository.appendRoutingEntry).toHaveBeenNthCalledWith(
+        2,
+        {
+          trackingRecordId: 'tr-1',
+          fromOfficeId: null,
+          toOfficeId: null,
+          actorId: 'actor-1',
+          actionDescription: 'Certified Urgent — logged',
+        },
+        undefined,
+      );
+    });
+
+    it('skips documents with no tracking record and logs a warning', async () => {
+      repository.findTrackingRecordByDocumentId.mockResolvedValue(null);
+
+      await consumer.handleCertificationUrgencyLogged(event);
+
+      expect(repository.appendRoutingEntry).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledTimes(2);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ documentId: 'doc-1' }),
+        expect.stringContaining('no tracking record found'),
+      );
+    });
+
+    it('propagates errors without swallowing', async () => {
+      repository.findTrackingRecordByDocumentId.mockRejectedValue(new Error('DB connection lost'));
+
+      await expect(consumer.handleCertificationUrgencyLogged(event)).rejects.toThrow(
+        'DB connection lost',
+      );
+    });
+  });
 });

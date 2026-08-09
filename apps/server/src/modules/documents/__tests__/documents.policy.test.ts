@@ -767,6 +767,57 @@ describe('canReadScanQuality', () => {
   });
 });
 
+// ─── OCR / scanned-back maintenance actions (I2 §9, §17; E1) ────────────────
+
+describe('canTriggerManualReOcr', () => {
+  it('allows records_officer and sp_secretary (I2 §17, E1 callable-by)', () => {
+    expect(guard.canTriggerManualReOcr(makeSubject({ roles: ['records_officer'] }))).toBe(true);
+    expect(guard.canTriggerManualReOcr(makeSubject({ roles: ['sp_secretary'] }))).toBe(true);
+  });
+
+  it('denies every other role', () => {
+    for (const role of [
+      'sys_admin',
+      'plat_admin',
+      'dept_encoder',
+      'dept_approver',
+      'sp_member',
+      'sp_presiding_officer',
+      'mayor',
+      'brgy_encoder',
+      'brgy_captain',
+      'auditor',
+      'citizen',
+    ]) {
+      expect(guard.canTriggerManualReOcr(makeSubject({ roles: [role] }))).toBe(false);
+    }
+  });
+});
+
+describe('canFlagScannedBack', () => {
+  it('allows records_officer only (consolidated ref Part 11.4 / E1 callable-by)', () => {
+    expect(guard.canFlagScannedBack(makeSubject({ roles: ['records_officer'] }))).toBe(true);
+    expect(guard.canFlagScannedBack(makeSubject({ roles: ['sp_secretary'] }))).toBe(false);
+  });
+
+  it('denies other roles', () => {
+    expect(guard.canFlagScannedBack(makeSubject({ roles: ['dept_approver'] }))).toBe(false);
+    expect(guard.canFlagScannedBack(makeSubject({ roles: ['sp_member'] }))).toBe(false);
+  });
+});
+
+describe('canAcceptScannedBack', () => {
+  it('allows records_officer and sp_secretary (I2 §9, E1 callable-by)', () => {
+    expect(guard.canAcceptScannedBack(makeSubject({ roles: ['records_officer'] }))).toBe(true);
+    expect(guard.canAcceptScannedBack(makeSubject({ roles: ['sp_secretary'] }))).toBe(true);
+  });
+
+  it('denies other roles', () => {
+    expect(guard.canAcceptScannedBack(makeSubject({ roles: ['dept_encoder'] }))).toBe(false);
+    expect(guard.canAcceptScannedBack(makeSubject({ roles: ['mayor'] }))).toBe(false);
+  });
+});
+
 // ─── number_series (I1 §14) ─────────────────────────────────────────────────
 
 describe('canReadNumberSeries', () => {

@@ -252,7 +252,7 @@ export type CreateDocumentInput = z.infer<typeof CreateDocumentInputSchema>;
 
 export const CreateDocumentOutputSchema = z.object({
   documentId: UuidSchema,
-  lifecycleState: z.literal('draft'),
+  lifecycleState: LifecycleStateSchema,
 });
 export type CreateDocumentOutput = z.infer<typeof CreateDocumentOutputSchema>;
 

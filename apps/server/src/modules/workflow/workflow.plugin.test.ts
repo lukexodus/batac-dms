@@ -137,6 +137,7 @@ describe('workflow.plugin', () => {
       schemaVersion: 1,
       payload: {
         certificationDocumentId: '1',
+        associatedDocumentIds: [],
         associatedInstanceIds: [],
         loggedBy: '1',
         loggedAt: '1',

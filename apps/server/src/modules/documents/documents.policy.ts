@@ -161,6 +161,37 @@ const SCAN_QUALITY_ROLES: ReadonlySet<string> = new Set([
   'records_officer',
 ]);
 
+/**
+ * I2 §17 "Trigger manual re-OCR on existing file" (and E1
+ * `documents.triggerManualReOcr`) — `records_officer`, `sp_secretary` only.
+ * E1: "ABAC conditions: None beyond role gate."
+ */
+const TRIGGER_MANUAL_RE_OCR_ROLES: ReadonlySet<string> = new Set([
+  'records_officer',
+  'sp_secretary',
+]);
+
+/**
+ * Consolidated ref Part 11.4 ("flags the scanned image for manual
+ * verification by a Records Officer") and E1
+ * `documents.flagScannedBackForVerification` — `records_officer` only.
+ *
+ * [Discrepancy — I2 §9 also marks SP Secretary ✅ for this row, which
+ * contradicts the consolidated reference's "by a Records Officer" wording
+ * and E1's callable-by column. Per AGENTS.md Section 1 the consolidated
+ * reference wins; `records_officer` only is implemented. Flagged, not
+ * silently averaged.]
+ */
+const FLAG_SCANNED_BACK_ROLES: ReadonlySet<string> = new Set(['records_officer']);
+
+/** I2 §9 "Accept scanned-back signed document as official copy" (and E1
+ *  `documents.acceptScannedBackAsOfficial`) — `records_officer`, `sp_secretary`.
+ *  E1: "ABAC conditions: None beyond role gate." */
+const ACCEPT_SCANNED_BACK_ROLES: ReadonlySet<string> = new Set([
+  'records_officer',
+  'sp_secretary',
+]);
+
 /** I1 §14.1 `number_series:read`. */
 const NUMBER_SERIES_READ_ROLES: ReadonlySet<string> = new Set([
   'plat_admin',
@@ -773,6 +804,28 @@ export class DocumentPolicyGuard {
     const ownOffice =
       attrs.ownedByOfficeId != null && subject.effectiveOfficeIds.includes(attrs.ownedByOfficeId);
     return ownAuthored || ownOffice;
+  }
+
+  /**
+   * I2 §17 `documents.triggerManualReOcr` — `records_officer`, `sp_secretary`.
+   * E1: "ABAC conditions: None beyond role gate." Unlike `canUpdate`, this is
+   * intentionally lifecycle-state-independent: a re-OCR re-processes an
+   * existing file version regardless of the parent document's lifecycle
+   * state (e.g. an in-workflow SP Resolution whose scanned version needs a
+   * better extraction).
+   */
+  canTriggerManualReOcr(subject: SubjectContext): boolean {
+    return rolesIntersect(subject.roles, TRIGGER_MANUAL_RE_OCR_ROLES);
+  }
+
+  /** I2 §9 / consolidated ref Part 11.4 `documents.flagScannedBackForVerification` — `records_officer` only (see role-set comment for the I2 SP-Secretary cell discrepancy). */
+  canFlagScannedBack(subject: SubjectContext): boolean {
+    return rolesIntersect(subject.roles, FLAG_SCANNED_BACK_ROLES);
+  }
+
+  /** I2 §9 `documents.acceptScannedBackAsOfficial` — `records_officer`, `sp_secretary`. */
+  canAcceptScannedBack(subject: SubjectContext): boolean {
+    return rolesIntersect(subject.roles, ACCEPT_SCANNED_BACK_ROLES);
   }
 
   // ─── number_series (I1 §14) ────────────────────────────────────────────

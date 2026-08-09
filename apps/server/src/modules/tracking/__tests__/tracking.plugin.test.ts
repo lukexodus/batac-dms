@@ -104,5 +104,10 @@ describe('tracking.plugin', () => {
       expect.any(Function),
       'tracking',
     );
+    expect(fastify.eventBus.on).toHaveBeenCalledWith(
+      'document.certification_urgency.logged',
+      expect.any(Function),
+      'tracking',
+    );
   });
 });
