@@ -405,6 +405,19 @@ export const versions = documentsSchema.table(
       "good" | "fair" | "poor"
     >(),
     ocrProcessed: boolean("ocr_processed").notNull().default(false),
+    /**
+     * Job lifecycle status, distinct from ocrProcessed/scanQualityCategory
+     * (which record the OUTCOME of a completed job). This column tracks
+     * the job's current lifecycle stage. 'queued' is set at enqueue time
+     * (OcrService.enqueueOcrJob); 'processing' at worker pickup
+     * (OcrService.processJob); 'done' alongside the existing
+     * ocrProcessed/scanQualityCategory writes at successful completion or
+     * skip; 'failed' only on a job's final permitted retry attempt (see
+     * documents.plugin.ts's ocr.process worker).
+     */
+    ocrStatus: text("ocr_status").$type<
+      "queued" | "processing" | "done" | "failed"
+    >(),
     ocrText: text("ocr_text"),
     /** FTS vector for OCR text; maintained by trg_versions_tsv_update (manual SQL). */
     tsv: tsvector("tsv"),
@@ -428,6 +441,10 @@ export const versions = documentsSchema.table(
     check(
       "documents_scan_quality_category_check",
       sql`${table.scanQualityCategory} IS NULL OR ${table.scanQualityCategory} IN ('good', 'fair', 'poor')`,
+    ),
+    check(
+      "documents_ocr_status_check",
+      sql`${table.ocrStatus} IS NULL OR ${table.ocrStatus} IN ('queued', 'processing', 'done', 'failed')`,
     ),
     check(
       "ck_versions_scan_quality_range",

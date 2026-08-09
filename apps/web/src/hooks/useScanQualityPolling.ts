@@ -25,7 +25,9 @@ export function useScanQualityPolling(versionId: string | undefined) {
       // "disable further polling".
       refetchInterval: (query) => {
         const data = query.state.data;
-        if (!data || data.scanQualityCategory === null) {
+        if (!data) return 3000;
+        if (data.ocrStatus === 'failed') return false; // OCR failed — stop polling
+        if (data.scanQualityCategory === null) {
           return 3000; // 3 s between polls while OCR is pending
         }
         return false; // OCR resolved — stop polling

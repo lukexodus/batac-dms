@@ -1,0 +1,2 @@
+ALTER TABLE "documents"."versions" ADD COLUMN "ocr_status" text;--> statement-breakpoint
+ALTER TABLE "documents"."versions" ADD CONSTRAINT "documents_ocr_status_check" CHECK ("documents"."versions"."ocr_status" IS NULL OR "documents"."versions"."ocr_status" IN ('queued', 'processing', 'done', 'failed'));

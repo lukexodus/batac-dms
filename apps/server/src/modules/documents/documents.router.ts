@@ -1248,6 +1248,7 @@ export function createDocumentsRouter() {
             ? Number(version.scanQualityScore)
             : null,
           requiresManualVerification: version.requiresManualVerification,
+          ocrStatus: (version.ocrStatus as any) || null,
         };
       }),
 

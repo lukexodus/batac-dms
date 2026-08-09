@@ -95,6 +95,9 @@ export type PanlalawiganOutcome = z.infer<typeof PanlalawiganOutcomeSchema>;
 export const ScanQualityCategorySchema = z.enum(['good', 'fair', 'poor']);
 export type ScanQualityCategory = z.infer<typeof ScanQualityCategorySchema>;
 
+export const OcrStatusSchema = z.enum(['queued', 'processing', 'done', 'failed']);
+export type OcrStatus = z.infer<typeof OcrStatusSchema>;
+
 // Document Type
 export const DocumentTypeSummarySchema = z.object({
   id: UuidSchema,
@@ -346,6 +349,7 @@ export const VersionSelectSchema = z.object({
   pageCount: z.number().int().positive().nullable(),
   scanQualityScore: z.number().min(0).max(1).nullable(),
   scanQualityCategory: ScanQualityCategorySchema.nullable(),
+  ocrStatus: OcrStatusSchema.nullable().optional(),
   ocrProcessed: z.boolean(),
   uploadedBy: UuidSchema,
   createdAt: TimestampSchema,
@@ -430,6 +434,7 @@ export const ScanQualityIndicatorOutputSchema = z.object({
   scanQualityCategory: ScanQualityCategorySchema.nullable(),
   scanQualityScore: z.number().nullable(),
   requiresManualVerification: z.boolean(),
+  ocrStatus: OcrStatusSchema.nullable().optional(),
 });
 export type ScanQualityIndicatorOutput = z.infer<typeof ScanQualityIndicatorOutputSchema>;
 

@@ -78,6 +78,7 @@ describe('OcrService', () => {
         scanQualityScore: '0.9',
         scanQualityCategory: 'good',
         requiresManualVerification: false,
+        ocrStatus: 'done',
       });
 
       expect(previewProviderMock.renderFirstPage).toHaveBeenCalledWith(
@@ -101,6 +102,7 @@ describe('OcrService', () => {
         scanQualityScore: '0.7',
         scanQualityCategory: 'fair',
         requiresManualVerification: false,
+        ocrStatus: 'done',
       });
     });
 
@@ -113,6 +115,7 @@ describe('OcrService', () => {
         scanQualityScore: '0.3',
         scanQualityCategory: 'poor',
         requiresManualVerification: true,
+        ocrStatus: 'done',
       });
     });
 

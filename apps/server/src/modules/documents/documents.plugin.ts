@@ -140,16 +140,28 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
         jobs.map((job) => ocrService.processJob(job.data)),
       );
       const failures: unknown[] = [];
-      results.forEach((result, i) => {
-        if (result.status === 'rejected') {
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result && result.status === 'rejected') {
           const job = jobs[i];
           fastify.log.error(
-            { err: result.reason, jobId: job.id, versionId: job.data?.versionId },
+            { err: result.reason, jobId: job?.id, versionId: job?.data?.versionId },
             'documents: ocr.process job failed',
           );
           failures.push(result.reason);
+
+          if (job && job.data?.versionId && (job.retryCount ?? 0) >= (job.retryLimit ?? 0)) {
+            try {
+              await ocrService.markOcrFailed(job.data.versionId);
+            } catch (err) {
+              fastify.log.error(
+                { err, versionId: job.data?.versionId },
+                'documents: failed to set ocrStatus to failed',
+              );
+            }
+          }
         }
-      });
+      }
       if (failures.length > 0) {
         // pg-boss's batch handler contract: throwing marks the batch as
         // failed for retry purposes. We still throw here (after every job

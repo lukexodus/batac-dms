@@ -176,6 +176,13 @@
       "when": 1786080194746,
       "tag": "0024_nifty_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786257227768,
+      "tag": "0025_salty_moondragon",
+      "breakpoints": true
     }
   ]
 }

@@ -1285,19 +1285,49 @@ export default function DocumentDetailPage() {
                               {(v.fileSizeBytes / 1024).toFixed(1)} KB
                             </p>
 
-                            {/* Scan quality — sourced only from polling, never from confirmUpload */}
+                            {/* Scan quality & OCR status — sourced from polling */}
                             {isLatest && (
                               <div className="mt-1">
-                                {scanData?.scanQualityCategory == null ? (
-                                  <span className="text-text-muted text-xs italic">
-                                    OCR processing… (auto-refresh active)
-                                  </span>
-                                ) : scanScore != null ? (
-                                  <ScanQualityIndicator
-                                    score={Math.round(scanScore * 100)}
-                                    showLabel
-                                  />
-                                ) : null}
+                                {(() => {
+                                  const status = scanData?.ocrStatus;
+                                  const category = scanData?.scanQualityCategory;
+
+                                  if (status === 'queued') {
+                                    return (
+                                      <span className="text-text-muted text-xs italic">
+                                        Queued for OCR…
+                                      </span>
+                                    );
+                                  }
+                                  if (status === 'processing') {
+                                    return (
+                                      <span className="text-text-muted text-xs italic">
+                                        Processing OCR…
+                                      </span>
+                                    );
+                                  }
+                                  if (status === 'failed') {
+                                    return (
+                                      <span className="text-danger-700 text-xs font-medium">
+                                        OCR failed after multiple attempts.
+                                      </span>
+                                    );
+                                  }
+                                  if (status === 'done' || category != null) {
+                                    return scanScore != null ? (
+                                      <ScanQualityIndicator
+                                        score={Math.round(scanScore * 100)}
+                                        showLabel
+                                      />
+                                    ) : null;
+                                  }
+                                  // Fallback for ocrStatus == null && scanQualityCategory == null
+                                  return (
+                                    <span className="text-text-muted text-xs italic">
+                                      OCR processing… (auto-refresh active)
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>

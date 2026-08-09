@@ -61,6 +61,11 @@ export class OcrService {
   async processJob(payload: { versionId: string; s3Key: string; documentId: string }): Promise<void> {
     const { versionId, s3Key, documentId } = payload;
 
+    await this.db
+      .update(versions)
+      .set({ ocrStatus: 'processing' })
+      .where(eq(versions.id, versionId));
+
     const versionRows = await this.db
       .select({ mimeType: versions.mimeType })
       .from(versions)
@@ -87,6 +92,7 @@ export class OcrService {
           scanQualityScore: null,
           scanQualityCategory: 'good',
           requiresManualVerification: false,
+          ocrStatus: 'done',
         })
         .where(eq(versions.id, versionId));
       return;
@@ -97,6 +103,11 @@ export class OcrService {
   }
 
   async enqueueOcrJob(versionId: string, s3Key: string, documentId: string): Promise<void> {
+    await this.db
+      .update(versions)
+      .set({ ocrStatus: 'queued' })
+      .where(eq(versions.id, versionId));
+
     await this.pgBoss.send(
       'ocr.process',
       { versionId, s3Key, documentId },
@@ -162,6 +173,7 @@ export class OcrService {
         scanQualityScore: scanQualityScore.toString(),
         scanQualityCategory: category,
         requiresManualVerification,
+        ocrStatus: 'done',
       })
       .where(eq(versions.id, versionId));
 
@@ -183,5 +195,12 @@ export class OcrService {
     if (fileKey) {
       await this.generateFirstPagePreview(documentId, fileKey, mimeType);
     }
+  }
+
+  async markOcrFailed(versionId: string): Promise<void> {
+    await this.db
+      .update(versions)
+      .set({ ocrStatus: 'failed' })
+      .where(eq(versions.id, versionId));
   }
 }
