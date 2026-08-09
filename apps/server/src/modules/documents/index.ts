@@ -16,5 +16,6 @@ export type {
   CreateVersionAttrs,
   ScanQualityAttrs,
 } from './documents.policy.js';
+export * from './documents.public-read.service.js';
 
 

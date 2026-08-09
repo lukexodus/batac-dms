@@ -411,5 +411,22 @@ export function createDocumentsService(deps: DocumentsServiceDeps): DocumentsPub
         ownedByOfficeId: oldDoc.ownedByOfficeId,
       };
     },
+
+    /**
+     * TASK-PORTAL-003 — delegate to the standalone public-submission service.
+     * The service factory already holds db / numberingService / eventBus, so no
+     * plugin wiring change is required beyond adding the method here.
+     */
+    async createPublicSubmission(input) {
+      return createPublicSubmission(
+        {
+          db: deps.db,
+          numberingService: deps.numberingService,
+          eventBus: deps.eventBus,
+          logger: deps.logger,
+        },
+        input,
+      );
+    },
   };
 }

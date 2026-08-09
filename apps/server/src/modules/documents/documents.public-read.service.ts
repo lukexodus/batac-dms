@@ -197,12 +197,12 @@ export async function getPublishedDocumentDetail(
     .map((s) => s.displayName);
 
   const meta = (doc.metadata ?? {}) as Record<string, unknown>;
-  const metaSponsors = Array.isArray(meta.sponsors)
-    ? (meta.sponsors as Array<Record<string, unknown>>)
+  const metaSponsors = Array.isArray(meta['sponsors'])
+    ? (meta['sponsors'] as Array<Record<string, unknown>>)
     : [];
 
   const metaDisplayName = (s: Record<string, unknown>): string => {
-    const name = s.display_name ?? s.displayName;
+    const name = s['display_name'] ?? s['displayName'];
     return typeof name === 'string' ? name.trim() : '';
   };
 
@@ -216,14 +216,14 @@ export async function getPublishedDocumentDetail(
     sponsorshipAuthorNames.length > 0
       ? sponsorshipAuthorNames
       : metaSponsors
-          .filter((s) => s.role === 'author' || s.role === 'co_author')
+          .filter((s) => s['role'] === 'author' || s['role'] === 'co_author')
           .map(metaDisplayName)
           .filter((name) => name.length > 0);
   const sponsors =
     sponsorshipSponsorNames.length > 0
       ? sponsorshipSponsorNames
       : metaSponsors
-          .filter((s) => s.role === 'introduced_by')
+          .filter((s) => s['role'] === 'introduced_by')
           .map(metaDisplayName)
           .filter((name) => name.length > 0);
 
@@ -240,10 +240,12 @@ export async function getPublishedDocumentDetail(
     : null;
 
   const isOrdinance = row.documentTypeCode === 'SP_ORDINANCE';
-  const metaHasPenalty = meta.has_penalty_provision === true || meta.hasPenaltyProvision === true;
-  const newspaper = (meta.newspaper_publication ??
-    meta.newspaperPublication) as Record<string, unknown> | null | undefined;
-  const newspaperDateRaw = newspaper && (newspaper.publication_date ?? newspaper.publicationDate);
+  const metaHasPenalty =
+    meta['has_penalty_provision'] === true || meta['hasPenaltyProvision'] === true;
+  const newspaper = (meta['newspaper_publication'] ??
+    meta['newspaperPublication']) as Record<string, unknown> | null | undefined;
+  const newspaperDateRaw =
+    newspaper && (newspaper['publication_date'] ?? newspaper['publicationDate']);
   const newspaperDate = typeof newspaperDateRaw === 'string' ? newspaperDateRaw : null;
 
   /**

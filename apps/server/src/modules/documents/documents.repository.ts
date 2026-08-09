@@ -100,6 +100,8 @@ const publicPortalDocumentSelect = {
   id: documents.id,
   cityId: documents.cityId,
   documentTypeId: documents.documentTypeId,
+  numberSeriesId: documents.numberSeriesId,
+  draftedByEmployeeId: documents.draftedByEmployeeId,
   title: documents.title,
   lifecycleState: documents.lifecycleState,
   classificationLevel: documents.classificationLevel,

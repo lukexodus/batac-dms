@@ -9376,3 +9376,83 @@ In `pg-boss` v10, the job payload passed to the `boss.work` handler does not inc
 Updated the `boss.work('ocr.process', ...)` call in `apps/server/src/modules/documents/documents.plugin.ts` to include `{ includeMetadata: true }`, ensuring `job.retryCount` is properly populated for the final-attempt logic. Also empirically verified this behavior through an integration test (`ocr-retry-boundary.integration.spec.ts`), which confirmed the final attempt logic evaluates correctly when metadata is present.
 
 ---
+
+### [LOG-0288] TASK-PORTAL-004: E2 published-document reads — releasedAt/approvedAt sources, sponsorship mapping, and portal infra-field placeholders
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-004
+- status: proposed
+- affects: E2, C1 (documents schema), B2 (Module 3 Law #2), H1
+
+**What was found:** Implementing `listPublishedDocuments` / `getPublishedDocumentDetail` (`apps/server/src/modules/documents/documents.public-read.service.ts`) and the backing repository methods (`listPublicPortalDocuments`, `findPublicPortalDocumentById`) surfaced several points the pre-development documents do not pin down. Verified at runtime via an integration test (`apps/server/src/modules/documents/__tests__/documents.public-read.service.test.ts`, 13 tests, DATABASE_URL_MIGRATE) that: (a) `eq(documents.lifecycleState, 'released')` works through postgres-js despite psql's enum-vs-text coercion quirk; (b) the `trg_documents_tsv_update` trigger maintains `documents.tsv` on INSERT, so direct-insert fixtures support full-text `q` matching; (c) the lifecycle-transition trigger fires on UPDATE only, so fixtures may insert rows directly in `released`.
+
+**What was implemented:**
+
+1. **Eligibility gates** (shared by list + detail; detail returns null when ineligible): `lifecycleState='released'`, `classificationLevel='public'`, `documentTypes.publicVisibilityRule='title_and_first_page_public'`, `documentTypes.code IN ('SP_RESOLUTION','SP_ORDINANCE','SP_APPROPRIATION_ORDINANCE')`, `finalNumber IS NOT NULL`, and `deletedAt IS NULL` on both rows. DB codes carry the `SP_` prefix (`SP_APPROPRIATION_ORDINANCE`) while the E2 API enum uses `APPROPRIATION_ORDINANCE`; the service maps both directions.
+2. **approvedAt**: `[Inference]` = `numbers.assigned_at` of the current FINAL ledger row (E2: "when the final number was assigned"). Falls back to `documents.updated_at` when no ledger row exists. Formatted `YYYY-MM-DD` (Asia/Manila; PH has no DST, so a fixed +8h offset read from UTC components is exact).
+3. **releasedAt**: `[Inference]` = `documents.updated_at`. The documents table has no `released_at` column; `updateDocumentLifecycleState` stamps `updatedAt` on the transition to `released`. Formatted as an ISO timestamp with `+08:00` offset to match the E2 examples.
+4. **authors/sponsors**: `[Inference]` prefer `document_sponsorships` (`principal_author`/`co_author` → authors; `introducer`/`co_introducer` → sponsors) ordered by `order_of_priority`, falling back to `metadata.sponsors` (reading both snake_case and camelCase keys) when the table has no rows.
+5. **committees**: `[Inference]` always `[]` — committee names live in `organization.committees`, a cross-schema boundary this module must not join (B2 Module 3 Law #2).
+6. **panlalawigan**: mapped from `panlalawigan_reviews`; `responseDate` also covers the deemed-approval lapse because the plugin writes it on lapse (documents.plugin.ts).
+7. **hasNewspaperPublication**: `[Inference]` true only for SP Ordinances with `has_penalty_provision` true AND a recorded newspaper publication date; false otherwise (per E2). Reads false/null in practice today because the runtime write path records publication in the workflow context, not in `documents.metadata`.
+8. **firstPagePreview / documentRequestUrl**: `[Inference]` this data-access layer has no S3 presigner and no portal base URL. `firstPagePreview` is always null and `documentRequestUrl` is a relative `/document-requests?ref=<finalNumber>` path (absolute when `portalBaseUrl` is passed via deps). TASK-PORTAL-005's REST handler is expected to populate both from the S3 presigner and `PORTAL_URL`.
+
+Note: `[Inference]` items above are reasoned defaults implemented under the conditions described; they are not claims about guaranteed behavior. Items 1–3 and the code-enum mapping were exercised by the integration test; items 4–8 were not all reachable through seeded data and may need revision once real published documents flow through the system.
+
+---
+
+### [LOG-0289] TASK-PORTAL-003: createPublicSubmission — method shape, return type, and the brief's variant requirements
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: B4, E2 (ComplaintSubmissionResult / DocumentRequestSubmissionResult), H3
+
+**What was found:** TASK-PORTAL-003's brief and the authoritative task (portal.md, `AI Prompt` section) disagree on the submission method. The brief sketches a `{trackingNumber, status, createdAt, type}` return, an emission of `notification.submitted.public`, and `SubjectStatusEnum` statuses; the authoritative task text and TASK-PORTAL-006's consuming endpoint (portal.md L1106–1131) destructure `{documentId, referenceCode, submittedAt}` from the service. No `notification.submitted.public` event exists in `packages/shared/src/events/event-payload-map.ts`, no consumer for it exists in the notification task docs, and no `SubjectStatusEnum` exists anywhere in the codebase.
+
+**What was implemented:** Followed the authoritative task: `documentsService.createPublicSubmission({documentType, metadata, cityId})` returns `{documentId, referenceCode, submittedAt}` where `submittedAt` is `new Date().toISOString()` (UTC — Asia/Manila rendering is a frontend concern). The brief's `status` is not in the service result; the endpoint adds `status: 'pending_hearing'` itself. No `notification.submitted.public` is emitted (nothing subscribes to it). Per TASK-PORTAL-003's own [SPEC GAP], only `document.created` is emitted, after the transaction commits (LOG-0207/LOG-0210) — emitting is the safer default because TASK-AUDIT-004's consumer captures creation events; a silently dropped event would leave citizen submissions outside the audit chain. Reference codes ARE assigned (the brief's "no numbering" framing was wrong): the method reserves a COMP-/DREQ- code via NumberingService (see LOG-0290) and stores it in `metadata.referenceCode`; `preliminary_number`/`final_number` stay NULL per TrackingLookupData's schema note.
+
+Note: `[Inference]` the emit-vs-silence SPEC GAP resolution is a reasoned default that needs human confirmation before merge. The return-shape and no-notification-event facts were verified by reading the authoritative task and the shared event catalog, not by running code.
+
+---
+
+### [LOG-0290] TASK-PORTAL-003: new `reserveReferenceNumber` NumberingService method
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: H3, consolidated ref §5.1–5.2
+
+**What was found:** No pre-development document defines a NumberingService method for assigning the public reference series. TASK-PORTAL-003 requires the rendered code (e.g. `COMP-2026-0042`) to be returned synchronously in the same HTTP response, which means the code must be reserved inside the submission transaction rather than in a later workflow step. The existing `assignPreliminaryNumber` / `assignFinalNumber` methods write to the `documents.numbers` ledger and to the document's number columns — neither is appropriate for the portal reference series, which has no series-number lifecycle.
+
+**What was implemented:** Added `reserveReferenceNumber(seriesKey, cityId, trx?)` to `apps/server/src/modules/documents/numbering.service.ts`. It calls the existing `fn_get_next_sequence_value` (which auto-creates per-year sequences) and returns `{numberValue, sequenceNumber, sequenceYear}`, logging a warn when the sequence was created on the fly. It writes NO `documents.numbers` ledger row and NO number column, preserving the invariant that only NumberingService writes number columns. When `trx` is supplied it participates in the caller's transaction (same pattern as `assignPreliminaryNumber`); otherwise it opens its own transaction. `[Inference]` the method name and the no-ledger behavior are reasoned defaults; the rendered format comes from the series' `finalFormat` template as defined in the seed data.
+
+Note: tested via unit tests (`numbering.service.test.ts` patterns) as part of the createPublicSubmission tests; no live-DB run.
+
+---
+
+### [LOG-0291] TASK-PORTAL-003: SYSTEM_ACTOR_ID sentinel for unauthenticated submissions and accessMode vocabulary mismatch
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: I1, B5, C1 (documents metadata)
+
+**What was found:** (a) An unauthenticated submission has no human actor; no pre-development document names the actorId/createdBy value to record. (b) The portal's public schemas describe access modes as `'digital_form' | 'clerk_assisted'` while the internal document metadata vocabulary uses `'digital_form_printed' | 'in_person_clerk'` — the two wordings do not match.
+
+**What was implemented:** (a) `createdBy` and the `document.created` payload `actorId` use the established `SYSTEM_ACTOR_ID` sentinel (`00000000-0000-4000-8000-000000000000`), the same value documents.plugin.ts and panlalawigan.router.ts use for actions with no human actor. (b) The stored `metadata.accessMode` is taken from `input.metadata.accessMode` verbatim with a default of `'digital_form_printed'` — no translation is applied, because translating the public vocabulary into the internal one is TASK-PORTAL-006's responsibility. `[Inference]` both choices are reasoned defaults; the vocabulary mapping decision belongs to the endpoint task.
+
+---
+
+### [LOG-0292] TASK-PORTAL-003: public number-series seeded in seed file, not a migration
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: H3, C1
+
+**What was found:** TASK-PORTAL-003 lists a migration `{NNN}_docs_seed_public_number_series.sql` as a deliverable, but the existing number-series rows (added under TASK-DOCS-008) live in `apps/server/src/database/seeds/number-series.seed.ts`, and there is no number-series seed in `packages/database/migrations/`. The migration folder is governed by the drizzle journal, and mixing a hand-written number-series migration in with it would diverge from where the series actually live.
+
+**What was implemented:** The two new series (`CITIZEN_COMPLAINT_REF`, prefix COMP; `DOCUMENT_REQUEST_REF`, prefix DREQ) were added to `number-series.seed.ts` alongside the existing 11 series, which now total 13. The seed's console log was updated from 11 to 13. The TASK-PORTAL-003 deliverable wording (migration vs seed) is flagged here for the human to reconcile rather than silently creating a migration that would duplicate the seed's work on the next seed run.
+
+---

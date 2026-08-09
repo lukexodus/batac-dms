@@ -113,14 +113,7 @@ export async function createPublicSubmission(
   const seriesKey = SERIES_BY_DOCUMENT_TYPE[input.documentType];
   const qrTrackingNumber = crypto.randomUUID();
 
-  let committed: {
-    documentId: string;
-    documentTypeId: string;
-    ownedByOfficeId: string;
-    referenceCode: string;
-  };
-
-  await deps.db.transaction(async (tx) => {
+  const committed = await deps.db.transaction(async (tx) => {
     const repo = new DocumentsRepository(tx as DbTransaction);
 
     const docType = await repo.findDocumentTypeByCode(input.documentType, input.cityId);
@@ -148,7 +141,7 @@ export async function createPublicSubmission(
     const storedMetadata: Record<string, unknown> = {
       ...input.metadata,
       referenceCode: numberValue,
-      accessMode: input.metadata.accessMode ?? 'digital_form_printed',
+      accessMode: input.metadata['accessMode'] ?? 'digital_form_printed',
     };
 
     const row = await repo.insertDocument({
@@ -168,7 +161,7 @@ export async function createPublicSubmission(
       metadata: storedMetadata,
     });
 
-    committed = {
+    return {
       documentId: row.id,
       documentTypeId: docType.id,
       ownedByOfficeId: series.authorityOfficeId,
@@ -191,6 +184,18 @@ export async function createPublicSubmission(
       cityId: input.cityId,
     },
   });
+
+  // Operational log only — NOT an audit event (TASK-AUDIT-004's consumer
+  // captures document.created for that). Records that no workflow instance
+  // drives these types in Phase 1 (wf.md TASK-WF-016 scope note).
+  deps.logger.info(
+    {
+      documentId: committed.documentId,
+      referenceCode: committed.referenceCode,
+      documentType: input.documentType,
+    },
+    '[public-submission] document created — no workflow instance in Phase 1',
+  );
 
   return {
     documentId: committed.documentId,

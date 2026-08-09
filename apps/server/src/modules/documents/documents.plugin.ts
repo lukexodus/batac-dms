@@ -83,6 +83,7 @@ async function documentsPlugin(fastify: FastifyInstance): Promise<void> {
     env,
     eventBus: fastify.eventBus,
     auditService: (fastify as any).auditService,
+    logger: fastify.log as any,
   });
 
   const trpcRouter = createDocumentsAppRouter();
