@@ -2495,60 +2495,155 @@ export function createWorkflowRouter() {
 
         const pageW = 595.28;
         const pageH = 841.89;
+        const margin = 54;
+        const contentW = pageW - margin * 2;
         const titlePage = outPdf.addPage([pageW, pageH]);
 
-        titlePage.drawText('REPUBLIC OF THE PHILIPPINES', {
-          x: 60,
-          y: pageH - 90,
-          size: 13,
-          font: helvetica,
-          color: rgb(0.2, 0.2, 0.2),
-        });
-        titlePage.drawText('SANGGUNIANG PANLUNGSOD NG BATAC', {
-          x: 60,
-          y: pageH - 112,
-          size: 16,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
+        let currentY = pageH - 54;
 
-        titlePage.drawText('CONSOLIDATED COMMITTEE REPORT', {
-          x: 60,
-          y: pageH - 170,
-          size: 20,
-          font: helveticaBold,
-          color: rgb(0, 0, 0),
-        });
+        // ---- Official Header (Centered) -----------------------------------
+        const headerLines = [
+          { text: 'REPUBLIC OF THE PHILIPPINES', font: helvetica, size: 9.5, color: rgb(0.3, 0.3, 0.35) },
+          { text: 'PROVINCE OF ILOCOS NORTE', font: helvetica, size: 8.5, color: rgb(0.35, 0.35, 0.4) },
+          { text: 'CITY OF BATAC', font: helveticaBold, size: 11, color: rgb(0.1, 0.1, 0.1) },
+          { text: 'OFFICE OF THE SANGGUNIANG PANLUNGSOD', font: helveticaBold, size: 12, color: rgb(0.06, 0.25, 0.48) },
+        ];
 
+        for (const line of headerLines) {
+          const textW = line.font.widthOfTextAtSize(line.text, line.size);
+          const x = (pageW - textW) / 2;
+          titlePage.drawText(line.text, {
+            x,
+            y: currentY,
+            size: line.size,
+            font: line.font,
+            color: line.color,
+          });
+          currentY -= line.size + 3.5;
+        }
+
+        currentY -= 6;
+        titlePage.drawLine({
+          start: { x: margin, y: currentY },
+          end: { x: pageW - margin, y: currentY },
+          thickness: 1,
+          color: rgb(0.8, 0.82, 0.86),
+        });
+        currentY -= 30;
+
+        // ---- Title Banner --------------------------------------------------
+        const docTitleText = 'CONSOLIDATED COMMITTEE REPORT';
+        const docTitleW = helveticaBold.widthOfTextAtSize(docTitleText, 18);
+        titlePage.drawText(docTitleText, {
+          x: (pageW - docTitleW) / 2,
+          y: currentY,
+          size: 18,
+          font: helveticaBold,
+          color: rgb(0.08, 0.08, 0.1),
+        });
+        currentY -= 28;
+
+        // ---- Measure Details Card Container --------------------------------
         const measureTitle = found.doc.title ?? 'Legislative measure';
+        const cardX = margin;
+        const cardWidth = contentW;
+        const cardPaddingX = 16;
+        const cardPaddingY = 14;
+        const innerTextWidth = cardWidth - cardPaddingX * 2;
 
-        const measureTitleLine = `Measure: ${measureTitle}`;
-        titlePage.drawText(measureTitleLine, {
-          x: 60,
-          y: pageH - 200,
-          size: 12,
-          font: helvetica,
-          color: rgb(0, 0, 0),
-          maxWidth: pageW - 120,
+        const measureTitleLines = wrapPdfText(measureTitle, helveticaBold, 10.5, innerTextWidth);
+        const cardHeight =
+          cardPaddingY * 2 + 10 + measureTitleLines.length * 14.5 + 16 + 14;
+
+        // Background box
+        titlePage.drawRectangle({
+          x: cardX,
+          y: currentY - cardHeight,
+          width: cardWidth,
+          height: cardHeight,
+          color: rgb(0.96, 0.97, 0.98),
+          borderColor: rgb(0.84, 0.86, 0.9),
+          borderWidth: 1,
         });
 
-        titlePage.drawText('Submitted to the SP Secretariat', {
-          x: 60,
-          y: pageH - 240,
-          size: 12,
-          font: helvetica,
-          color: rgb(0.2, 0.2, 0.2),
+        // Top accent line
+        titlePage.drawRectangle({
+          x: cardX,
+          y: currentY - 3,
+          width: cardWidth,
+          height: 3,
+          color: rgb(0.06, 0.25, 0.48),
         });
 
-        titlePage.drawText('Committee Reports Included', {
-          x: 60,
-          y: pageH - 290,
-          size: 12,
+        let cardY = currentY - cardPaddingY - 8;
+
+        // Measure Header Label
+        titlePage.drawText('MEASURE', {
+          x: cardX + cardPaddingX,
+          y: cardY,
+          size: 8.5,
           font: helveticaBold,
-          color: rgb(0, 0, 0),
+          color: rgb(0.4, 0.45, 0.5),
+        });
+        cardY -= 14;
+
+        // Measure Title Text (wrapped cleanly)
+        for (const line of measureTitleLines) {
+          titlePage.drawText(line, {
+            x: cardX + cardPaddingX,
+            y: cardY,
+            size: 10.5,
+            font: helveticaBold,
+            color: rgb(0.1, 0.1, 0.12),
+          });
+          cardY -= 14.5;
+        }
+
+        cardY -= 2;
+        titlePage.drawLine({
+          start: { x: cardX + cardPaddingX, y: cardY },
+          end: { x: cardX + cardWidth - cardPaddingX, y: cardY },
+          thickness: 0.5,
+          color: rgb(0.86, 0.88, 0.92),
+        });
+        cardY -= 12;
+
+        // Submitter Row
+        titlePage.drawText('SUBMITTED TO:', {
+          x: cardX + cardPaddingX,
+          y: cardY,
+          size: 8.5,
+          font: helveticaBold,
+          color: rgb(0.4, 0.45, 0.5),
+        });
+        titlePage.drawText('SP Secretariat', {
+          x: cardX + cardPaddingX + 90,
+          y: cardY,
+          size: 9.5,
+          font: helvetica,
+          color: rgb(0.15, 0.15, 0.2),
         });
 
-        let listY = pageH - 318;
+        currentY -= cardHeight + 28;
+
+        // ---- Committee Reports Included Section ---------------------------
+        titlePage.drawText('COMMITTEE REPORTS INCLUDED', {
+          x: margin,
+          y: currentY,
+          size: 11.5,
+          font: helveticaBold,
+          color: rgb(0.08, 0.08, 0.1),
+        });
+        currentY -= 14;
+
+        titlePage.drawLine({
+          start: { x: margin, y: currentY },
+          end: { x: pageW - margin, y: currentY },
+          thickness: 1,
+          color: rgb(0.06, 0.25, 0.48),
+        });
+        currentY -= 18;
+
         for (const entry of sourceEntries) {
           const dateSuffix = entry.submittedAt
             ? ` (${new Date(entry.submittedAt).toLocaleDateString('en-PH')})`
@@ -2559,27 +2654,60 @@ export function createWorkflowRouter() {
               : entry.status === 'not_merged'
                 ? ' — attachment submitted, not merged'
                 : ' — text-only report';
-          titlePage.drawText(`• ${entry.title}${dateSuffix}${statusSuffix}`, {
-            x: 60,
-            y: listY,
+
+          const fullEntryText = `${entry.title}${dateSuffix}${statusSuffix}`;
+          const entryLines = wrapPdfText(fullEntryText, helvetica, 9.5, contentW - 20);
+
+          titlePage.drawText('•', {
+            x: margin + 4,
+            y: currentY,
             size: 10,
-            font: helvetica,
-            color: rgb(0, 0, 0),
-            maxWidth: pageW - 120,
+            font: helveticaBold,
+            color: rgb(0.06, 0.25, 0.48),
           });
-          listY -= 18;
+
+          for (let i = 0; i < entryLines.length; i++) {
+            const line = entryLines[i]!;
+            titlePage.drawText(line, {
+              x: margin + 18,
+              y: currentY,
+              size: 9.5,
+              font: helvetica,
+              color: rgb(0.15, 0.15, 0.2),
+            });
+            currentY -= 14;
+          }
+          currentY -= 4;
         }
+
+        // ---- Footer --------------------------------------------------------
+        titlePage.drawLine({
+          start: { x: margin, y: 56 },
+          end: { x: pageW - margin, y: 56 },
+          thickness: 0.75,
+          color: rgb(0.82, 0.84, 0.88),
+        });
 
         titlePage.drawText(
           `Consolidated by the SP Secretariat on ${new Date().toLocaleDateString('en-PH')}`,
           {
-            x: 60,
-            y: 60,
-            size: 9,
+            x: margin,
+            y: 42,
+            size: 8.5,
             font: helvetica,
-            color: rgb(0.4, 0.4, 0.4),
+            color: rgb(0.45, 0.45, 0.5),
           },
         );
+
+        const pageLabel = 'Page 1 of Consolidated Document';
+        const pageLabelW = helvetica.widthOfTextAtSize(pageLabel, 8.5);
+        titlePage.drawText(pageLabel, {
+          x: pageW - margin - pageLabelW,
+          y: 42,
+          size: 8.5,
+          font: helvetica,
+          color: rgb(0.45, 0.45, 0.5),
+        });
 
         // Merge each submitted file into the consolidated report: PDFs are
         // copied page-by-page; images (JPEG/PNG) are embedded as full pages.
