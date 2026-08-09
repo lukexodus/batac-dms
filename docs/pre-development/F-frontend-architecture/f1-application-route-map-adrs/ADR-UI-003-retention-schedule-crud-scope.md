@@ -24,7 +24,7 @@ As with ADR-UI-002, the underlying gap here was that the procedures had not yet 
 - `[Inference]` At minimum, two new procedures are needed: one for Records Officer to propose/draft a new retention schedule, and one for Platform Administrator to activate it. Whether "propose" and "activate" are two calls against one mutable draft row, or two separate procedures against a status field (e.g., `draft` → `active`), is an implementation detail not resolved by this ADR.
 - `[Inference]` This work should sit in the same `records` module/schema as the existing `getRetentionSchedule`/`applyRetentionSchedule` procedures, consistent with the module-boundary rule that each module owns its own schema `[Confirmed — F1-Context §1.3]`.
 - `/retention-schedules` (F1 §12.6), currently a read-only route per the confirmed view-access role list (Platform Administrator, Records Officer, SP Secretary, Auditor), gains write capability: a Records-Officer-only "propose new schedule" action and a Platform-Administrator-only "activate" action, in addition to its existing read.
-- This is one of four scope items pulled into Phase 1 in this decision pass (see ADR-UI-002 consequences for the combined note on cumulative scope impact, which applies here as well).
+- This is one of six scope items pulled into Phase 1 in this decision pass (see ADR-UI-002 consequences, corrected in this same pass, for the combined note on cumulative scope impact, which applies here as well). `[Corrected — previously said "four"]`
 - F1 §14 gap #3's `[Unverified]` status is superseded by this ADR.
 
 ## Alternatives considered

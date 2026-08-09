@@ -20,7 +20,7 @@ This index tracks the ten ADRs produced to resolve every item in F1 §14. Each A
 
 ## Net effect on Phase 1 scope
 
-`[Inference]` Four items previously deferred or placed in a later phase are now pulled into Phase 1 by these ADRs:
+`[Inference]` Six items previously deferred or placed in a later phase are now pulled into Phase 1 by these ADRs `[Corrected — previously said "Four," but six items are listed below]`:
 
 - ADR-UI-001 — `/apps/portal` (Next.js), originally Phase 3, built now
 - ADR-UI-002 — Tier-2 config CRUD (6 entities), originally deferred by E1 pending a config-screen spec

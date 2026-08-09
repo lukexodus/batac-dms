@@ -27,22 +27,27 @@ Section 4.6 of B5 already made the relevant architectural choice — keep the re
 
 ---
 
-## D-AUTH-05: Full List of Document-Processing Roles (Not a full ADR — see caveat)
+## D-AUTH-05: Full List of Document-Processing Roles `[Resolved — see B5 §8.3, not carried forward as open here]`
 
-**Status:** Resolved for seeding purposes, with one accuracy flag
+**Status:** Resolved
 
 **Decision**
 
-Per direction, the following roles are mapped to `type_code = 'document_processor'` for the Platform Administrator exclusion trigger (Section 8.4 of B5), using Section 8.3's category list verbatim:
+Per B5 §8.3 (now updated, see that section directly — this copy is being brought into sync, not re-litigated): the following roles are mapped to `type_code = 'document_processor'` for the Platform Administrator exclusion trigger (Section 8.4 of B5):
 
-SP Secretary, Administrative Officer II, Clerk III, Records Officer, Councilor, Committee Chair, Committee Member, Mayor, Vice Mayor, Acting Mayor, OIC (any), Encoder, Records Aide, Librarian, Citizen.
+SP Secretary, Administrative Officer II, Clerk III, Records Officer, Councilor, Committee Chair, Committee Member, Mayor, Vice Mayor, Encoder, Records Aide, Librarian, Citizen.
 
-**Flag — not a deviation, a risk note for whoever does the seeding**
-
-Two entries in this list are not, on their face, literal role names with stable database identity in the way the others are:
-
-- **"Acting Mayor"** and **"OIC (any)"** read as _role-category descriptions_ in Section 8.3 of B5 (which itself marks the whole list `[Inference — role list not formally defined]`), not confirmed literal rows for `iam.roles.name`. "OIC (any)" in particular looks like shorthand for "an OIC designation for any office," not one fixed role. [Unverified — whether "OIC (any)" corresponds to a single `iam.roles` row or to a pattern matched across multiple office-specific OIC roles was not confirmed in either this document or the source materials reviewed.]
-- This was carried through verbatim as instructed. It is flagged here so it isn't silently lost — whoever writes the actual `iam.roles` seed data should confirm whether "OIC (any)" needs to become several literal seeded roles (one per office an OIC can cover) or a single role with a different enforcement mechanism, rather than seeding a literal row named "OIC (any)".
+`[Corrected — "Acting Mayor" and "OIC (any)" removed from this list. They were never a role-modeling
+question at all: per the consolidated-architecture-and-requirements-reference-iteration-3.md Part
+11.13 and Architectural Invariant #16, acting/OIC authority is conferred through a
+delegation_grant record (one active designation per person, DB partial unique index — see
+ADR-AUTH-006 for the scope field's exact mechanism), which temporarily reroutes the original
+authority's workflow-step assignments to the designated person. The designated person keeps
+their own existing role; they never acquire a new document-processor role row, so there was
+never a real "is this one role or several office-specific roles" question to resolve — it isn't
+a role at all. This is the same resolution already applied to B5 §8.3; this second copy of the
+same open flag, embedded in this unrelated ADR file, was found and synced in a later pass and
+had not been updated when §8.3 was first fixed.]`
 
 **Why this isn't a full ADR**
 

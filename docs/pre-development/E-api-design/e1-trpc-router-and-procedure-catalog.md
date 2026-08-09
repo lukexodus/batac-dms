@@ -14,111 +14,114 @@
 
 ## Table of Contents
 
-- [L125–L145] Purpose — Purpose, team workflow rules, parallel-work contracts, and the 7 required metadata fields defined per procedure.
-- [L146–L160] Note on Scope — Phase 1 in-scope tRPC routers and excluded citizen self-service REST endpoints, reporting modules, and search meta.
-- [L161–L170] Notation — Definitions of traceability and status tags mapping requirements to confirmed, inferred, or deferred procedures.
-- [L171–L230] Global Conventions — Directory layouts, camelCase naming verbs, the 5-step middleware security chain, list envelopes, and standard error shapes.
-- [L231–L618] Shared Fragment Schemas — Reusable Zod validators for pagination, date ranges, summary shapes, and document/role/classification enums.
-  - [L329–L339] `iam.getCurrentUser`
-  - [L340–L350] `iam.updateOwnProfile`
-  - [L351–L361] `iam.changeOwnPassword`
-  - [L362–L372] `iam.listActiveSessions`
-  - [L373–L383] `iam.listAllActiveSessions`
-  - [L384–L394] `iam.forceTerminateSession`
-  - [L395–L405] `iam.listUserDirectory`
-  - [L406–L416] `iam.createUserAccount`
-  - [L417–L427] `iam.editUserAccount`
-  - [L428–L438] `iam.deactivateUserAccount` / `iam.reactivateUserAccount`
-  - [L439–L449] `iam.assignRole`
-  - [L450–L460] `iam.revokeRole`
-  - [L461–L477] `iam.registerCitizenAccountClerkAssisted`
-  - [L478–L488] `organization.getOfficeHierarchy`
-  - [L489–L500] `organization.createOffice` / `organization.updateOffice`
-  - [L501–L511] `organization.deactivateOffice`
-  - [L512–L522] `organization.createPosition` / `organization.updatePosition`
-  - [L523–L533] `organization.createEmployee` / `organization.updateEmployee`
-  - [L534–L544] `organization.assignEmployeeToPosition`
-  - [L545–L555] `organization.getActiveDesignations`
-  - [L556–L566] `organization.getDesignationHistory`
-  - [L567–L577] `organization.createDesignationGrant`
-  - [L578–L588] `organization.revokeDesignationGrantEarly`
-  - [L589–L599] `organization.createCommittee` / `organization.updateCommittee`
-  - [L600–L618] `organization.assignCommitteeMembership`
-- [L619–L708] 3.1 General Document CRUD — Draft creation, classification-gated reads, IT Admin metadata bypass, search FTS, and soft deletion rules.
-- [L709–L776] 3.2 SP Workflow Document Specifics — Document submission sequencing, QR code attachment, and legislative preliminary or final series number assignments.
-- [L777–L877] 3.3 File, Version, and Attachment Handling — Presigned S3 upload URLs, OCR text extraction, scan quality checks, and scanned-back signed copy acceptance.
-  - [L779–L789] `documents.requestUploadUrl`
-  - [L790–L800] `documents.confirmUpload`
-  - [L801–L811] `documents.getVersionHistory`
-  - [L812–L822] `documents.downloadVersion`
-  - [L823–L833] `documents.getOcrText`
-  - [L834–L844] `documents.getScanQualityIndicator`
-  - [L845–L855] `documents.triggerManualReOcr`
-  - [L856–L866] `documents.flagScannedBackForVerification`
-  - [L867–L877] `documents.acceptScannedBackAsOfficial`
-- [L878–L1593] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]`
-  - [L880–L896] `documents.logSecretariatDecision`
-  - [L897–L909] `workflow.getInstance`
-  - [L910–L920] `workflow.getActiveInstanceForDocument`
-  - [L921–L931] `workflow.listMyAssignedSteps`
-  - [L932–L942] `workflow.completeActionStep`
-  - [L943–L953] `workflow.approveStep` / `workflow.rejectStep` / `workflow.returnStepForRevision`
-  - [L954–L964] `workflow.submitCommitteeReport`
-  - [L965–L975] `workflow.manuallyAdvanceMultiReferralStep`
-  - [L976–L986] `workflow.certifyAsPresidingOfficer`
-  - [L987–L997] `workflow.mayorSign` / `workflow.mayorVeto`
-  - [L998–L1008] `workflow.logMayorLapseConfirmation`
-  - [L1009–L1019] `workflow.recordVetoOverrideVote`
-  - [L1020–L1030] `workflow.logDocketingCompletion`
-  - [L1031–L1041] `workflow.recordPanlalawiganOutcome`
-  - [L1042–L1052] `workflow.resolveValidInPart`
-  - [L1053–L1063] `workflow.confirmPanlalawiganDeemedApproved`
-  - [L1064–L1074] `workflow.recordNewspaperPublicationDate`
-  - [L1075–L1085] `workflow.migrateInstanceToNewDefinitionVersion`
-  - [L1086–L1102] `workflow.getSlaComplianceData`
-  - [L1103–L1113] `tracking.getTrackingRecord`
-  - [L1114–L1124] `tracking.printQrCoverSheet`
-  - [L1125–L1135] `tracking.getRoutingHistory`
-  - [L1136–L1146] `tracking.logRoutingEntry`
-  - [L1147–L1163] `tracking.scanQrCodeAuthenticated`
-  - [L1164–L1174] `session.recordAttendance`
-  - [L1175–L1185] `session.getAttendanceRecord`
-  - [L1186–L1196] `session.getAttendanceStatistics`
-  - [L1197–L1207] `session.getOrderOfBusiness`
-  - [L1208–L1218] `session.scheduleDocumentForFirstReading`
-  - [L1219–L1235] `session.enterCommitteeHearingDate`
-  - [L1236–L1246] `records.getRetentionSchedule`
-  - [L1247–L1257] `records.applyRetentionSchedule`
-  - [L1258–L1268] `records.applyClassification`
-  - [L1269–L1279] `records.placeLegalHold` / `records.removeLegalHold`
-  - [L1280–L1298] `records.isUnderLegalHold`
-  - [L1299–L1309] `notifications.listMine`
-  - [L1310–L1320] `notifications.markAsRead`
-  - [L1321–L1331] `notifications.getOwnPreferences` / `notifications.updateOwnPreferences`
-  - [L1332–L1342] `notifications.listDeliveryLogs`
-  - [L1343–L1353] `notifications.createTemplate`
-  - [L1354–L1364] `notifications.updateTemplate`
-  - [L1365–L1375] `notifications.deactivateTemplate` / `notifications.reactivateTemplate`
-  - [L1376–L1386] `notifications.deleteTemplate`
-  - [L1387–L1403] `notifications.listTemplates`
-  - [L1404–L1414] `audit.listOwnActions`
-  - [L1415–L1425] `audit.listOwnOfficeDocumentActions`
-  - [L1426–L1436] `audit.listFullLog`
-  - [L1437–L1447] `audit.validateChainIntegrity`
-  - [L1448–L1464] `audit.exportEvents`
-  - [L1465–L1475] `complaints.createClerkAssisted`
-  - [L1476–L1486] `complaints.logAndAssign`
-  - [L1487–L1497] `complaints.enterCommitteeReport`
-  - [L1498–L1508] `complaints.setOutcome`
-  - [L1509–L1525] `complaints.listAll`
-  - [L1526–L1536] `documentRequests.createClerkAssisted`
-  - [L1537–L1547] `documentRequests.generatePrintableForm`
-  - [L1548–L1558] `documentRequests.approveAsPresidingOfficer`
-  - [L1559–L1569] `documentRequests.approveAsSecretary`
-  - [L1570–L1580] `documentRequests.releaseCopy`
-  - [L1581–L1593] `documentRequests.listAll`
-- [L1594–L1619] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
-- [L1620–L1630] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
+- [L128–L148] Purpose — Purpose, team workflow rules, parallel-work contracts, and the 7 required metadata fields defined per procedure.
+- [L149–L163] Note on Scope — Phase 1 in-scope tRPC routers and excluded citizen self-service REST endpoints, reporting modules, and search meta.
+- [L164–L173] Notation — Definitions of traceability and status tags mapping requirements to confirmed, inferred, or deferred procedures.
+- [L174–L233] Global Conventions — Directory layouts, camelCase naming verbs, the 5-step middleware security chain, list envelopes, and standard error shapes.
+- [L234–L632] Shared Fragment Schemas — Reusable Zod validators for pagination, date ranges, summary shapes, and document/role/classification enums.
+  - [L332–L342] `iam.getCurrentUser`
+  - [L343–L353] `iam.updateOwnProfile`
+  - [L354–L364] `iam.changeOwnPassword`
+  - [L365–L375] `iam.listActiveSessions`
+  - [L376–L386] `iam.listAllActiveSessions`
+  - [L387–L397] `iam.forceTerminateSession`
+  - [L398–L408] `iam.listUserDirectory`
+  - [L409–L419] `iam.createUserAccount`
+  - [L420–L430] `iam.editUserAccount`
+  - [L431–L441] `iam.deactivateUserAccount` / `iam.reactivateUserAccount`
+  - [L442–L452] `iam.assignRole`
+  - [L453–L463] `iam.revokeRole`
+  - [L464–L480] `iam.registerCitizenAccountClerkAssisted`
+  - [L481–L491] `organization.getOfficeHierarchy`
+  - [L492–L503] `organization.createOffice` / `organization.updateOffice`
+  - [L504–L514] `organization.deactivateOffice`
+  - [L515–L525] `organization.createPosition` / `organization.updatePosition`
+  - [L526–L536] `organization.createEmployee` / `organization.updateEmployee`
+  - [L537–L547] `organization.assignEmployeeToPosition`
+  - [L548–L558] `organization.getActiveDesignations`
+  - [L559–L569] `organization.getDesignationHistory`
+  - [L570–L580] `organization.createDesignationGrant`
+  - [L581–L591] `organization.revokeDesignationGrantEarly`
+  - [L592–L602] `organization.createCommittee` / `organization.updateCommittee`
+  - [L603–L613] `organization.assignCommitteeMembership`
+  - [L614–L632] `organization.listCommittees`
+- [L633–L722] 3.1 General Document CRUD — Draft creation, classification-gated reads, IT Admin metadata bypass, search FTS, and soft deletion rules.
+- [L723–L790] 3.2 SP Workflow Document Specifics — Document submission sequencing, QR code attachment, and legislative preliminary or final series number assignments.
+- [L791–L891] 3.3 File, Version, and Attachment Handling — Presigned S3 upload URLs, OCR text extraction, scan quality checks, and scanned-back signed copy acceptance.
+  - [L793–L803] `documents.requestUploadUrl`
+  - [L804–L814] `documents.confirmUpload`
+  - [L815–L825] `documents.getVersionHistory`
+  - [L826–L836] `documents.downloadVersion`
+  - [L837–L847] `documents.getOcrText`
+  - [L848–L858] `documents.getScanQualityIndicator`
+  - [L859–L869] `documents.triggerManualReOcr`
+  - [L870–L880] `documents.flagScannedBackForVerification`
+  - [L881–L891] `documents.acceptScannedBackAsOfficial`
+- [L892–L1629] 3.4 Secretariat Decision Logging `[Routing superseded by ADR-B2-3]`
+  - [L894–L910] `documents.logSecretariatDecision`
+  - [L911–L923] `workflow.getInstance`
+  - [L924–L934] `workflow.getActiveInstanceForDocument`
+  - [L935–L945] `workflow.listMyAssignedSteps`
+  - [L946–L956] `workflow.completeActionStep`
+  - [L957–L967] `workflow.approveStep` / `workflow.rejectStep` / `workflow.returnStepForRevision`
+  - [L968–L978] `workflow.submitCommitteeReport`
+  - [L979–L989] `workflow.manuallyAdvanceMultiReferralStep`
+  - [L990–L1000] `workflow.certifyAsPresidingOfficer`
+  - [L1001–L1011] `workflow.mayorSign` / `workflow.mayorVeto`
+  - [L1012–L1022] `workflow.logMayorLapseConfirmation`
+  - [L1023–L1033] `workflow.recordVetoOverrideVote`
+  - [L1034–L1044] `workflow.logDocketingCompletion`
+  - [L1045–L1055] `workflow.recordPanlalawiganOutcome`
+  - [L1056–L1066] `workflow.resolveValidInPart`
+  - [L1067–L1077] `workflow.confirmPanlalawiganDeemedApproved`
+  - [L1078–L1088] `workflow.recordNewspaperPublicationDate`
+  - [L1089–L1099] `workflow.migrateInstanceToNewDefinitionVersion`
+  - [L1100–L1116] `workflow.getSlaComplianceData`
+  - [L1117–L1127] `tracking.getTrackingRecord`
+  - [L1128–L1138] `tracking.printQrCoverSheet`
+  - [L1139–L1149] `tracking.getRoutingHistory`
+  - [L1150–L1160] `tracking.logRoutingEntry`
+  - [L1161–L1177] `tracking.scanQrCodeAuthenticated`
+  - [L1178–L1188] `session.recordAttendance`
+  - [L1189–L1199] `session.getAttendanceRecord`
+  - [L1200–L1210] `session.getAttendanceStatistics`
+  - [L1211–L1221] `session.getOrderOfBusiness`
+  - [L1222–L1232] `session.scheduleDocumentForFirstReading`
+  - [L1233–L1249] `session.enterCommitteeHearingDate`
+  - [L1250–L1260] `records.getRetentionSchedule`
+  - [L1261–L1271] `records.applyRetentionSchedule`
+  - [L1272–L1282] `records.applyClassification`
+  - [L1283–L1293] `records.placeLegalHold` / `records.removeLegalHold`
+  - [L1294–L1312] `records.isUnderLegalHold`
+  - [L1313–L1323] `notifications.listMine`
+  - [L1324–L1334] `notifications.markAsRead`
+  - [L1335–L1345] `notifications.getOwnPreferences` / `notifications.updateOwnPreferences`
+  - [L1346–L1356] `notifications.listDeliveryLogs`
+  - [L1357–L1367] `notifications.createTemplate`
+  - [L1368–L1378] `notifications.updateTemplate`
+  - [L1379–L1389] `notifications.deactivateTemplate` / `notifications.reactivateTemplate`
+  - [L1390–L1400] `notifications.deleteTemplate`
+  - [L1401–L1417] `notifications.listTemplates`
+  - [L1418–L1428] `audit.listOwnActions`
+  - [L1429–L1439] `audit.listOwnOfficeDocumentActions`
+  - [L1440–L1450] `audit.listFullLog`
+  - [L1451–L1461] `audit.validateChainIntegrity`
+  - [L1462–L1478] `audit.exportEvents`
+  - [L1479–L1489] `complaints.createClerkAssisted`
+  - [L1490–L1500] `complaints.logAndAssign`
+  - [L1501–L1511] `complaints.enterCommitteeReport`
+  - [L1512–L1522] `complaints.setOutcome`
+  - [L1523–L1533] `complaints.listAll`
+  - [L1534–L1550] `complaints.get`
+  - [L1551–L1561] `documentRequests.createClerkAssisted`
+  - [L1562–L1572] `documentRequests.generatePrintableForm`
+  - [L1573–L1583] `documentRequests.approveAsPresidingOfficer`
+  - [L1584–L1594] `documentRequests.approveAsSecretary`
+  - [L1595–L1605] `documentRequests.releaseCopy`
+  - [L1606–L1616] `documentRequests.listAll`
+  - [L1617–L1629] `documentRequests.get`
+- [L1630–L1655] Cross-Reference: Procedure-to-Policy Traceability Index — Inverted trace index mapping permission matrix sections to in-scope, deferred, or inferred router procedures.
+- [L1656–L1667] Required Follow-Up Before Full Sign-Off — Deferred action items for platform admin CRUD, records bulk operations, and signature uploads.
 
 ---
 
@@ -302,7 +305,7 @@ const documentTypeCodeEnum = z.enum([
   'CERTIFICATION_OF_URGENCY',   // Phase 1 — attached to measures, no standalone number
   'CITIZEN_COMPLAINT',          // Phase 1 — moved from Phase 1B per consolidated reference Part 13 "Changes from Post-Interview 1 plan"
   'DOCUMENT_REQUEST_FORM',      // Phase 1 — full-copy access path for QR scan/portal
-  'DESIGNATION',                          // Phase 1B
+  'DESIGNATION',                          // Phase 1 — [Corrected] pulled forward from Phase 1B by ADR-UI-007, to resolve a dependency tension with Session Attendance Tracking's designated-substitute field (F1 §9). This tag previously said "Phase 1B," following the general roadmap (consolidated reference Part 13) without accounting for this more specific, later ADR. All other Phase 1B codes below are unaffected — ADR-UI-007 pulls Designation forward specifically, not the whole Phase 1B bucket.
   'NOTICE_OF_COMMITTEE_HEARING',          // Phase 1B
   'NOTICE_OF_SPECIAL_SESSION',            // Phase 1B
   'LETTER_RECEIVED',                      // Phase 1B (SPR)
@@ -607,6 +610,17 @@ const roleCodeEnum = z.enum([
 | Callable by | `plat_admin` only |
 | ABAC conditions | `subject.is_pa = true`. |
 | Business operation | Inserts `organization.committee_memberships`, respecting `uq_committee_memberships_active` (one active role per person per committee — C1 §3.8). This is the write path that populates the `subject.committee_ids` JWT claim at the affected user's next token refresh (I1 §1, D-ABAC-06). `[Confirmed — I2 Section 3 "Create / edit standing committee definitions" (committees are config, memberships are the operational join); I1 §1 D-ABAC-06; C1 §3.8]` |
+
+### `organization.listCommittees`
+
+| | |
+|---|---|
+| Type | `query` |
+| Input | `z.object({ officeId: z.string().uuid().optional(), activeOnly: z.boolean().default(true) })` |
+| Output | `z.array(z.object({ committeeId: z.string().uuid(), name: z.string(), code: z.string(), isActive: z.boolean() }))` |
+| Callable by | `plat_admin`, `sp_secretary` |
+| ABAC conditions | `subject.is_pa = true OR subject.role = 'sp_secretary'`. |
+| Business operation | Reads `organization.committees` (C1 §3.7). `[Added — ADR-UI-004. This procedure was decided but never added to this catalog; it backs two confirmed consumers: the Multi-Referral Panel's committee picker (F1 §8.2/§8.5) and /admin/committees (F1 §12.2), neither of which had a read procedure to depend on before this addition. officeId/activeOnly filter fields and the exact callable-by list follow ADR-UI-004's decision text directly — sp_member read access was explicitly left out by that ADR pending confirmation, not omitted by oversight here.]` |
 
 ---
 
@@ -1517,6 +1531,17 @@ This is the largest router. It is organized into five sub-sections: general docu
 | ABAC conditions | For `sp_member`: `complaint.assigned_office_id ∈ subject.committee_ids` (I1 §10.6). |
 | Business operation | Reads `portal.complaints`, the SP-Secretariat-wide view. `[Confirmed — I1 §10.6 in full; I2 Section 12 "View all complaints (SP Secretariat only)"]` |
 
+### `complaints.get`
+
+| | |
+|---|---|
+| Type | `query` |
+| Input | `z.object({ complaintId: z.string().uuid() })` |
+| Output | `z.object({ complaintId: z.string().uuid(), subjectMatter: z.string(), outcomeState: z.string(), assignedOfficeId: z.string().uuid().nullable(), committeeReportText: z.string().nullable(), createdAt: z.coerce.date() })` |
+| Callable by | `sp_secretary`, `sp_presiding_officer`, `auditor` unconditionally; `sp_member` (committee-scoped) |
+| ABAC conditions | Same as `complaints.listAll`: for `sp_member`, `complaint.assigned_office_id ∈ subject.committee_ids` (I1 §10.6). |
+| Business operation | Reads `portal.complaints`, single row by ID. `[Added — ADR-UI-005. This procedure was decided but never added to this catalog; backs /complaints/:complaintId (F1 §8.3), which otherwise has no read dependency of its own. Output shape and callable-by list follow ADR-UI-005's decision text: matches complaints.listAll's item shape plus detail-only fields (assignment, committee report text, outcome state).]` |
+
 ---
 
 # Module 11 — Document Requests Router (`documentRequestsRouter`) — Internal Staff Side Only
@@ -1589,6 +1614,17 @@ This is the largest router. It is organized into five sub-sections: general docu
 | ABAC conditions | None beyond role gate. |
 | Business operation | Reads `portal.citizen_requests` in full (no office-scoping narrower than "all SP Secretariat requests," since document requests are inherently SP-Secretariat-wide, not per-department). `[Confirmed — I1 §13 pattern; I2 Section 13 "View all document requests"]` |
 
+### `documentRequests.get`
+
+| | |
+|---|---|
+| Type | `query` |
+| Input | `z.object({ requestId: z.string().uuid() })` |
+| Output | `z.object({ requestId: z.string().uuid(), requesterName: z.string(), documentTypeRequested: z.string(), approvalStatus: z.string(), createdAt: z.coerce.date() })` |
+| Callable by | `sp_secretary`, `sp_presiding_officer`, `auditor` |
+| ABAC conditions | None beyond role gate, matching `documentRequests.listAll`. |
+| Business operation | Reads `portal.citizen_requests`, single row by ID. `[Added — ADR-UI-005. This procedure was decided but never added to this catalog; backs /document-requests/:requestId (F1 §8.4), which otherwise has no read dependency of its own. Output shape and callable-by list follow ADR-UI-005's decision text: matches documentRequests.listAll's item shape.]` |
+
 ---
 
 ## Cross-Reference: Procedure-to-Policy Traceability Index
@@ -1624,6 +1660,7 @@ Every procedure above cites at least one I1 policy clause or I2 permission row. 
 | E1-F1 | Tier 2 Platform Admin config CRUD procedures for `notification_templates`, `sla_thresholds`/escalation targets, `public_visibility_rules` as distinct entities | These admin-configurable concepts are confirmed to exist (consolidated reference Part 11.21) but their dedicated schemas are not among C1's eight Phase 1 DDL schemas as standalone tables (SLA/visibility-rule values currently live as enum columns or JSONB fields inline on `document_types`, not separate config tables) — a procedure catalog for tables that do not yet exist would be speculative. Revisit once a C1 addendum (or C1 itself) adds these as first-class tables, if the Tier 2 admin UI requires them to be editable independent of a document type. |
 | E1-F2 | RMS bulk operations and disposition procedures (`records.bulkArchive`, `records.initiateDisposition`, `records.processPiiErasure`)                             | Phase 2 module delivery per B2 Module 6; included in I1 (§9.5, §9.7, §9.8) for policy completeness but the Phase 1 `recordsRouter` in this document intentionally stops at the four procedures the Phase 1 Documents/Workflow modules call synchronously.                                                                                                                                                                                                                                                                                                                  |
 | E1-F3 | Signature upload/read procedures (`documents.uploadSignatureImage`, `documents.getSignatures`)                                                                 | Implied by I2 Section 9's permission rows and by C1 §4.9's `documents.signatures` table, but not separately detailed in I1's resource-type sections the way version/attachment upload is — the shape is confidently inferable (mirrors `documents.confirmUpload`) but is flagged here rather than asserted as independently confirmed.                                                                                                                                                                                                                                     |
+| E1-F4 `[Added]` | Public portal announcement procedures — a staff-facing write procedure (e.g. `portal.createAnnouncement`, callable by `plat_admin` and `sp_secretary` per I2 §14's confirmed permission row) backing `/admin/announcements` | Decided in-scope for Phase 1 by ADR-UI-006 (F1 §14 gap #6), but that ADR itself only proposes an example name — "`portal.createAnnouncement` *or similar*" — not a committed signature, and explicitly notes the `announcements` table/schema is not among C1's eight Phase 1 DDL schemas and still needs to be designed. Unlike E1-F1 through E1-F3 above, this isn't a procedure catalog gap against an existing schema — the schema itself doesn't exist yet. Not added as a full procedure entry in this catalog to avoid asserting confidence in an input/output shape no source document has committed to; add once C1 defines the `announcements` table. |
 
 ---
 

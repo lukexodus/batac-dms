@@ -8,25 +8,25 @@
 - [L57–L85] 1. Source Document Cross-References — Cross-reference table mapping workflow topics to sections in consolidated reference, B4 specification, and D3 diagrams.
 - [L86–L160] 2. Conventions — Workflow configuration conventions including step naming, deterministic UUID generation, outcome codes, and D3/B4 enum reconciliation.
 - [L161–L332] 3. TypeScript Type Definitions — TypeScript interfaces defining the structured schema for workflow steps, configs, transition rules, and seed definitions.
-- [L333–L366] 4. Shared Role Key Constants — Constant mappings of organizational roles to dynamic assignee resolution strings used across the workflow definitions.
-- [L367–L1384] 5. SP Resolution — Workflow Definition — Process rules, step and transition tables, flow diagram, and TypeScript seed constant for the SP Resolution workflow.
-  - [L369–L378] 5.1 Process Notes — Legislative process rules for resolutions, including readings, amendments, series numbering, and Mayor/Panlalawigan review timelines.
-  - [L379–L411] 5.2 Steps — Summary table of the 28 SP Resolution steps including keys, types, mandating flags, assignees, and config notes.
-  - [L412–L455] 5.3 Transition Rules — Summary table of the 39 transition rules detailing from/to steps, exit outcomes, priority levels, and labels.
-  - [L456–L527] 5.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Resolution step transitions, legally mandated steps, and timer triggers.
-  - [L528–L1384] 5.5 TypeScript Constant — Complete TypeScript constant `SP_RESOLUTION_WORKFLOW` defining all step configurations, transition rules, and metadata.
-- [L1385–L2097] 6. SP Ordinance — Workflow Definition — Process changes, steps delta, flow diagram, and TypeScript seed constant for the SP Ordinance workflow.
-  - [L1387–L1396] 6.1 Process Notes — Differences from Resolution including three readings, newspaper publication for penalty clauses, and the requires_publication key gap.
-  - [L1397–L1423] 6.2 Steps (delta from SP Resolution) — Table of step modifications and additions (third_reading_vote, publication_check, newspaper_publication) for the SP Ordinance.
-  - [L1424–L2030] 6.3 TypeScript Constant — Complete TypeScript constant `SP_ORDINANCE_WORKFLOW` implementing the three-reading flow and conditional newspaper publication step.
-  - [L2031–L2097] 6.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Ordinance workflow, including Third Reading and conditional newspaper publication paths.
-- [L2098–L2461] 7. Appropriation Ordinance — Workflow Definition — Process rules, flow differences, and TypeScript seed constant for the Appropriation Ordinance workflow.
-  - [L2100–L2109] 7.1 Process Notes — Differences from SP Ordinance, specifically omitting newspaper publication and adding the Panlalawigan OPERATIVE_IN_ITS_ENTIRETY review outcome.
-  - [L2110–L2461] 7.2 TypeScript Constant — Complete TypeScript constant `APPROPRIATION_ORDINANCE_WORKFLOW` implementing the three-reading flow without newspaper publication.
-- [L2462–L2477] 8. Minimum Step Guard Contract — Tables defining legally mandated steps per workflow type and their RA 7160 legal basis for editor validation.
-- [L2478–L2510] 9. Context Keys Written by These Definitions — Table mapping database context keys to their types, setting components, and triggering workflow steps.
-- [L2511–L2550] 10. Seed Script Notes — Database seeding details including file location, step insertion sequence, deterministic UUID resolution, and timer config logic.
-- [L2551–L2570] 11. Open Items Affecting These Definitions — Table detailing resolved D3/H1 open items, including document status mappings, repass behavior, and timer triggers.
+- [L333–L368] 4. Shared Role Key Constants — Constant mappings of organizational roles to dynamic assignee resolution strings used across the workflow definitions.
+- [L369–L1386] 5. SP Resolution — Workflow Definition — Workflow Definition — Process rules, step and transition tables, flow diagram, and TypeScript seed constant for the SP Resolution workflow.
+  - [L371–L380] 5.1 Process Notes — Legislative process rules for resolutions, including readings, amendments, series numbering, and Mayor/Panlalawigan review timelines.
+  - [L381–L413] 5.2 Steps — Summary table of the 28 SP Resolution steps including keys, types, mandating flags, assignees, and config notes.
+  - [L414–L457] 5.3 Transition Rules — Summary table of the 39 transition rules detailing from/to steps, exit outcomes, priority levels, and labels.
+  - [L458–L529] 5.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Resolution step transitions, legally mandated steps, and timer triggers.
+  - [L530–L1386] 5.5 TypeScript Constant — Complete TypeScript constant `SP_RESOLUTION_WORKFLOW` defining all step configurations, transition rules, and metadata.
+- [L1387–L2099] 6. SP Ordinance — Workflow Definition — Workflow Definition — Process changes, steps delta, flow diagram, and TypeScript seed constant for the SP Ordinance workflow.
+  - [L1389–L1398] 6.1 Process Notes — Differences from Resolution including three readings, newspaper publication for penalty clauses, and the requires_publication key gap.
+  - [L1399–L1425] 6.2 Steps (delta from SP Resolution) — Table of step modifications and additions (third_reading_vote, publication_check, newspaper_publication) for the SP Ordinance.
+  - [L1426–L2032] 6.3 TypeScript Constant — Complete TypeScript constant `SP_ORDINANCE_WORKFLOW` implementing the three-reading flow and conditional newspaper publication step.
+  - [L2033–L2099] 6.4 Step Flow Diagram — Mermaid flowchart visualizing the SP Ordinance workflow, including Third Reading and conditional newspaper publication paths.
+- [L2100–L2463] 7. Appropriation Ordinance — Workflow Definition — Workflow Definition — Process rules, flow differences, and TypeScript seed constant for the Appropriation Ordinance workflow.
+  - [L2102–L2111] 7.1 Process Notes — Differences from SP Ordinance, specifically omitting newspaper publication and adding the Panlalawigan OPERATIVE_IN_ITS_ENTIRETY review outcome.
+  - [L2112–L2463] 7.2 TypeScript Constant — Complete TypeScript constant `APPROPRIATION_ORDINANCE_WORKFLOW` implementing the three-reading flow without newspaper publication.
+- [L2464–L2479] 8. Minimum Step Guard Contract — Tables defining legally mandated steps per workflow type and their RA 7160 legal basis for editor validation.
+- [L2480–L2512] 9. Context Keys Written by These Definitions — Table mapping database context keys to their types, setting components, and triggering workflow steps.
+- [L2513–L2552] 10. Seed Script Notes — Database seeding details including file location, step insertion sequence, deterministic UUID resolution, and timer config logic.
+- [L2553–L2572] 11. Open Items Affecting These Definitions — Table detailing resolved D3/H1 open items, including document status mappings, repass behavior, and timer triggers.
 
 ---
 
@@ -350,15 +350,17 @@ const ROLE = {
   // COMMITTEE_CHAIR is needed for committee_revisions_review, which must
   // route to whichever committee the VALID_IN_PART measure was originally
   // referred to — not a fixed committee like COMMITTEE_LAWS above.
-  // [Unverified] No existing resolution-string syntax in this file covers
-  // "resolve dynamically from the instance's own referral history." The
-  // string below is a placeholder shape, not a confirmed engine contract —
-  // it has not been checked against B4's actual assignee-resolution grammar
-  // (B4 §3.5, cross-referenced in the comment above but not itself sourced
-  // in this document). Needs engine-side confirmation before implementation,
-  // the same way VICE_MAYOR/MAYOR's delegation_aware: prefix presumably
-  // needed confirming when it was first introduced.
-  COMMITTEE_CHAIR:       "instance_aware:committee_chair_of_referred_committee",
+  // [Resolved — ADR-TST-003] Confirmed against B4 §3.5's actual assignee-resolution
+  // grammar (a closed set of five prefixes: role:, office_role:, delegation_aware:,
+  // actor_from_context:, static:). "instance_aware:" was never a real prefix in that
+  // grammar and was never going to become a sixth one — actor_from_context: already
+  // covers "resolve dynamically from this instance's own referral history," once the
+  // SP Secretary's committee selection is written into instance context at the
+  // valid_in_part_decision → ROUTED_TO_COMMITTEE step (not at original committee_referral
+  // time). Exact context key name (referred_committee_chair_id vs. a committee-ID key
+  // requiring a further lookup) is an open implementation sub-point per ADR-TST-003,
+  // not a blocker to this resolution model.
+  COMMITTEE_CHAIR:       "actor_from_context:referred_committee_chair_id",
 } as const;
 ```
 
@@ -398,7 +400,7 @@ const ROLE = {
 |16|`valid_in_part_action`|action|||sp_secretary|Conditional; mandatory comment; Secretary documents context|
 |17|`valid_in_part_decision`|approval|||sp_secretary|RESOLVED_IN_PLACE / ROUTED_TO_LEGAL / ROUTED_TO_COMMITTEE / REVISED_DIRECTLY|
 |18|`legal_office_review`|approval|||legal_officer|RESOLVED_IN_PLACE; routed approval per H1-X-3 resolution, no Phase 1 SLA timer|
-|19|`committee_revisions_review`|approval|||COMMITTEE_CHAIR|RESOLVED_IN_PLACE; routed approval per H1-X-3 resolution, no Phase 1 SLA timer; assignee resolution mechanism [Unverified] — see §4|
+|19|`committee_revisions_review`|approval|||COMMITTEE_CHAIR|RESOLVED_IN_PLACE; routed approval per H1-X-3 resolution, no Phase 1 SLA timer; assignee resolution mechanism confirmed — see §4 and ADR-TST-003|
 |20|`returned_review`|approval|||sp_secretary|Conditional; REPASS / RESOLVED_DIRECTLY|
 |21|`portal_publication`|action||✓|secretariat_staff|Title and first page published; docs module sets `Released`|
 |22|`archive`|action|||records_officer|Records Officer archives; docs module sets `Archived`|

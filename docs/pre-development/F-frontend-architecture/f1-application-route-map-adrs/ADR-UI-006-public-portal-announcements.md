@@ -23,7 +23,7 @@ This was a scope decision: the permission already existed in I2's matrix with no
 - `[Inference]` Minimum procedure set needed: a write procedure (e.g., `portal.createAnnouncement` or similar, callable by `plat_admin` and `sp_secretary` per the confirmed permission row) and a read procedure for the public-facing listing (citizen-facing, REST per the tRPC/REST boundary rule, not tRPC, since this is portal-consumed).
 - New route: `/admin/announcements` (staff-side, Platform Administrator + SP Secretary, nested under `/admin` alongside `/admin/committees`, `/admin/config`, `/admin/delivery-logs`, `/admin/roles`).
 - New citizen-facing page on the public portal (`/apps/portal` per ADR-UI-001) to display posted announcements — no specific path was named in any source document; this ADR does not invent one, leaving that to the F1 update pass.
-- This is one of four scope items pulled into Phase 1 in this decision pass (see ADR-UI-002 consequences for the combined cumulative-scope note).
+- This is one of six scope items pulled into Phase 1 in this decision pass (see ADR-UI-002 consequences, corrected in this same pass, for the combined cumulative-scope note). `[Corrected — previously said "four"]`
 - F1 §14 gap #6's `[Unverified]` status is superseded by this ADR.
 
 ## Alternatives considered

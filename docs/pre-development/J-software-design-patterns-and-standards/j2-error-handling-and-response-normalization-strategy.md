@@ -9,31 +9,31 @@
 
 - [L40–L56] 1. Purpose and Scope — Scope of platform error handling and response serialization across server, web, and shared packages.
 - [L57–L99] 2. Error Architecture Overview — Flow diagram of error propagation, request-specific traceId generation format, and Sentry operational policy.
-- [L100–L285] 3. Standard tRPC Error Shape — Format and client consumption patterns for tRPC error payloads.
+- [L100–L299] 3. Standard tRPC Error Shape — Format and client consumption patterns for tRPC error payloads.
   - [L102–L138] 3.1 Wire Format — JSON payload shape for tRPC responses containing trace identifiers, validation states, and domain details.
-  - [L139–L162] 3.2 tRPC Error Code → HTTP Status Mapping — Table defining tRPC-to-HTTP code translations and rules for throwing appropriate status-mapped conflict errors.
-  - [L163–L210] 3.3 Custom tRPC Error Formatter — Server-side error formatter implementation in init.ts mapping internal errors to the unified tRPC schema.
-  - [L211–L285] 3.4 Frontend Consumption Pattern — Client-side error narrowing helpers, type-safe schema guards, and component-level mutation handling patterns.
-- [L286–L444] 4. Standard REST Error Shape — Format and routing middleware for REST error payloads.
-  - [L290–L329] 4.1 Wire Format — JSON envelope requirements for REST responses containing validation details and HTTP status constraints.
-  - [L330–L444] 4.2 Fastify Error Handler — Global Fastify error handler configuration wrapping Zod validations, custom domain exceptions, and Sentry triggers.
-- [L445–L556] 5. Zod Validation Error Serialization — Serialization and binding protocols for schema validation errors.
-  - [L447–L482] 5.1 In tRPC Procedures (Input Validation) — Payload shape for tRPC parser failures using flattened schema field and form error structures.
-  - [L483–L507] 5.2 In REST Routes (fastify-type-provider-zod) — REST validation error normalization using Fastify type provider to align wire formats with tRPC.
-  - [L508–L556] 5.3 Frontend Form Binding — Helper function mapping backend Zod validation failures back to React Hook Form inline field errors.
-- [L557–L895] 6. Domain Error Design — Core domain error architecture and specific code registries.
-  - [L559–L646] 6.1 AppError Base Class — Server-side AppError base class definition and module-specific concrete error subclass implementations.
-  - [L647–L734] 6.2 Domain Error Code Registry — Complete catalog of Phase 1 domain errors, trigger conditions, HTTP status codes, and Sentry behaviors.
-  - [L735–L774] 6.3 Domain Error Propagation in tRPC Procedures — Guidelines and code patterns for wrapping custom domain exceptions inside standard tRPC TRPCErrors.
-  - [L775–L802] 6.4 Domain Error Propagation in REST Routes — Guidelines for throwing domain exceptions directly inside REST routes to trigger Fastify handler serialization.
-  - [L803–L895] 6.5 Domain Error Detail Types — Client-safe Zod validation schemas and runtime parsing helpers for typed domain error payload details.
-- [L896–L1131] 7. Sentry Integration — Configuration, triggers, and privacy compliance rules for Sentry.
-  - [L898–L922] 7.1 Sentry Initialization — Global Sentry setup configuration, sample rates, and integration hook points for request logging.
-  - [L923–L1070] 7.2 Integration Points — Middleware and service hooks for capturing unhandled exceptions, security anomalies, and telemetry tags.
-  - [L1071–L1116] 7.3 PII Scrubbing Rules (RA 10173 Compliance) — Compliance rules and scrubbing denylists protecting citizen data from leaking to third-party monitoring.
-  - [L1117–L1131] 7.4 Sentry Severity Reference — Severity mapping table designating capture levels for specific system events and infrastructure exceptions.
-- [L1132–L1210] 8. Frontend Error Handling Boundaries — Global TanStack Query error interception, local UI fallback decisions, and rendering error boundary setups.
-- [L1211–L1234] Appendix: Domain Error Quick Reference — Reference table listing Phase 1 domain error codes, HTTP statuses, module mappings, and Sentry capture rules.
+  - [L139–L176] 3.2 tRPC Error Code → HTTP Status Mapping — Table defining tRPC-to-HTTP code translations and rules for throwing appropriate status-mapped conflict errors.
+  - [L177–L224] 3.3 Custom tRPC Error Formatter — Server-side error formatter implementation in init.ts mapping internal errors to the unified tRPC schema.
+  - [L225–L299] 3.4 Frontend Consumption Pattern — Client-side error narrowing helpers, type-safe schema guards, and component-level mutation handling patterns.
+- [L300–L458] 4. Standard REST Error Shape — Format and routing middleware for REST error payloads.
+  - [L304–L343] 4.1 Wire Format — JSON envelope requirements for REST responses containing validation details and HTTP status constraints.
+  - [L344–L458] 4.2 Fastify Error Handler — Global Fastify error handler configuration wrapping Zod validations, custom domain exceptions, and Sentry triggers.
+- [L459–L570] 5. Zod Validation Error Serialization — Serialization and binding protocols for schema validation errors.
+  - [L461–L496] 5.1 In tRPC Procedures (Input Validation) — Payload shape for tRPC parser failures using flattened schema field and form error structures.
+  - [L497–L521] 5.2 In REST Routes (fastify-type-provider-zod) — REST validation error normalization using Fastify type provider to align wire formats with tRPC.
+  - [L522–L570] 5.3 Frontend Form Binding — Helper function mapping backend Zod validation failures back to React Hook Form inline field errors.
+- [L571–L914] 6. Domain Error Design — Core domain error architecture and specific code registries.
+  - [L573–L660] 6.1 AppError Base Class — Server-side AppError base class definition and module-specific concrete error subclass implementations.
+  - [L661–L753] 6.2 Domain Error Code Registry — Complete catalog of Phase 1 domain errors, trigger conditions, HTTP status codes, and Sentry behaviors.
+  - [L754–L793] 6.3 Domain Error Propagation in tRPC Procedures — Guidelines and code patterns for wrapping custom domain exceptions inside standard tRPC TRPCErrors.
+  - [L794–L821] 6.4 Domain Error Propagation in REST Routes — Guidelines for throwing domain exceptions directly inside REST routes to trigger Fastify handler serialization.
+  - [L822–L914] 6.5 Domain Error Detail Types — Client-safe Zod validation schemas and runtime parsing helpers for typed domain error payload details.
+- [L915–L1150] 7. Sentry Integration — Configuration, triggers, and privacy compliance rules for Sentry.
+  - [L917–L941] 7.1 Sentry Initialization — Global Sentry setup configuration, sample rates, and integration hook points for request logging.
+  - [L942–L1089] 7.2 Integration Points — Middleware and service hooks for capturing unhandled exceptions, security anomalies, and telemetry tags.
+  - [L1090–L1135] 7.3 PII Scrubbing Rules (RA 10173 Compliance) — Compliance rules and scrubbing denylists protecting citizen data from leaking to third-party monitoring.
+  - [L1136–L1150] 7.4 Sentry Severity Reference — Severity mapping table designating capture levels for specific system events and infrastructure exceptions.
+- [L1151–L1229] 8. Frontend Error Handling Boundaries — Global TanStack Query error interception, local UI fallback decisions, and rendering error boundary setups.
+- [L1230–L1253] Appendix: Domain Error Quick Reference — Reference table listing Phase 1 domain error codes, HTTP statuses, module mappings, and Sentry capture rules.
 
 ---
 
@@ -154,11 +154,25 @@ The top-level `code` is the JSON-RPC numeric error code (set by tRPC automatical
 | `TOO_MANY_REQUESTS` | -32029 | 429 | Rate limit exceeded (`@fastify/rate-limit`) |
 | `CLIENT_CLOSED_REQUEST` | -32099 | 499 | Client disconnected before response was sent |
 | `INTERNAL_SERVER_ERROR` | -32603 | 500 | Unhandled exception; audit chain corruption |
-| `NOT_IMPLEMENTED` | -32604 | 501 | Feature not yet implemented in current phase |
-| `BAD_GATEWAY` | -32014 | 502 | Upstream dependency failure (S3-compatible storage, OCR service) |
-| `SERVICE_UNAVAILABLE` | -32022 | 503 | Application in maintenance or degraded mode |
+| `NOT_IMPLEMENTED` | -32603 | 501 | Feature not yet implemented in current phase |
+| `BAD_GATEWAY` | -32603 | 502 | Upstream dependency failure (S3-compatible storage, OCR service) |
+| `SERVICE_UNAVAILABLE` | -32603 | 503 | Application in maintenance or degraded mode |
 
 **Rule:** tRPC error code selection is the responsibility of the procedure, not the error formatter. The formatter transforms the shape; it does not reclassify errors. When throwing a `TRPCError`, always select the most semantically correct code from the table above. Do not default to `INTERNAL_SERVER_ERROR` for domain errors.
+
+`[Corrected — three JSON-RPC codes in this table (NOT_IMPLEMENTED, BAD_GATEWAY,
+SERVICE_UNAVAILABLE) previously showed distinct invented values (-32604, -32014, -32022 — the
+last of which duplicated UNPROCESSABLE_CONTENT's real code). Verified directly against tRPC's
+own source (packages/server/src/rpc/codes.ts): JSON-RPC 2.0 reserves only one generic code for
+"Internal error" (-32603), and tRPC's real implementation collapses every 5xx-family code
+(INTERNAL_SERVER_ERROR/NOT_IMPLEMENTED/BAD_GATEWAY/SERVICE_UNAVAILABLE/GATEWAY_TIMEOUT) onto
+that single JSON-RPC code — they're only distinguished by the separate httpStatus field in
+error.shape.data, not by the JSON-RPC code itself. This table's practical blast radius is
+narrower than it looks: §3.3's actual errorFormatter spreads shape.code (tRPC's own
+library-computed value) rather than hardcoding anything from this table, so the live formatter
+was never wrong — but any test or client-side logic written against this table's previously
+stated values would fail against real tRPC behavior, and the table itself was simply incorrect
+as documentation. [Confirmed — trpc.io/docs/rpc, tRPC's official HTTP RPC Specification page]`
 
 ### 3.3 Custom tRPC Error Formatter
 
@@ -666,6 +680,7 @@ Full inventory for Phase 1. Entries must be added here before the error class is
 | Code | HTTP | tRPC Code | Trigger | Sentry |
 |---|---|---|---|---|
 | `ACTIVE_DESIGNATION_EXISTS` | 409 | `CONFLICT` | A user already holds one active `delegation_grant`. Only one active designation per person is permitted at any time (enforced by both app-level validation and a PostgreSQL partial unique index on active delegations per user). | No |
+| `UNAUTHORIZED_DESIGNATION_ISSUER` | 403 | `FORBIDDEN` | A non-original-authority actor (e.g. Platform Administrator) attempts to create a designation/delegation grant; only the original delegating authority (e.g. Mayor or Vice Mayor) may issue one. `[Added — K2 ADR-TST-009, proposed pending confirmation, same status as the four workflow codes added to the Workflow section above]` | No |
 
 ---
 
@@ -678,6 +693,10 @@ Full inventory for Phase 1. Entries must be added here before the error class is
 | `CERTIFICATION_OF_URGENCY_REQUIRED` | 412 | `PRECONDITION_FAILED` | Attempting to skip the committee review step without a valid Certification of Urgency attached to the measure. The Certification of Urgency is a Mayor-issued formal document; its absence means the standard committee path must be followed. | No |
 | `QUORUM_NOT_MET` | 422 | `UNPROCESSABLE_CONTENT` | A vote is recorded but the present member count is below the required 7 of 12 quorum threshold. | No |
 | `WORKFLOW_STEP_NOT_ASSIGNED` | 403 | `FORBIDDEN` | The calling user is not the current step's assignee and holds no active delegation covering this action. | No |
+| `MISSING_LAPSE_TRANSITION` | 422 | `UNPROCESSABLE_CONTENT` | Publish-time validation: a definition version has `LAPSED` in an `approval` step's `allowed_outcomes` but no matching outgoing `transition_rules` row. `[Added — K2 ADR-TST-006. This code, and the four below it in this section and the Designation/Delegation section, are workflow/organization-engine error codes proposed by K2's test-suite ADRs, explicitly self-described there as "not a confirmed engine contract" pending confirmation against an authoritative registry — this section is that registry, and these were previously absent from it entirely despite this section's own stated rule that "entries must be added here before the error class is implemented." Added with the same proposed-not-confirmed status K2 gives them, not silently upgraded to confirmed.]` | No |
+| `MISSING_OUTCOME_TRANSITION` | 422 | `UNPROCESSABLE_CONTENT` | Publish-time validation: some outcome code in an `approval` step's `allowed_outcomes` has neither a matching outgoing transition rule nor a default unconditional one. `MISSING_LAPSE_TRANSITION` above is a stricter, named special case of this general rule for the `LAPSED` outcome specifically. `[Added — K2 ADR-TST-007, same proposed status as above]` | No |
+| `OUTCOME_NOT_VALID_FOR_DOCUMENT_TYPE` | 422 | `UNPROCESSABLE_CONTENT` | An outcome code valid for one document type (e.g. `OPERATIVE_IN_ITS_ENTIRETY`, an Appropriation-Ordinance-only Panlalawigan outcome) is submitted against an instance of a different document type. `[Added — K2 ADR-TST-002, same proposed status as above]` | No |
+| `ENCODER_CANNOT_BE_FINAL_APPROVER` | 422 | `UNPROCESSABLE_CONTENT` | A step marked `is_final_approval = true` receives a completion attempt from the same actor recorded as `instance.context.created_by` for that instance. `[Added — K2 ADR-TST-004, same proposed status as above]` | No |
 
 ---
 
@@ -688,7 +707,7 @@ Full inventory for Phase 1. Entries must be added here before the error class is
 | `DOCUMENT_NOT_FOUND` | 404 | `NOT_FOUND` | The document does not exist, has been soft-deleted, or is not visible to this actor under RLS / ABAC. | No |
 | `DOCUMENT_LOCKED` | 409 | `CONFLICT` | The document is under pessimistic lock held by another user. Lock timeout is 15 minutes (configurable per document type). `details` includes the lock holder's name and expiry time for display in the UI. | No |
 | `DOCUMENT_IS_IMMUTABLE` | 409 | `CONFLICT` | Attempt to modify a document that has been finalized and is now immutable by platform invariant. | No |
-| `DOCUMENT_UNDER_LEGAL_HOLD` | 409 | `CONFLICT` | A retention schedule change or disposition action was attempted while the document is under a legal hold. | No |
+| `DOCUMENT_UNDER_LEGAL_HOLD` | 409 | `CONFLICT` | A retention schedule change or disposition action was attempted while the document is under a legal hold. `[Corrected — this row was grouped under this section's "module: documents" heading, but the Appendix's Quick Reference correctly attributes it to records, not documents. Legal hold and retention-schedule concerns are conceptually a records-module responsibility (see E1's records.placeLegalHold/removeLegalHold procedures) — Phase 1 checks this via a documents.documents.metadata flag as a forward-compatible workaround, since dedicated records schema tables aren't populated by ordinary Phase 1 document flow (B2 Module 6's Phase 2 delivery note), but the error itself belongs to records conceptually, which is what the Appendix already correctly said. This section's own heading is now stale for this one row — treat the Appendix as authoritative for module attribution until this section is restructured to give records its own heading.]` | No |
 
 ---
 
@@ -696,7 +715,7 @@ Full inventory for Phase 1. Entries must be added here before the error class is
 
 | Code | HTTP | tRPC Code | Trigger | Sentry |
 |---|---|---|---|---|
-| `ROLE_COMBINATION_FORBIDDEN` | 422 | `FORBIDDEN` | Attempt to assign the Platform Administrator role to a user who already holds any document-processing role, or vice versa. These roles cannot coexist on one account. | No |
+| `ROLE_COMBINATION_FORBIDDEN` | 403 | `FORBIDDEN` | Attempt to assign the Platform Administrator role to a user who already holds any document-processing role, or vice versa. These roles cannot coexist on one account. | No |
 
 ---
 
@@ -1226,7 +1245,7 @@ The boundary stores the most recently seen `traceId` from TanStack Query events 
 | `DOCUMENT_LOCKED` | 409 | `CONFLICT` | documents | No |
 | `DOCUMENT_IS_IMMUTABLE` | 409 | `CONFLICT` | documents | No |
 | `DOCUMENT_UNDER_LEGAL_HOLD` | 409 | `CONFLICT` | records | No |
-| `ROLE_COMBINATION_FORBIDDEN` | 422 | `FORBIDDEN` | iam | No |
+| `ROLE_COMBINATION_FORBIDDEN` | 403 | `FORBIDDEN` | iam | No |
 | `FILE_SIZE_LIMIT_EXCEEDED` | 413 | `PAYLOAD_TOO_LARGE` | documents | No |
 | `UNSUPPORTED_FILE_TYPE` | 422 | `UNPROCESSABLE_CONTENT` | documents | No |
 | `STORAGE_SERVICE_ERROR` | 502 | `BAD_GATEWAY` | documents | exception |
