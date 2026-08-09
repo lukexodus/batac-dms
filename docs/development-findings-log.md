@@ -9159,3 +9159,9 @@ pg-boss's `serialize-error`) so pg-boss's existing `retryLimit: 3` /
 `retryDelay: 30` from `enqueueOcrJob` still applies to the failed jobs, while a
 failure in one job no longer prevents any other job in the same batch from being
 attempted.
+
+### [LOG-0279] Skipped OCR extraction for non-OCR-able MIME types (DOCX, XLSX)
+- **Status:** proposed
+- **Affects:** tech-stack.md
+- **Finding:** DOCX and XLSX uploads are skipped during the OCR phase because they are not image formats and cannot be OCR'd. The pipeline still completes, but `scanQualityCategory` is set to 'good' and extraction is skipped.
+- **Note:** [Inference] This means `tech-stack.md` line 165's claim that "all uploaded documents are scanned" does not literally hold for DOCX/XLSX post this task. A human may want to clarify that wording (e.g., "scanned" applying specifically to image/PDF uploads).

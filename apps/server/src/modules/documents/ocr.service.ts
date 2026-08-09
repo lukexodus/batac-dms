@@ -4,6 +4,12 @@ import { versions } from '@batac/database/schema/documents.schema.js';
 import type { AppDb } from '../../db.js';
 import type { PreviewProvider } from './preview.provider.js';
 
+const OCR_ABLE_MIME_TYPES: ReadonlySet<string> = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+]);
+
 export interface OcrProvider {
   extractTextFromS3Key(
     s3Key: string,
@@ -64,6 +70,26 @@ export class OcrService {
     const mimeType = versionRows[0]?.mimeType;
     if (!mimeType) {
       throw new Error(`processJob: version ${versionId} not found or has no mimeType`);
+    }
+
+    if (!OCR_ABLE_MIME_TYPES.has(mimeType)) {
+      // DOCX/XLSX and any other supported-but-non-OCR-able upload type:
+      // these are already machine-readable structured formats, not scanned
+      // images, so OCR extraction is never applicable. Skip the provider
+      // entirely and write a definite "nothing to verify" result so the
+      // frontend's scan-quality poll (which waits for a non-null
+      // scanQualityCategory) resolves instead of polling forever.
+      await this.db
+        .update(versions)
+        .set({
+          ocrProcessed: true,
+          ocrText: '',
+          scanQualityScore: null,
+          scanQualityCategory: 'good',
+          requiresManualVerification: false,
+        })
+        .where(eq(versions.id, versionId));
+      return;
     }
 
     const { text, confidenceScore } = await this.ocrProvider.extractTextFromS3Key(s3Key, mimeType);

@@ -37,6 +37,14 @@ export class ScribeOcrProvider implements OcrProvider {
     } else if (mimeType === 'image/png' || mimeType === 'image/jpeg') {
       files = { imageFiles: [arrayBuffer] };
     } else {
+      // OcrService.processJob (ocr.service.ts) already filters out
+      // non-OCR-able MIME types via OCR_ABLE_MIME_TYPES before this method
+      // is ever called in the normal job-processing path. This branch is a
+      // defensive fallback for any other caller, direct test invocation,
+      // or future MIME type added to AllowedMimeTypeSchema without a
+      // matching update to OCR_ABLE_MIME_TYPES -- it intentionally still
+      // throws rather than silently no-op'ing, so a real gap doesn't fail
+      // silently.
       throw new Error(`Unsupported MIME type for OCR: ${mimeType}`);
     }
 
