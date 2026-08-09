@@ -281,7 +281,7 @@ function toDocumentTypeSummary(type: DocumentTypeRow) {
     code: type.code,
     classificationDefault: type.classificationDefault,
     preliminaryNumbering: type.hasPreliminaryNumbering,
-    metadataSchema: type.metadataSchema,
+    metadataSchema: type.metadataSchema as Record<string, unknown> | null,
     numberSeriesId: type.numberSeriesId,
     owningModule: type.owningModule,
     publicVisibilityRule: type.publicVisibilityRule,
@@ -744,6 +744,40 @@ export function createDocumentsRouter() {
           nextCursor:
             hasMore && page.length > 0 ? page[page.length - 1]!.id : null,
         };
+      }),
+
+    // -----------------------------------------------------------------
+    // documents.getLinkedCertifications
+    // -----------------------------------------------------------------
+    getLinkedCertifications: protectedProcedure
+      .input(z.object({ measureId: z.string().uuid() }))
+      .output(
+        z.array(
+          z.object({
+            id: z.string().uuid(),
+            title: z.string(),
+            finalNumber: z.string().nullable(),
+          })
+        )
+      )
+      .query(async ({ ctx, input }) => {
+        const repo = getRepository(ctx);
+        const guard = getPolicyGuard(ctx);
+
+        const measure = await repo.findDocumentById(input.measureId);
+        if (!measure || measure.cityId !== ctx.auth.cityId) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        // Must have view permissions for the measure to see linked documents
+        const allowed = guard.canReadMetadata(ctx.auth, {
+          classificationLevel: measure.classificationLevel,
+          ownedByOfficeId: measure.ownedByOfficeId,
+          hasCrossOfficeGrant: false,
+        });
+        if (!allowed) throw new TRPCError({ code: "FORBIDDEN" });
+
+        return repo.findLinkedCertifications(input.measureId, ctx.auth.cityId);
       }),
 
     // -----------------------------------------------------------------

@@ -101,6 +101,28 @@ export class DocumentsRepository {
       .where(and(eq(documents.lifecycleState, lifecycleState), isNull(documents.deletedAt)));
   }
 
+  /**
+   * Find CERTIFICATION_OF_URGENCY documents linked to a given measure.
+   */
+  async findLinkedCertifications(measureId: string, cityId: string): Promise<{ id: string, title: string, finalNumber: string | null }[]> {
+    return this.db
+      .select({
+        id: documents.id,
+        title: documents.title,
+        finalNumber: documents.finalNumber,
+      })
+      .from(documents)
+      .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+      .where(
+        and(
+          eq(documents.cityId, cityId),
+          isNull(documents.deletedAt),
+          eq(documentTypes.code, 'CERTIFICATION_OF_URGENCY'),
+          sql`${documents.metadata}->'associated_measure_ids' ? ${measureId}`
+        )
+      );
+  }
+
   /** Insert a new document row and return the created row. */
   async insertDocument(input: InsertDocument): Promise<DocumentRow> {
     const [row] = await this.db.insert(documents).values(input).returning();

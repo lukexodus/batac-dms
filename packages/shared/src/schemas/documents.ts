@@ -103,6 +103,9 @@ export const DocumentTypeSummarySchema = z.object({
   classificationDefault: ClassificationLevelSchema,
   preliminaryNumbering: z.boolean(),
   metadataSchema: z.record(z.string(), z.unknown()).nullable().optional(),
+  numberSeriesId: z.string().nullable().optional(),
+  owningModule: z.string().nullable().optional(),
+  publicVisibilityRule: PublicVisibilityRuleSchema.nullable().optional(),
 });
 export type DocumentTypeSummary = z.infer<typeof DocumentTypeSummarySchema>;
 

@@ -243,7 +243,7 @@ function ScanResultView({ result }: { result: RouterOutputs['tracking']['scanQrC
   const loggedByName = createdByUser?.displayName ?? (createdByUserId ? createdByUserId.slice(0, 8) : 'Unknown');
 
   const metadata = docData?.metadata as Record<string, unknown> | undefined;
-  const sponsors = Array.isArray(metadata?.sponsors) && metadata.sponsors.length > 0 ? (metadata.sponsors as { name: string }[]) : null;
+  const sponsors = Array.isArray(metadata?.['sponsors']) && metadata?.['sponsors'].length > 0 ? (metadata?.['sponsors'] as { name: string }[]) : null;
   const authoredBy = sponsors ? sponsors.map(s => s.name).join(', ') : null;
 
   const routingEntries: RoutingEntry[] = result.fullRoutingHistory.map((e, index) => ({
