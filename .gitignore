@@ -22,7 +22,8 @@ node_modules
 dist
 .turbo
 # .env
-# .env.local
+.env.local
+.env*.local
 # .env.staging
 # .env.production
 coverage
