@@ -9323,3 +9323,41 @@ No fix was implemented as part of this entry; this is a planning-layer investiga
 Note: [Inference] — this does not mean versioning is broken; it means it was never built as a reachable feature, only scaffolded at the schema/repository layer. Anyone assuming "documents already support version history, I can just add a new version" should verify this entry's grep result still holds before relying on it, since a future task may have since wired `createVersion` up.
 
 No fix was implemented as part of this entry; this is a planning-layer investigation finding only.
+
+---
+
+### [LOG-0287] — RichTextEditor foundation-status flag and findings-log numbering gap: superseded by earlier LOG-0265/LOG-0266, and a stray prompt placeholder line requires manual removal
+
+**Date:** 2026-08-09
+**Module:** DOCS (development-findings-log.md itself)
+**Related files:** `docs/development-findings-log.md` — lines 8611 (LOG-0265), 8636
+(LOG-0266), 9171 (LOG-0280), 9196 (LOG-0281), 9238 (stray placeholder line)
+**Status:** proposed
+
+**Finding, part 1 — content duplication (planning-layer error, not an executor error):**
+`LOG-0280` ("RichTextEditor toolbar extension proceeded on a still-`proposed`
+foundation entry") and `LOG-0281` (the numbering-gap-plus-collision note) duplicate
+content already correctly appended earlier as `LOG-0265` and `LOG-0266` (dated
+2026-08-07). The planning layer identified a genuine `LOG-0263`/`LOG-0264` heading
+collision in a prior session, but did not check whether its original intended content
+had already landed successfully under different numbers before drafting a full
+replacement — it had, as `LOG-0265`/`LOG-0266`. A human should treat `LOG-0265` and
+`LOG-0266` as authoritative and consider `LOG-0280`/`LOG-0281` redundant (leave both
+pairs in place per this project's append-only convention; do not delete either — this
+note exists so the duplication is understood rather than silently discovered later).
+
+**Finding, part 2 — stray placeholder text committed as file content:** Line 9238
+currently contains the literal text `[Insert LOG-0280 and LOG-0281 exactly as given in
+the planning-layer response above, verbatim, no paraphrasing, no reformatting.]` — this
+was meta-instruction in the originating prompt telling the executor what to insert,
+not content meant to be inserted itself. It was committed into the file as if it were
+a findings-log entry. This is not itself append-only content in the log's normal sense
+(it documents no finding) and is a stray artifact. Recommend manual removal by a human
+during a future edit to this file, rather than treating it as content to preserve —
+unlike the LOG-0263/0264 collision precedent, there's no competing "real" content this
+line is in tension with; it's simply not supposed to be here.
+
+**What was implemented:** N/A — flagging only.
+
+---
+

@@ -1,4 +1,4 @@
-import { eq, and, isNull, desc, lt, or, inArray, sql, gte, lte, asc } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, lt, or, inArray, sql, gte, lte, asc, count } from 'drizzle-orm';
 import type { InferSelectModel, InferInsertModel, SQL } from 'drizzle-orm';
 import {
   documents,
@@ -49,6 +49,107 @@ export interface NumberingUpdate {
   finalNumber?: string | null;
   controlNumber?: string | null;
   qrTrackingNumber?: string;
+}
+
+/**
+ * Row shape returned by the public-portal published-document reads
+ * (listPublicPortalDocuments / findPublicPortalDocumentById).
+ * `document` is the full documents row; the remaining fields are joined
+ * presentation data the service maps to the E2 contract.
+ */
+export interface PublicPortalDocumentRow {
+  document: DocumentRow;
+  documentTypeCode: string;
+  documentTypeName: string;
+  /**
+   * Date the current FINAL series number was assigned — the E2 "approvedAt"
+   * date. Null when no ledger row exists (shouldn't happen for eligible rows,
+   * since eligibility requires `final_number IS NOT NULL`).
+   */
+  approvedAt: Date | null;
+}
+
+/** Filter accepted by listPublicPortalDocuments. */
+export interface PublicPortalListFilter {
+  /** DB-level document type code (already mapped from the API enum by the caller). */
+  documentTypeCode?: string;
+  /** Final-number approval year (numbers.sequence_year of the current final row). */
+  year?: number;
+  /** Exact final series number — takes precedence over all other filters. */
+  number?: string;
+  /** Full-text query; ignored unless at least 2 non-whitespace characters. */
+  q?: string;
+  page: number;
+  limit: number;
+}
+
+/** Document types that opt into public portal visibility, by DB code. */
+const PUBLIC_PORTAL_DOCUMENT_TYPE_CODES = [
+  'SP_RESOLUTION',
+  'SP_ORDINANCE',
+  'SP_APPROPRIATION_ORDINANCE',
+] as const;
+
+/**
+ * Projection for public-portal reads: the full documents row (tsv included,
+ * so the mapped row is structurally a DocumentRow) plus the joined fields.
+ * LEFT JOIN against the current FINAL numbers row yields at most one row per
+ * document (unique partial index `uq_numbers_one_current_per_type`).
+ */
+const publicPortalDocumentSelect = {
+  id: documents.id,
+  cityId: documents.cityId,
+  documentTypeId: documents.documentTypeId,
+  title: documents.title,
+  lifecycleState: documents.lifecycleState,
+  classificationLevel: documents.classificationLevel,
+  qrTrackingNumber: documents.qrTrackingNumber,
+  preliminaryNumber: documents.preliminaryNumber,
+  finalNumber: documents.finalNumber,
+  controlNumber: documents.controlNumber,
+  originatingOfficeId: documents.originatingOfficeId,
+  ownedByOfficeId: documents.ownedByOfficeId,
+  createdBy: documents.createdBy,
+  workflowInstanceId: documents.workflowInstanceId,
+  versionNumber: documents.versionNumber,
+  metadata: documents.metadata,
+  tsv: documents.tsv,
+  supersededBy: documents.supersededBy,
+  supersededAt: documents.supersededAt,
+  closureReason: documents.closureReason,
+  retentionScheduleId: documents.retentionScheduleId,
+  createdAt: documents.createdAt,
+  updatedAt: documents.updatedAt,
+  deletedAt: documents.deletedAt,
+  deletedBy: documents.deletedBy,
+  documentTypeCode: documentTypes.code,
+  documentTypeName: documentTypes.name,
+  approvedAt: numbers.assignedAt,
+};
+
+const currentFinalNumberJoin = and(
+  eq(numbers.documentId, documents.id),
+  eq(numbers.numberType, 'final'),
+  eq(numbers.isCurrent, true),
+  isNull(numbers.deletedAt),
+);
+
+/**
+ * Eligibility gates shared by both public-portal reads. A document is
+ * publicly visible only when it is released, classified public, has an
+ * approved final number, belongs to a document type that opts into
+ * title/first-page public visibility, and neither row is soft-deleted.
+ */
+function publicPortalEligibilityConditions(): SQL[] {
+  return [
+    eq(documents.lifecycleState, 'released'),
+    eq(documents.classificationLevel, 'public'),
+    eq(documentTypes.publicVisibilityRule, 'title_and_first_page_public'),
+    inArray(documentTypes.code, [...PUBLIC_PORTAL_DOCUMENT_TYPE_CODES]),
+    isNotNull(documents.finalNumber),
+    isNull(documents.deletedAt),
+    isNull(documentTypes.deletedAt),
+  ];
 }
 
 /**
@@ -880,6 +981,107 @@ export class DocumentsRepository {
           isNull(panlalawiganReviews.deletedAt),
         ),
       );
+  }
+
+  // -------------------------------------------------------------------------
+  // Public portal published-document reads (TASK-PORTAL-004)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Strip the joined presentation fields off a portal select row, leaving a
+   * plain DocumentRow. The projection includes every documents column, so the
+   * rest is structurally assignable without a cast.
+   */
+  private toPublicPortalRow(
+    row: DocumentRow & {
+      documentTypeCode: string;
+      documentTypeName: string;
+      approvedAt: Date | null;
+    },
+  ): PublicPortalDocumentRow {
+    const { documentTypeCode, documentTypeName, approvedAt, ...document } = row;
+    return { document, documentTypeCode, documentTypeName, approvedAt };
+  }
+
+  /**
+   * Page through publicly visible published documents (E2 `GET
+   * /published-documents`). Eligibility gates are shared with
+   * findPublicPortalDocumentById. When `number` is given it takes precedence
+   * over every other filter and returns at most one row. Ordering is most
+   * recently approved first (`numbers.assigned_at DESC`), with documents that
+   * have no ledger row sorted last.
+   */
+  async listPublicPortalDocuments(filter: PublicPortalListFilter): Promise<{
+    rows: PublicPortalDocumentRow[];
+    total: number;
+  }> {
+    const eligibility = publicPortalEligibilityConditions();
+
+    if (filter.number) {
+      const conditions: SQL[] = [...eligibility, eq(documents.finalNumber, filter.number)];
+      const rows = await this.db
+        .select(publicPortalDocumentSelect)
+        .from(documents)
+        .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+        .leftJoin(numbers, currentFinalNumberJoin)
+        .where(and(...conditions))
+        .orderBy(sql`${numbers.assignedAt} DESC NULLS LAST`, desc(documents.id))
+        .limit(1);
+      return { rows: rows.map((r) => this.toPublicPortalRow(r)), total: rows.length };
+    }
+
+    const conditions: SQL[] = [...eligibility];
+    if (filter.documentTypeCode) conditions.push(eq(documentTypes.code, filter.documentTypeCode));
+    if (filter.year) conditions.push(eq(numbers.sequenceYear, filter.year));
+    if (filter.q && filter.q.trim().length >= 2) {
+      const tsQuery = sql`plainto_tsquery('english', ${filter.q.trim()})`;
+      conditions.push(sql`(
+        ${documents.tsv} @@ ${tsQuery}
+        OR EXISTS (
+          SELECT 1 FROM documents.versions v
+          WHERE v.document_id = ${documents.id} AND v.tsv @@ ${tsQuery} AND v.deleted_at IS NULL
+        )
+      )`);
+    }
+
+    const [countRow] = await this.db
+      .select({ total: count() })
+      .from(documents)
+      .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+      .leftJoin(numbers, currentFinalNumberJoin)
+      .where(and(...conditions));
+
+    const rows = await this.db
+      .select(publicPortalDocumentSelect)
+      .from(documents)
+      .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+      .leftJoin(numbers, currentFinalNumberJoin)
+      .where(and(...conditions))
+      .orderBy(sql`${numbers.assignedAt} DESC NULLS LAST`, desc(documents.id))
+      .limit(filter.limit)
+      .offset((filter.page - 1) * filter.limit);
+
+    return {
+      rows: rows.map((r) => this.toPublicPortalRow(r)),
+      total: countRow?.total ?? 0,
+    };
+  }
+
+  /**
+   * Fetch a single publicly visible published document by id (E2 `GET
+   * /published-documents/{id}`). Applies the same eligibility gates as the
+   * list; returns null when the document is not publicly visible (missing,
+   * soft-deleted, not released, or non-public classification/type).
+   */
+  async findPublicPortalDocumentById(documentId: string): Promise<PublicPortalDocumentRow | null> {
+    const [row] = await this.db
+      .select(publicPortalDocumentSelect)
+      .from(documents)
+      .innerJoin(documentTypes, eq(documents.documentTypeId, documentTypes.id))
+      .leftJoin(numbers, currentFinalNumberJoin)
+      .where(and(...publicPortalEligibilityConditions(), eq(documents.id, documentId)))
+      .limit(1);
+    return row ? this.toPublicPortalRow(row) : null;
   }
 
   // -------------------------------------------------------------------------

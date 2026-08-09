@@ -4,7 +4,7 @@
 
 ## Table of Contents
 
-- [L11–L111] ADR Index — Central master index linking to all architectural decisions across the platform.
+- [L11–L112] ADR Index — Central master index linking to all architectural decisions across the platform.
 
 ---
 
@@ -104,6 +104,7 @@
 | ADR-UI-015   | SSE Reconnection — Native `EventSource` Replay, with TanStack Query Poll as Fallback on Drawer Open                                                  | Frontend / UI (F1, F2)                  | [View](../F-frontend-architecture/f2-zustand-store-design-adrs/ADR-UI-015-sse-reconnection-strategy.md)                                                                              |
 | ADR-UI-016   | Presiding-Officer Substitute Lookup Confirmed as `organization.getActiveDesignations`; Mandatory Vitest Coverage for `committeeId` Strip-Before-Send | Frontend / UI (F1, F2)                  | [View](../F-frontend-architecture/f2-zustand-store-design-adrs/ADR-UI-016-designation-lookup-procedure-and-test-coverage.md)                                                         |
 | ADR-UI-017   | Rich-Text Editor Library — TipTap over Lexical, Slate, CKEditor, TinyMCE                                                                             | Frontend / UI (F5)                      | [View](j5-initial-adrs/ADR-UI-017-richtext-editor-library-tiptap.md)                                                                                                                 |
+| ADR-UI-018   | Highlight Mark Extension for RichTextEditor — Single-Color Only                                                                                     | Frontend / UI (F5)                      | [View](j5-initial-adrs/ADR-UI-018-highlight-mark-extension-richtexteditor-single-color.md)                                                                                          |
 | ADR-WFL-001  | No Distinct `Repassed` Workflow Instance Status                                                                                                      | Workflow / UML (D3)                     | [View](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-001-no-distinct-repassed-status.md)                                                                              |
 | ADR-WFL-002  | Panlalawigan RETURNED → Repass Modeled as Document Supersession                                                                                      | Workflow / UML (D3)                     | [View](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-002-panlalawigan-returned-repass.md)                                                                             |
 | ADR-WFL-003  | Split `Pending Approval` into Mayor Action and Panlalawigan Review                                                                                   | Workflow / UML (D3)                     | [View](../D-uml-and-diagrams/d3-state-machine-diagrams-adrs/ADR-WFL-003-split-pending-approval.md)                                                                                   |

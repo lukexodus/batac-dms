@@ -1455,6 +1455,156 @@ export function createWorkflowRouter() {
         };
       }),
 
+    listMyPastSteps: protectedProcedure
+      .input(paginationInput.extend({ stepKeyIn: z.array(z.string()).optional() }))
+      .query(async ({ input, ctx }) => {
+        const roles = ctx.auth.roles;
+        const effRoles = ctx.auth.effectiveRoles || [];
+        const userRoles = new Set([...roles, ...effRoles]);
+
+        const allowedOperationalRoles = new Set([
+          'dept_encoder',
+          'dept_approver',
+          'sp_secretary',
+          'sp_member',
+          'sp_presiding_officer',
+          'mayor',
+          'brgy_encoder',
+          'brgy_captain',
+          'records_officer',
+          'auditor',
+        ]);
+        const hasOperationalRole = [...userRoles].some((r) => allowedOperationalRoles.has(r));
+        const seniorRoles = new Set(['sp_presiding_officer', 'mayor', 'auditor']);
+        const hasSeniorRole = [...userRoles].some((r) => seniorRoles.has(r));
+
+        const rows = await ctx.db
+          .select({
+            stepInstanceId: stepInstances.id,
+            instanceId: stepInstances.instanceId,
+            documentId: instances.documentId,
+            documentTitle: documents.title,
+            stepType: steps.stepType,
+            stepName: steps.label,
+            stepKey: steps.stepKey,
+            assignedTo: stepInstances.assignedTo,
+            createdAt: stepInstances.createdAt,
+            completedAt: stepInstances.completedAt,
+            outcome: stepInstances.outcome,
+            status: stepInstances.status,
+            documentOfficeId: documents.ownedByOfficeId,
+            instanceContext: instances.context,
+            stepMetadata: stepInstances.metadata,
+          })
+          .from(stepInstances)
+          .innerJoin(instances, eq(stepInstances.instanceId, instances.id))
+          .innerJoin(documents, eq(instances.documentId, documents.id))
+          .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+          .where(
+            and(
+              eq(stepInstances.cityId, ctx.auth.cityId),
+              inArray(stepInstances.status, ['completed', 'bypassed', 'cancelled', 'failed', 'returned']),
+              isNull(stepInstances.deletedAt),
+              isNull(instances.deletedAt),
+              isNull(documents.deletedAt),
+              notInArray(documents.lifecycleState, ['cancelled', 'superseded', 'disposed', 'archived', 'completed']),
+            ),
+          )
+          .orderBy(desc(stepInstances.completedAt));
+
+        const allOffices = await ctx.db
+          .select({ id: offices.id, code: offices.code })
+          .from(offices)
+          .where(eq(offices.cityId, ctx.auth.cityId));
+        const spOfficeIds = new Set(
+          allOffices
+            .filter((o) => o.code === 'SP' || o.code === 'SPS' || o.code === 'OVM')
+            .map((o) => o.id),
+        );
+
+        const subjectUserId = ctx.auth.userId;
+        const effectiveOfficeIds = new Set(ctx.auth.effectiveOfficeIds || []);
+        const subjectCommitteeIds = new Set<string>(ctx.auth.committeeIds || []);
+
+        const filtered = rows.filter((row) => {
+          const assigned =
+            (row.assignedTo as Array<{ user_id?: string; office_id?: string }>) || [];
+
+          if (assigned.some((a) => a.user_id === subjectUserId)) {
+            return true;
+          }
+
+          if (hasOperationalRole) {
+            if (assigned.some((a) => a.office_id && effectiveOfficeIds.has(a.office_id))) {
+              return true;
+            }
+          }
+
+          if (userRoles.has('sp_secretary') && spOfficeIds.has(row.documentOfficeId)) {
+            return true;
+          }
+
+          if (hasSeniorRole) {
+            return true;
+          }
+
+          if (userRoles.has('sp_member') && row.stepType === 'multi_referral') {
+            const meta = (row.stepMetadata as Record<string, any>) || {};
+            const assignedCommittees =
+              (meta['assigned_committees'] as Array<{ committee_id: string }>) || [];
+            if (assignedCommittees.some((c) => subjectCommitteeIds.has(c.committee_id))) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        const stepKeyFiltered =
+          input.stepKeyIn && input.stepKeyIn.length > 0
+            ? filtered.filter((row) => input.stepKeyIn!.includes(row.stepKey))
+            : filtered;
+
+        const limit = input.limit ?? 50;
+        const startIndex = input.cursor ? parseInt(input.cursor, 10) : 0;
+        const paginated = stepKeyFiltered.slice(startIndex, startIndex + limit);
+        const nextCursor =
+          startIndex + limit < stepKeyFiltered.length ? String(startIndex + limit) : null;
+
+        const items = paginated.map((item) => {
+          const validStepTypes = new Set<
+            | 'action'
+            | 'approval'
+            | 'multi_referral'
+            | 'decision'
+            | 'notification'
+            | 'termination'
+            | 'parallel_split'
+            | 'parallel_join'
+          >(['action', 'approval', 'multi_referral', 'decision', 'notification', 'termination']);
+          const stepType = validStepTypes.has(item.stepType) ? item.stepType : 'action';
+
+          return {
+            stepInstanceId: item.stepInstanceId,
+            instanceId: item.instanceId,
+            documentId: item.documentId,
+            documentTitle: item.documentTitle,
+            stepType,
+            stepName: getHumanReadableStepName(item.stepName, item.stepKey, stepType),
+            stepKey: item.stepKey,
+            assignedAt: item.createdAt,
+            completedAt: item.completedAt,
+            outcome: item.outcome,
+            status: item.status,
+          };
+        });
+
+        return {
+          items,
+          nextCursor,
+        };
+      }),
+
     getSlaComplianceData: protectedProcedure
       .input(
         z.object({
@@ -2362,6 +2512,27 @@ export function createWorkflowRouter() {
 
         if (!instanceRow) throw new TRPCError({ code: 'NOT_FOUND', message: 'Instance not found' });
 
+        const [doc] = await ctx.db
+          .select()
+          .from(documents)
+          .where(eq(documents.id, instanceRow.documentId))
+          .limit(1);
+
+        if (!doc) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Parent document not found',
+          });
+        }
+
+        const isAllowed = await checkWorkflowInstanceReadPermission(ctx, doc);
+        if (!isAllowed) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'You do not have permission to view this workflow instance.',
+          });
+        }
+
         const [stepInst] = await ctx.db
           .select({
             id: stepInstances.id,
@@ -2403,9 +2574,9 @@ export function createWorkflowRouter() {
         z.object({
           instanceId: z.string().uuid(),
           committeeId: z.string().uuid(),
-          correctedDocumentId: z.string().uuid(),
-          correctedReportText: z.string(),
-          note: z.string().optional(),
+          correctedDocumentId: z.string().uuid().optional(),
+          correctedReportText: z.string().max(20000).optional(),
+          note: z.string().max(2000).optional(),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -2414,6 +2585,14 @@ export function createWorkflowRouter() {
         const hasRole = (role: string) => ctx.auth!.roles.includes(role) || ctx.auth!.effectiveRoles.includes(role);
         if (!hasRole('sp_secretary')) {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Only SP Secretary can record corrections' });
+        }
+
+        const sanitizedReportText = correctedReportText ? sanitizeRichText(correctedReportText) : undefined;
+        if (isRichTextEmpty(sanitizedReportText) && !correctedDocumentId) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Provide report text and/or an uploaded report document.',
+          });
         }
 
         return await ctx.db.transaction(async (tx) => {
@@ -2439,12 +2618,23 @@ export function createWorkflowRouter() {
           if (stepInst.status !== 'completed') throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Corrections can only be recorded on completed steps' });
 
           const metadata = (stepInst.metadata as Record<string, any>) || {};
+
+          const assignedCommittees = (metadata['assigned_committees'] as Array<{ committee_id: string }>) || [];
+          if (!assignedCommittees.some((c) => c.committee_id === committeeId)) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Committee is not assigned to this step' });
+          }
+
+          const submissions = (metadata['submissions'] as Array<any>) || [];
+          if (!submissions.some((s) => s.committee_id === committeeId)) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'No prior submission exists for this committee to correct' });
+          }
+
           const corrections = (metadata['corrections'] as any[]) || [];
 
           corrections.push({
             committee_id: committeeId,
             corrected_document_id: correctedDocumentId,
-            corrected_report_text: correctedReportText,
+            corrected_report_text: sanitizedReportText,
             corrected_by: ctx.auth!.userId,
             corrected_at: new Date().toISOString(),
             note: note || null,

@@ -192,6 +192,44 @@ const SERIES_DEFINITIONS: NumberSeriesDef[] = [
     finalAssignmentEvent: 'RECEIPT_OF_PROVINCIAL_RESPONSE',
     deferredFinalAssignment: false,
   },
+  // TASK-PORTAL-003 — public submission reference-code series (COMP / DREQ).
+  // These are administrative reference codes with no preliminary/final
+  // series-number lifecycle: the rendered value is stored in
+  // documents.metadata.referenceCode, never in preliminary_number/final_number
+  // (see documents.public-submission.service.ts). sequencePadding 4 matches
+  // E2's zero-padded-to-4-digit format, e.g. COMP-2026-0042.
+  // `finalAssignmentEvent` is [Inference] — no workflow drives these types in
+  // Phase 1; the event name is metadata only (see development-findings-log).
+  {
+    seriesKey: 'CITIZEN_COMPLAINT_REF',
+    documentTypeCode: 'CITIZEN_COMPLAINT',
+    seriesType: 'administrative',
+    phase: '1',
+    prefix: 'COMP',
+    spOrdinal: null,
+    sequencePadding: 4,
+    sequenceNamePrefix: 'ns_citizen_complaint_ref',
+    preliminaryFormat: null,
+    finalFormat: 'COMP-{YEAR}-{NN}',
+    preliminaryAssignmentEvent: null,
+    finalAssignmentEvent: 'PUBLIC_SUBMISSION_RECEIVED',
+    deferredFinalAssignment: false,
+  },
+  {
+    seriesKey: 'DOCUMENT_REQUEST_REF',
+    documentTypeCode: 'DOCUMENT_REQUEST_FORM',
+    seriesType: 'administrative',
+    phase: '1',
+    prefix: 'DREQ',
+    spOrdinal: null,
+    sequencePadding: 4,
+    sequenceNamePrefix: 'ns_document_request_ref',
+    preliminaryFormat: null,
+    finalFormat: 'DREQ-{YEAR}-{NN}',
+    preliminaryAssignmentEvent: null,
+    finalAssignmentEvent: 'PUBLIC_SUBMISSION_RECEIVED',
+    deferredFinalAssignment: false,
+  },
 ];
 
 import { fileURLToPath } from 'node:url';
@@ -216,7 +254,7 @@ export async function seedNumberSeries(db: any) {
     console.log(`[seed:series] Resolved authorityOfficeId = ${authorityOfficeId}`);
 
     // ── Step 2: Upsert numbering series ────────────────────────────────────
-    console.log('[seed:series] Step 2: Seeding 11 numbering series...');
+    console.log('[seed:series] Step 2: Seeding 13 numbering series...');
     let seededCount = 0;
 
     for (const def of SERIES_DEFINITIONS) {

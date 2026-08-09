@@ -344,6 +344,70 @@ export class NumberingService {
   }
 
   // -------------------------------------------------------------------------
+  // reserveReferenceNumber
+  // -------------------------------------------------------------------------
+
+  /**
+   * Reserve the next value of an administrative reference-code series without
+   * writing a documents.numbers ledger row or touching the document's
+   * preliminary/final/control number columns (TASK-PORTAL-003).
+   *
+   * Used for the public submission reference codes (CITIZEN_COMPLAINT_REF →
+   * 'COMP-{YEAR}-{NNNN}', DOCUMENT_REQUEST_REF → 'DREQ-{YEAR}-{NNNN}'). Those
+   * types have no series-number lifecycle: the rendered reference code is
+   * stored in documents.metadata.referenceCode, and the documents row keeps
+   * preliminary_number / final_number NULL (per TrackingLookupData's schema
+   * note). The per-year PostgreSQL sequence is still the single counter, so
+   * this method calls the same fn_get_next_sequence_value() helper and the
+   * same format-rendering path as the numbered series, but it performs no
+   * side-effect write. [Inference — no pre-development document defines this
+   * method; it is a gap TASK-PORTAL-003 closes. See development-findings-log.]
+   *
+   * @param seriesKey  Number-series key, e.g. 'CITIZEN_COMPLAINT_REF'.
+   * @param cityId     Tenant city UUID.
+   * @param trx        Optional caller-supplied transaction; when omitted this
+   *                   method runs against the base connection (used by
+   *                   callers that already hold their own transaction).
+   */
+  async reserveReferenceNumber(
+    seriesKey: string,
+    cityId: string,
+    trx?: DbTransaction,
+  ): Promise<{ numberValue: string; sequenceNumber: number; sequenceYear: number }> {
+    const run = async (db: DbClient | DbTransaction) => {
+      const repo = new DocumentsRepository(db);
+
+      const series = await repo.findNumberSeriesByKey(seriesKey, cityId);
+      if (!series) {
+        throw new Error(`number series not found: ${seriesKey}`);
+      }
+
+      const year = new Date().getFullYear();
+
+      const { sequenceValue, wasCreated } = await this.callSequenceFunction(db, seriesKey, year);
+      if (wasCreated) {
+        this.logger.warn(
+          { seriesKey, year },
+          '[numbering] On-demand year sequence created -- operational log only, NOT an audit event',
+        );
+      }
+
+      const numberValue = renderNumber(series, year, Number(sequenceValue), series.finalFormat);
+
+      return {
+        numberValue,
+        sequenceNumber: Number(sequenceValue),
+        sequenceYear: year,
+      };
+    };
+
+    if (trx) {
+      return run(trx);
+    }
+    return run(this.db);
+  }
+
+  // -------------------------------------------------------------------------
   // logCancellationGap
   // -------------------------------------------------------------------------
 
