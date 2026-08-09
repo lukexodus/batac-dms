@@ -9239,7 +9239,7 @@ this note explaining why.
 
 ---
 
-### [LOG-0282] TASK-PORTAL-002: actor field in public tracking response implemented as display string, not UserSummarySchema
+### [LOG-0283] TASK-PORTAL-002: actor field in public tracking response implemented as display string, not UserSummarySchema
 
 - date: 2026-08-09
 - task_id: TASK-PORTAL-002
@@ -9254,7 +9254,7 @@ The `RoutingHistoryEntrySchema` in `packages/shared/src/schemas/tracking.ts` was
 
 ---
 
-### [LOG-0283] TASK-PORTAL-002: ComplaintViolationTypeSchema pre-existed in document-metadata.ts; portal.ts re-exports it
+### [LOG-0284] TASK-PORTAL-002: ComplaintViolationTypeSchema pre-existed in document-metadata.ts; portal.ts re-exports it
 
 - date: 2026-08-09
 - task_id: TASK-PORTAL-002
@@ -9282,7 +9282,7 @@ No fix was implemented as part of this entry; this is a planning-layer investiga
 
 ---
 
-### [LOG-0283] Committee cannot resubmit a report once submitted — hard reject in the multi-referral engine handler, one layer below LOG-0220's tested consolidation flow
+### [LOG-0285] Committee cannot resubmit a report once submitted — hard reject in the multi-referral engine handler, one layer below LOG-0220's tested consolidation flow
 
 - date: 2026-08-09
 - task_id: none (found while investigating an SP Secretary "reconsolidate" action for committee reports)
@@ -9311,7 +9311,7 @@ No fix was implemented as part of this entry; this is a planning-layer investiga
 
 ---
 
-### [LOG-0284] documents.versions table and createVersion repository method exist but have zero call sites — no working multi-version-upload feature exists despite the schema supporting it
+### [LOG-0286] documents.versions table and createVersion repository method exist but have zero call sites — no working multi-version-upload feature exists despite the schema supporting it
 
 - date: 2026-08-09
 - task_id: none (found while evaluating document-versioning as a mechanism for post-acceptance committee report corrections)
