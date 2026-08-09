@@ -4,6 +4,7 @@ import type { QrCodeService } from './tracking.qr-service.js';
 import type { AppDb } from '../../db.js';
 import type { FastifyBaseLogger } from 'fastify';
 import type {
+  DocumentCertificationUrgencyLoggedPayload,
   DocumentCreatedPayload,
   WorkflowStepCompletedPayload,
 } from '@batac/shared/events/event-payload-map';
@@ -98,6 +99,41 @@ export class TrackingEventConsumer {
         trackingRecord.id, // tracking_records.id
         payload.toOfficeId,
         new Date(),
+        this.db,
+      );
+    }
+  }
+
+  async handleCertificationUrgencyLogged(
+    event: DomainEvent<EventPayloadMap['document.certification_urgency.logged']>,
+  ): Promise<void> {
+    const payload = event.payload as DocumentCertificationUrgencyLoggedPayload;
+
+    for (const documentId of payload.associatedDocumentIds) {
+      const trackingRecord = await this.repository.findTrackingRecordByDocumentId(
+        documentId,
+        this.db,
+      );
+      if (!trackingRecord) {
+        this.logger.warn(
+          {
+            documentId,
+            certificationDocumentId: payload.certificationDocumentId,
+            eventId: event.eventId,
+          },
+          'tracking: document.certification_urgency.logged — no tracking record found for document, skipping',
+        );
+        continue; // not an error — may be a document type without tracking
+      }
+
+      await this.repository.appendRoutingEntry(
+        {
+          trackingRecordId: trackingRecord.id,
+          fromOfficeId: null,
+          toOfficeId: null,
+          actorId: payload.loggedBy,
+          actionDescription: 'Certified Urgent — logged',
+        },
         this.db,
       );
     }

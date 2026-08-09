@@ -1638,6 +1638,7 @@ export function createDocumentsRouter() {
           }
         }
 
+        const associatedDocumentIds: string[] = [];
         const associatedInstanceIds: string[] = [];
 
         await ctx.db.transaction(async (tx) => {
@@ -1646,6 +1647,7 @@ export function createDocumentsRouter() {
           for (const measureId of input.associatedMeasureIds) {
             const measure = await txRepo.findDocumentById(measureId);
             if (measure) {
+              associatedDocumentIds.push(measureId);
               if (measure.workflowInstanceId) {
                 associatedInstanceIds.push(measure.workflowInstanceId);
               }
@@ -1671,6 +1673,7 @@ export function createDocumentsRouter() {
           schemaVersion: 1,
           payload: {
             certificationDocumentId: input.certifyingDocumentId,
+            associatedDocumentIds,
             associatedInstanceIds,
             loggedBy: subject.userId,
             loggedAt: new Date().toISOString(),

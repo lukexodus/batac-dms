@@ -149,6 +149,19 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
     'tracking',
   );
 
+  fastify.eventBus.on(
+    'document.certification_urgency.logged',
+    (event) => {
+      eventConsumer.handleCertificationUrgencyLogged(event).catch((err) => {
+        fastify.log.error(
+          { err, eventId: event.eventId },
+          'tracking: document.certification_urgency.logged handler failed',
+        );
+      });
+    },
+    'tracking',
+  );
+
   // TODO(PORTAL-INTEGRATION): Portal (Phase 3) will call trackingService.getTrackingRecordForDocument()
   // for the public scan display on the citizen portal.
 

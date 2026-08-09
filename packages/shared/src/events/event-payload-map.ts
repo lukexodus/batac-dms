@@ -115,6 +115,7 @@ export interface WorkflowContextUpdatedPayload {
 
 export interface DocumentCertificationUrgencyLoggedPayload {
   certificationDocumentId: string;
+  associatedDocumentIds: string[];
   associatedInstanceIds: string[];
   loggedBy: string;
   loggedAt: string;
