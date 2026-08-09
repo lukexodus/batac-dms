@@ -44,6 +44,16 @@ export async function submitStepAction(
     }
   }
 
+  if (stepDef.stepKey === 'archive') {
+    await deps.documentsService.transitionState(
+      instance.documentId,
+      'archived',
+      actorId,
+      'Document archived',
+      trx,
+    );
+  }
+
   const now = new Date();
 
   await deps.workflowRepository.updateStepInstance(
