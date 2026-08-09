@@ -9235,3 +9235,34 @@ this note explaining why.
 
 
 [Insert LOG-0280 and LOG-0281 exactly as given in the planning-layer response above, verbatim, no paraphrasing, no reformatting.]
+
+---
+
+### [LOG-0282] TASK-PORTAL-002: actor field in public tracking response implemented as display string, not UserSummarySchema
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E3 (Part 7 — Tracking Domain), E2 (§RoutingHistoryEntry)
+
+E3 Part 7's `QrCodeScanResultSchema` references `UserSummarySchema` (from the IAM domain, `iam.ts`) for the actor field inside routing history entries. `iam.ts` does not yet exist in `packages/shared/src/schemas/`. However, E2's authoritative OpenAPI contract (§RoutingHistoryEntry) defines the actor as `actorDisplayName: string | null` — a plain display-name string, not an embedded IAM object. The public REST layer is unauthenticated and must not expose internal user UUIDs or IAM objects; E2 is the contract expression of the right shape here.
+
+The `RoutingHistoryEntrySchema` in `packages/shared/src/schemas/tracking.ts` was implemented with `actorDisplayName: z.string().nullable()` per E2. This diverges from the E3 definition but is correct for the public REST layer. When `iam.ts` is eventually created (a separate task), the internal tRPC tracking schemas (which use the full `UserSummarySchema`) should be placed in `tracking.ts` as a separate schema variant from the public REST schemas already there.
+
+[Inference]: E3 uses `UserSummarySchema` because it was written to be comprehensive across all layers. The public REST restriction to a display string is explicit in E2 and in the consolidated reference's description of the unauthenticated public portal. No conflict with architecture — this is a layer-appropriate restriction, not a design error.
+
+---
+
+### [LOG-0283] TASK-PORTAL-002: ComplaintViolationTypeSchema pre-existed in document-metadata.ts; portal.ts re-exports it
+
+- date: 2026-08-09
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E3 (Part 5 — CitizenComplaintMetadataSchema)
+
+When implementing `portal.ts`, a duplicate `ComplaintViolationTypeSchema` export collision was discovered: the schema was already declared and exported from `packages/shared/src/schemas/document-metadata.ts` (line 128) as part of the `CitizenComplaintMetadataSchema` sub-schemas. E3 Part 7 (portal) intends this schema to be co-located with the portal contracts, but the JSONB metadata schemas (Part 5) already depend on it.
+
+Resolution: `portal.ts` imports `ComplaintViolationTypeSchema` from `document-metadata.ts` and re-exports it. This preserves the single source of truth for the enum values, avoids the barrel conflict, and keeps portal consumers able to import the type from the portal module. No values were changed; the enum is identical in both E3 Part 5 and E3 Part 7.
+
+[Inference]: The E3 catalog specifies file locations but does not address cross-file import ordering within `packages/shared`. The `document-metadata.ts` origin is functionally correct because complaint metadata JSONB and the portal complaint form schema must agree on the enum values. Treating `document-metadata.ts` as the canonical source and having `portal.ts` re-export it is consistent with the "no duplication" rule in E3's governance section.
+
