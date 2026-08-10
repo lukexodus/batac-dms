@@ -111,7 +111,18 @@ export const TrackingLookupDataSchema = z.object({
   remarks: z.string().nullable(),
   routingHistory: z.array(RoutingHistoryEntrySchema),
   firstPagePreview: PresignedImageRefSchema.nullable(),
-  documentRequestUrl: z.url(),
+  /**
+   * Either an absolute URL (when APP_BASE_URL is set — see
+   * tracking.public-handler.ts) or a root-relative path beginning with "/"
+   * (the default when APP_BASE_URL is unset). Both shapes are accepted
+   * deliberately; do not narrow this back to z.url() alone without first
+   * confirming APP_BASE_URL is populated in every environment this schema
+   * validates responses for.
+   */
+  documentRequestUrl: z.union([
+    z.url(),
+    z.string().regex(/^\/[^\s]*$/, 'must be an absolute URL or a root-relative path'),
+  ]),
   supersededBy: UuidSchema.nullable(),
   supersededAt: TimestampSchema.nullable(),
   closureReason: z.string().nullable(),

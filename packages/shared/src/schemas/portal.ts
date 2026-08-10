@@ -169,7 +169,19 @@ export const PublishedDocumentSummarySchema = z.object({
   releasedAt: TimestampSchema,
   trackingNumber: UuidSchema,
   firstPagePreview: PresignedImageRefSchema.nullable(),
-  documentRequestUrl: z.url(),
+  /**
+   * Either an absolute URL (once PORTAL_BASE_URL is populated, Phase 3)
+   * or a root-relative path beginning with "/" (the Phase 1 default,
+   * when PORTAL_BASE_URL is unset — see documents.public-read.service.ts
+   * toSummaryRow). Both shapes are accepted deliberately; do not narrow
+   * this back to z.url() alone without first confirming PORTAL_BASE_URL
+   * is populated in every environment this schema validates responses
+   * for, including Phase 1 ones.
+   */
+  documentRequestUrl: z.union([
+    z.url(),
+    z.string().regex(/^\/[^\s]*$/, 'must be an absolute URL or a root-relative path'),
+  ]),
   supersededBy: UuidSchema.nullable(),
   supersededAt: TimestampSchema.nullable(),
   closureReason: z.string().nullable(),
