@@ -9375,6 +9375,11 @@ In `pg-boss` v10, the job payload passed to the `boss.work` handler does not inc
 **What was implemented:**
 Updated the `boss.work('ocr.process', ...)` call in `apps/server/src/modules/documents/documents.plugin.ts` to include `{ includeMetadata: true }`, ensuring `job.retryCount` is properly populated for the final-attempt logic. Also empirically verified this behavior through an integration test (`ocr-retry-boundary.integration.spec.ts`), which confirmed the final attempt logic evaluates correctly when metadata is present.
 
+**TASK-DOCS-027 addendum (actual observed values from a real test run, 2026-08-10):**
+- Test 1 (`retryLimit = 0`): `recordedRetryCount = 0`, `recordedRetryLimit = 0`. Result: PASS.
+- Test 2 (`retryLimit = 1`): `retryCounts = [0, 1]`. Result: PASS.
+- Overall: both tests passed, confirming the existing `job.retryCount >= job.retryLimit` comparison in `documents.plugin.ts` line 153 is correct as-is.
+
 ---
 
 ### [LOG-0288] TASK-PORTAL-004: E2 published-document reads — releasedAt/approvedAt sources, sponsorship mapping, and portal infra-field placeholders
@@ -9508,6 +9513,146 @@ already-logged `MayorLapseConfirmationPanel` copy issue. Suggested fix: reword t
 something like "Confirm Deemed Approved" (drop "& Advance Workflow") and/or add a one-line note that
 the workflow advances automatically once confirmed. Purely a copy change — no design decision needed,
 safe to auto-fold into a prompt if you want it fixed alongside LOG-XXXX above rather than as its own task.
+
+---
+
+### [LOG-0297] Correction to LOG-0293/0294 formatting and cross-references
+
+- date: 2026-08-10
+- task_id: (verification pass on patches 0001/0002)
+- status: proposed
+- affects: none (log hygiene only)
+
+**What was found:** LOG-0293 through LOG-0296 were appended without this file's
+required `date`/`task_id`/`status`/`affects` fields, and used `**Status:** Confirmed`
+prose, which reads as the human-review `status` field already being set to
+`confirmed` — contradicting this file's own rule that only a human sets that value.
+LOG-0294 and LOG-0296 also contain unresolved `LOG-XXXX` placeholder
+cross-references instead of the entries' actual numbers. Per this file's
+append-only rule, those entries are not edited; this entry supersedes their
+formatting only, not their substance, which is addressed separately below.
+
+**Correction:** LOG-0294's "once LOG-XXXX above is fixed" refers to LOG-0293.
+LOG-0296's "safe to auto-fold into a prompt if you want it fixed alongside
+LOG-XXXX above" refers to LOG-0295. Both LOG-0293–0296 should be read as
+`status: proposed` (verified-by-direct-code-reading, not yet human-reviewed),
+not as the file's `confirmed` status.
+
+---
+
+### [LOG-0298] LOG-0293 (archive step wiring) — fix verified correct; new pre-existing gap found: `records_officer` missing from `ACTION_STEP_ROLES`
+
+- date: 2026-08-10
+- task_id: (patch 0002 verification)
+- status: proposed
+- affects: I1 §6.2 (`step_instance:complete_action` base role set), workflow.policy.ts
+
+**What was found:** Patch `0002-fix-Archive-step-wiring-and-portal-publication-state.patch`
+correctly resolves LOG-0293 by adding a `stepDef.stepKey === 'archive'` branch
+inside `submitStepAction` (`apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts:47-55`)
+that calls `deps.documentsService.transitionState(instance.documentId, 'archived',
+actorId, 'Document archived', trx)` before the step instance is marked completed,
+inside the same transaction — reproducing `documents.archive`'s atomicity without
+duplicating `archiveStepForDocument`. Duplicating `archiveStepForDocument` here
+would have been actively wrong, not just redundant: it re-resolves the same active
+step instance by key and calls `autoCompleteActionStep` on it, which would race
+against the very step completion already in progress in the same function. Verified
+this by tracing all three call sites of `autoCompleteActionStep` in the codebase
+(`action.handler.ts` self-definition aside): `workflow.public-api.ts:264`
+(`archiveStepForDocument`, not reachable from this new code path) and
+`step-resolution.ts:231` (gated on `config['auto_complete'] === true`, and the
+`archive` step's seed config has `auto_complete: false`, so this path can never
+reach an `archive`-keyed step regardless of this patch).
+
+However, tracing the *upstream* gate this new code depends on surfaced an
+independent, pre-existing bug: `canCompleteActionStep`
+(`apps/server/src/modules/workflow/workflow.policy.ts:272`) requires
+`rolesIntersect(subject.roles, ACTION_STEP_ROLES)` before `submitStepAction` is
+ever called (`workflow.router.ts:2381`, inside `completeActionStep`).
+`ACTION_STEP_ROLES` (`workflow.policy.ts:131-139`) is `{dept_encoder,
+dept_approver, sp_secretary, sp_presiding_officer, mayor, brgy_encoder,
+brgy_captain}` — it does not include `records_officer`. The `archive` step's seed
+config (`packages/database/src/seeds/workflow/phase1-legislative.ts:366`) assigns
+it to `ROLE.RECORDS_OFFICER`. A user whose only role is `records_officer` would be
+rejected with `FORBIDDEN` (`cause: 'complete_action_role_denied'`) before reaching
+this patch's new logic at all — independent of whether the patch itself is correct.
+
+Comparison to adjacent role sets in the same file suggests this is a genuine gap,
+not deliberate: `records_officer` is present in `INSTANCE_OWN_OFFICE_READ_ROLES`
+(line 117), `INSTANCE_CROSS_OFFICE_READ_ROLES` (line 124), and `SLA_READ_ROLES`
+(line 157) — three separate, similarly-scoped sets in the same file. Its specific
+absence from `ACTION_STEP_ROLES` (cited as sourced from `I1 §6.2`) looks
+inconsistent with that pattern, but I have not read the source document `I1 §6.2`
+directly and cannot confirm whether the exclusion is intentional.
+
+**What was NOT implemented:** No fix. This is a design/source-of-truth question
+(does `I1 §6.2` intend to exclude `records_officer` from general action-step
+completion, or was this an omission when the set was written) that needs a human
+decision, not something to resolve by inference from adjacent sets. Whether a
+`records_officer`-only user is realistic in this system's actual role assignments
+is also unverified — I can only confirm the gate as written would reject such a
+user; I cannot confirm how common that user profile is in practice.
+
+---
+
+### [LOG-0299] Patch 0001 (Panlalawigan panel documentTypeCode) — verified correct; noted `documentTypes.deletedAt` filter inconsistency
+
+- date: 2026-08-10
+- task_id: (patch 0001 verification)
+- status: proposed
+- affects: LOG-0295 (supersedes with confirmation, not contradiction)
+
+**What was found:** Patch `0001-fix-update-Panlalawigan-Outcome-Panel-UX.patch`
+correctly resolves LOG-0295. `getInstance`'s output schema and return object
+(`apps/server/src/modules/workflow/workflow.router.ts`) gained a
+`documentTypeCode: z.string().nullable()` field, populated via
+`select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id,
+doc.documentTypeId))`. `PanlalawiganOutcomePanel.tsx`'s dropdown now conditionally
+renders `OPERATIVE_IN_ITS_ENTIRETY` only when
+`instance.documentTypeCode === 'appropriation_ordinance'`, which correctly fails
+closed (hides the option) for any other value including `null`/`undefined`, matching
+the required behavior exactly. Confirmed via the actual render call path
+(`WorkflowStepActionPage.tsx:73`, `trpc.workflow.getInstance.useQuery`) that fixing
+only `getInstance` and not also `getActiveInstanceForDocument` was correctly scoped,
+not an oversight — the latter is never called on this component's path.
+
+One inconsistency worth a decision, not a blocker: the new query does not include
+`isNull(documentTypes.deletedAt)`, unlike `documents.repository.ts:416`'s equivalent
+by-id lookup. This is not a clear convention violation — `document-requests.router.ts`
+has four call sites with the identical `eq(documentTypes.id, ...)`-only shape (lines
+272, 336, 434, 542), so the codebase itself is inconsistent on whether an
+already-validated document's `documentTypeId` FK lookup needs a soft-delete filter.
+Practical impact if the type is soft-deleted after documents already reference it:
+this new field would still resolve its `code`, so the dropdown-filter fix itself
+would not regress, but the value technically bypasses this codebase's soft-delete
+convention.
+
+**What was NOT implemented:** No fix for the `deletedAt` filter question — flagging
+for a human to decide whether `documentTypes` id-lookups should adopt the
+`isNull(deletedAt)` convention project-wide (which would mean fixing 5 call sites,
+not just this new one) or whether the FK-already-validated case is legitimately
+exempt.
+
+---
+
+### [LOG-0300] Button copy fix (LOG-0296) — verified correct
+
+- date: 2026-08-10
+- task_id: (patch 0001 verification)
+- status: proposed
+- affects: none (confirms LOG-0296 resolved, no new finding)
+
+**What was found:** Patch `0001` changed `PanlalawiganOutcomePanel.tsx`'s second
+button from "Confirm Deemed Approved & Advance Workflow" to "Confirm Deemed
+Approved" exactly as specified, and added an optional clarifying note ("Advances
+automatically", styled `text-xs text-muted-foreground`) below it, with wording
+that avoids stating a specific schedule. The sibling button ("Record Outcome &
+Advance Workflow", confirmed accurate in the prior investigation) was correctly
+left unmodified.
+
+**What was implemented:** N/A — this entry only confirms the fix, filed for
+completeness per this file's convention of one entry per discovery rather than
+leaving verified fixes unrecorded.
 
 ---
 
