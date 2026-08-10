@@ -10375,3 +10375,209 @@ derived from any pre-development document — no loaded spec states this
 mapping explicitly.
 
 ---
+
+### [LOG-0313] TASK-PORTAL-006/007: accessMode public-to-internal vocabulary translation was missing, now added
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: E2 (ComplaintAccessMode, DocumentRequestAccessMode), document-metadata.ts (CitizenComplaintMetadataSchema, documentRequestFormBase)
+
+**What was found:** LOG-0291 (TASK-PORTAL-003) identified an accessMode
+vocabulary mismatch and explicitly assigned resolving the translation to
+TASK-PORTAL-006's scope. That translation was never implemented:
+createPublicSubmission() wrote the public accessMode value ('digital_form' |
+'clerk_assisted') directly into internal metadata.accessMode unchanged,
+instead of the internal three-value vocabulary ('downloaded_form' |
+'digital_form_printed' | 'in_person_clerk') that document-metadata.ts's
+schemas and downstream consumers expect. Confirmed one live consumer of the
+untranslated value: apps/web/src/pages/documents/PrintableFormView.tsx:132-134
+only recognizes 'in_person_clerk' for its display label, so clerk-assisted
+public submissions rendered the raw string "clerk_assisted" instead of the
+intended "In-Person (Clerk-Assisted)" label.
+
+**What was implemented:** Added toInternalAccessMode() to
+documents.public-submission.service.ts, mapping 'digital_form' →
+'digital_form_printed' and 'clerk_assisted' → 'in_person_clerk'.
+'downloaded_form' has no public-facing equivalent and is not produced by this
+path. Two new test cases added to
+documents.public-submission.service.test.ts confirming the stored metadata
+carries the translated value.
+
+[Inference]: The mapping (digital_form→digital_form_printed,
+clerk_assisted→in_person_clerk) was confirmed by a human during planning, not
+derived from any pre-development document — no loaded spec states this
+mapping explicitly.
+
+---
+
+### [LOG-0315] Document-type display name map has no findings-log precedent despite code comment's claim
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-008-FIX-01
+- status: proposed
+- affects: E2 (§ document type display fields), TASK-TRACK-007, TASK-PORTAL-009
+
+**What was found:**
+
+`apps/server/src/modules/tracking/tracking.public-handler.ts:22-29` defines
+`DOCUMENT_TYPE_NAMES`, a hardcoded `documentTypeCode → display name` map used
+because `DocumentSummary` (the Documents Public API shape this handler
+consumes) exposes only `documentTypeCode`, not a display name, and the
+public tracking response needs one (matching E2's example payload style,
+e.g. "SP Resolution"). The comment above this map claimed the underlying
+`[Inference]` decision was "Recorded in docs/development-findings-log.md."
+A search of this log (multiple phrasings) found no entry documenting this
+decision, and no entry anywhere in the log carries `task_id: TASK-PORTAL-009`
+— the task the comment separately attributed the map to. `TASK-PORTAL-009`
+itself has no built deliverables in the repository (`apps/portal/src/app/`
+contains only a placeholder home page as of this finding). This entry exists
+to make the comment's claim true going forward; it does not resolve the
+underlying design question of whether this map should instead live as a
+shared constant (e.g. in `packages/shared`) so it doesn't drift from any
+equivalent display-name mapping the frontend eventually needs of its own.
+
+**What was implemented:**
+
+No code change. This is a documentation-only entry filed as part of
+`TASK-PORTAL-008-FIX-01`, alongside a correction to the code comment itself
+(which previously asserted this entry already existed). A human should
+confirm whether a single shared display-name map (rather than one
+independently maintained per consumer) is worth centralizing, and whether
+`packages/shared` is the right location if so.
+
+---
+
+### [LOG-0316] Lifecycle status label map is a workflow-step-blind approximation; findings-log claim in code comment was false
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-008-FIX-01
+- status: proposed
+- affects: E2 (§ lifecycleStatus field definition), TASK-TRACK-007, TASK-PORTAL-009
+
+**What was found:**
+
+`apps/server/src/modules/tracking/tracking.public-handler.ts:40-49` defines
+`LIFECYCLE_STATUS_LABELS`, mapping the raw `documents.lifecycle_state`
+database enum to a human-readable label for the public tracking response.
+E2 (`e2-rest-api-specification-openapi3.md:1223-1231`) specifies
+`lifecycleStatus` as "a human-readable display label ... not an enum — the
+label is derived from both the lifecycle_state and the current workflow
+step for richer display," giving the concrete example `"With Mayor —
+Pending Signature"` rather than the raw `"under_review"`. The Tracking
+module's public handler has no access to workflow-step data (it consumes
+only the Documents Published API and its own repository), so
+`LIFECYCLE_STATUS_LABELS` can only approximate off `lifecycle_state` alone
+— for example, a document in `pending_mayor_action` always renders as
+`"With Mayor — Pending Signature"` regardless of which specific step within
+that phase it's actually in, even though E2's own example implies the
+step-specific text is the intended richer behavior. The comment above this
+map claimed this `[Inference]` decision was "Recorded in
+docs/development-findings-log.md." As with LOG-0313, no entry documenting
+this decision existed anywhere in the log prior to this one, and no entry
+carries `task_id: TASK-PORTAL-009`, which the comment separately (and, per
+LOG-0313, incorrectly) attributed this work to.
+
+**What was implemented:**
+
+No code change. This is a documentation-only entry filed as part of
+`TASK-PORTAL-008-FIX-01`, alongside a correction to the code comment itself.
+A human should confirm whether this lifecycle-state-only approximation is
+acceptable as a permanent Phase 1 behavior, or whether the Tracking module's
+public handler needs a cross-module read into workflow-step state (which
+would be a new dependency this module doesn't currently have) to produce
+the step-specific labels E2's example implies.
+
+---
+
+### [LOG-0317] `@batac/ui` barrel cannot be imported from a Next.js Server Component (Next 15.5.23)
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-009
+- status: proposed
+- affects: F1, F5
+
+During TASK-PORTAL-009 the four portal pages were written as Next.js Server
+Components. Importing UI primitives from the `@batac/ui` barrel (`import {
+Card } from '@batac/ui'`) made the Next 15.5.23 dev server fail to compile
+any route with:
+
+```
+Module build failed ... next-flight-loader:
+Error: It's currently unsupported to use "export *" in a client boundary.
+```
+
+The failing import chain (from the dev-server error trace) is:
+
+```
+node_modules/@tiptap/react/dist/index.js   <- 'use client' + export *
+packages/ui/src/components/domain/RichTextEditor.tsx
+packages/ui/src/index.ts                   <- the @batac/ui barrel (export *)
+apps/portal/src/app/page.tsx
+```
+
+`@tiptap/react`'s dist barrel is a `'use client'` module that uses
+`export *`, which the flight loader rejects when the barrel that
+transitively re-exports it is pulled into a Server Component's module graph
+(`next-flight-loader` throws when a client boundary's `clientRefs` contains
+`'*'`). Client Components that import the same barrel compile fine (the
+complaints form, `/complaints/new`, was unaffected) because they do not
+cross the server → client flight boundary. Verified with the running dev
+server: `next build` and `next dev` both compile the portal once the barrel
+is avoided in Server Components.
+
+**What was implemented:** the portal's Server Components now import UI
+primitives via deep subpath exports (`@batac/ui/components/ui/card`,
+`@batac/ui/components/ui/button`, `@batac/ui/components/ui/input`,
+`@batac/ui/lib/utils`) instead of the barrel. `@batac/ui/package.json`
+gained `./components/ui/card` and `./components/ui/input` export entries
+(existing entries for `button`, `tabs`, `avatar`, `lib/utils`,
+`lib/date-locale` already covered the rest). Client Components under
+`/apps/portal/src` were switched to deep imports too, so no portal code
+depends on the barrel. The existing `/complaints/new` pages still use the
+barrel and are left untouched.
+
+[Inference] the same failure would occur for any other Next.js app whose
+Server Components import the `@batac/ui` barrel while `RichTextEditor` →
+`@tiptap/react` remains in its export graph; the web app was not running
+during this pass so this was not tested there. A human should decide
+whether to restructure the ui barrel (e.g. per-component `'use client'`
+boundaries or named re-exports) as a permanent fix.
+
+---
+
+### [LOG-0318] Portal links to `/requests/new` instead of the API-provided `documentRequestUrl`
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-009
+- status: proposed
+- affects: E2, F1
+
+The tracking and published-document pages render a "Request a certified
+copy" link. E2 and the server code both build `documentRequestUrl` as
+`${PORTAL_BASE_URL}/document-requests?ref=${finalNumber}` (verified in
+`apps/server/src/modules/documents/documents.public-read.service.ts:100` and
+`apps/server/src/modules/tracking/tracking.public-handler.ts:113`), but the
+citizen request form lives at `/requests/new` per F1 §14.2 and
+TASK-PORTAL-011's deliverables — TASK-PORTAL-011 itself flags this as an
+unresolved `[CONFLICT]` between E2's example string and F1's route table.
+Linking citizens to `documentRequestUrl` verbatim would point them at a
+route this app does not serve.
+
+**What was implemented:** a small helper
+`apps/portal/src/lib/document-request.ts` (`documentRequestHref`) returns
+`/requests/new?ref=<finalNumber>` (falling back to `?ref=<documentId>` when
+`finalNumber` is null) and all portal pages link to that. The `?ref=` value
+matches what TASK-PORTAL-011's deep-link pre-fill reads from
+`useSearchParams()`.
+
+[Inference] the durable fix is on the server side — have
+TASK-PORTAL-005's `documentRequestUrl` construction emit
+`/requests/new?ref=...` so the API and the frontend agree, which
+TASK-PORTAL-011's AI Prompt already asks a human to revisit. Until then the
+frontend deliberately ignores the API's `documentRequestUrl` field for link
+rendering.
+
+---
+
+

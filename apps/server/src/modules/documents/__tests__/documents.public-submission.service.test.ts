@@ -55,6 +55,9 @@ const REQUEST_SERIES = {
 };
 
 describe('createPublicSubmission', () => {
+
+
+
   let mockDb: any;
   let numberingService: any;
   let eventBus: any;
@@ -98,7 +101,80 @@ describe('createPublicSubmission', () => {
     vi.restoreAllMocks();
   });
 
-  it('produces sequential COMP-{year}-0001 / COMP-{year}-0002 reference codes in the same year', async () => {
+  it('translates accessMode digital_form to digital_form_printed', async () => {
+    numberingService.reserveReferenceNumber.mockResolvedValueOnce({
+      numberValue: `COMP-${YEAR}-0001`,
+      sequenceNumber: 1,
+      sequenceYear: YEAR,
+    });
+    const result = await createPublicSubmission(buildDeps(), {
+      documentType: 'CITIZEN_COMPLAINT',
+      metadata: { complainant: { name: 'Test User' }, accessMode: 'digital_form' },
+      cityId: 'city-1',
+    });
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ accessMode: 'digital_form_printed' })
+      })
+    );
+  });
+
+  it('translates accessMode clerk_assisted to in_person_clerk', async () => {
+    numberingService.reserveReferenceNumber.mockResolvedValueOnce({
+      numberValue: `COMP-${YEAR}-0002`,
+      sequenceNumber: 2,
+      sequenceYear: YEAR,
+    });
+    const result = await createPublicSubmission(buildDeps(), {
+      documentType: 'CITIZEN_COMPLAINT',
+      metadata: { complainant: { name: 'Test Clerk' }, accessMode: 'clerk_assisted' },
+      cityId: 'city-1',
+    });
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ accessMode: 'in_person_clerk' })
+      })
+    );
+  });
+
+
+    numberingService.reserveReferenceNumber.mockResolvedValueOnce({
+      numberValue: `COMP-${YEAR}-0001`,
+      sequenceNumber: 1,
+      sequenceYear: YEAR,
+    });
+    const result = await createPublicSubmission(buildDeps(), {
+      documentType: 'CITIZEN_COMPLAINT',
+      metadata: { complainant: { name: 'Test User' }, accessMode: 'digital_form' },
+      cityId: 'city-1',
+    });
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ accessMode: 'digital_form_printed' })
+      })
+    );
+  });
+
+  it('translates accessMode clerk_assisted to in_person_clerk', async () => {
+    // Test: accessMode 'clerk_assisted' is translated to 'in_person_clerk' in storedMetadata
+
+    numberingService.reserveReferenceNumber.mockResolvedValueOnce({
+      numberValue: `COMP-${YEAR}-0002`,
+      sequenceNumber: 2,
+      sequenceYear: YEAR,
+    });
+    const result = await createPublicSubmission(buildDeps(), {
+      documentType: 'CITIZEN_COMPLAINT',
+      metadata: { complainant: { name: 'Test Clerk' }, accessMode: 'clerk_assisted' },
+      cityId: 'city-1',
+    });
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ accessMode: 'in_person_clerk' })
+      })
+    );
+  });
+
     numberingService.reserveReferenceNumber
       .mockResolvedValueOnce({
         numberValue: `COMP-${YEAR}-0001`,
