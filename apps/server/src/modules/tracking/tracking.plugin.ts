@@ -1,7 +1,6 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { TrackingRepository } from './tracking.repository.js';
 import { QrCodeService } from './tracking.qr-service.js';
 import { createTrackingService } from './tracking.service.js';
@@ -95,7 +94,7 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
     error: z.string(),
   });
 
-  fastify.withTypeProvider<ZodTypeProvider>().get(
+  fastify.get(
     '/public/tracking/:trackingNumber',
     {
       schema: {
