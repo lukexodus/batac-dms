@@ -145,7 +145,13 @@ const currentFinalNumberJoin = and(
 function publicPortalEligibilityConditions(): SQL[] {
   return [
     eq(documents.lifecycleState, 'released'),
-    eq(documents.classificationLevel, 'public'),
+    or(
+      eq(documents.classificationLevel, 'public'),
+      and(
+        eq(documents.classificationLevel, 'internal'),
+        eq(documentTypes.publicVisibilityRule, 'title_and_first_page_public'),
+      ),
+    )!,
     eq(documentTypes.publicVisibilityRule, 'title_and_first_page_public'),
     inArray(documentTypes.code, [...PUBLIC_PORTAL_DOCUMENT_TYPE_CODES]),
     isNotNull(documents.finalNumber),
