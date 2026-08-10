@@ -1,54 +1,73 @@
+# ==========================================
+# Version Control & Local Notes
+# ==========================================
 .git/
 .obsidian/
-patches/
-docs/compressed-exploration-findings/
-logs/
 
-batac-dms/
-"batac-dms (2)/"
+# ==========================================
+# Dependencies & Build Outputs
+# ==========================================
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+tsconfig.tsbuildinfo
 
-*.docx
-*.docx#
-
-*.zip
-*.tar.gz
-
-*-ignore.md
-*-ignore.html
-*.patch
-
-# Monorepo/Tooling ignores
-node_modules
-dist
-.turbo
+# ==========================================
+# Environment & Secrets
+# ==========================================
 # .env
-.env.local
-.env*.local
 # .env.staging
 # .env.production
-coverage
-build
-.next
-*.log
+.env.local
+.env*.local
 /secrets/
 
-commit_msg.txt
-lint-result
-typecheck-result
-PLAN-*
-test-result
-git-diff
+# ==========================================
+# Script Overrides & Exceptions
+# ==========================================
 
-data/openobserve/
-
-*.js
-*.py
-*.cjs
-
-# Keep the run-guard script tracked despite the *.js ignore above
+# Keep specific guard script tracked despite script wildcards above
 !scripts/run-guard.js
 
-# Local lock files
+# ==========================================
+# Logs, Tests & Local Lock Files
+# ==========================================
+logs/
+*.log
+coverage/
+lint-result
+typecheck-result
+test-result
 .typecheck.lock
 .lint.lock
 .test.lock
+
+# ==========================================
+# Git, Planning & AI Tooling Artifacts
+# ==========================================
+commit_msg.txt
+git-diff
+patches/
+*.patch
+PLAN-*
+.aider*
+
+# ==========================================
+# Project Directories & Local Data
+# ==========================================
+batac-dms/
+"batac-dms (2)/"
+data/openobserve/
+docs/compressed-exploration-findings/
+
+# ==========================================
+# Binary Archives & Ignored Documents
+# ==========================================
+*.zip
+*.tar.gz
+*.docx
+*.docx#
+*-ignore.md
+*-ignore.html
