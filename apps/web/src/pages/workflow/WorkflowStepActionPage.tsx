@@ -5,6 +5,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@batac/ui';
 
 import { AmendmentsLoggingPanel } from './panels/AmendmentsLoggingPanel';
+import { ArchivePanel } from './panels/ArchivePanel';
 import { CommitteeRevisionsDecisionPanel } from './panels/CommitteeRevisionsDecisionPanel';
 import { DocketingPanel } from './panels/DocketingPanel';
 import { FinalNumberAssignmentPanel } from './panels/FinalNumberAssignmentPanel';
@@ -153,6 +154,10 @@ export function WorkflowStepActionPage() {
       case 'docketing':
         canAct = hasRole(identity, 'sp_secretary');
         if (canAct) return <DocketingPanel instance={instance} />;
+        break;
+      case 'archive_confirmation':
+        canAct = hasRole(identity, 'records_officer', 'sp_secretary');
+        if (canAct) return <ArchivePanel instance={instance} />;
         break;
       case 'panlalawigan_outcome':
         canAct = hasRole(identity, 'sp_secretary');

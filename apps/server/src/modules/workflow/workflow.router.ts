@@ -530,6 +530,7 @@ function computePanelHint(
   | 'mayor_lapse_confirmation'
   | 'veto_override_recording'
   | 'docketing'
+  | 'archive_confirmation'
   | 'panlalawigan_outcome'
   | 'publication_date'
   | 'returned_review_decision'
@@ -564,6 +565,8 @@ function computePanelHint(
     return 'veto_override_recording';
   } else if (stepKey === 'docketing') {
     return 'docketing';
+  } else if (stepKey === 'archive') {
+    return 'archive_confirmation';
   } else if (stepKey === 'panlalawigan_review') {
     return 'panlalawigan_outcome';
   } else if (stepKey === 'newspaper_publication') {
@@ -1780,6 +1783,7 @@ export function createWorkflowRouter() {
                 'mayor_lapse_confirmation',
                 'veto_override_recording',
                 'docketing',
+                'archive_confirmation',
                 'panlalawigan_outcome',
                 'publication_date',
                 'returned_review_decision',
