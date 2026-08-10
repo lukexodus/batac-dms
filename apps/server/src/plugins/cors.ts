@@ -1,11 +1,11 @@
 import fp from 'fastify-plugin';
 import cors from '@fastify/cors';
+import { env } from '../config/env.js';
 
 export default fp(async (fastify) => {
-  const allowedOrigins = (process.env['CORS_ALLOWED_ORIGINS'] ?? '').split(',').filter(Boolean);
   await fastify.register(cors, {
-    origin: allowedOrigins,
-    credentials: true,
+    origin: env.CORS_ALLOWED_ORIGINS,
+    credentials: false,
     methods: ['GET', 'POST', 'OPTIONS'],
     maxAge: 600,
   });
