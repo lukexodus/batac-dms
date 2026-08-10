@@ -24,6 +24,14 @@
       "types": "./src/components/ui/button.tsx",
       "default": "./src/components/ui/button.tsx"
     },
+    "./components/ui/card": {
+      "types": "./src/components/ui/card.tsx",
+      "default": "./src/components/ui/card.tsx"
+    },
+    "./components/ui/input": {
+      "types": "./src/components/ui/input.tsx",
+      "default": "./src/components/ui/input.tsx"
+    },
     "./components/ui/tabs": {
       "types": "./src/components/ui/tabs.tsx",
       "default": "./src/components/ui/tabs.tsx"
