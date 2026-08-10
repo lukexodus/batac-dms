@@ -17,6 +17,7 @@ import { MayorLapseConfirmationPanel } from './panels/MayorLapseConfirmationPane
 import { MultiReferralPanel } from './panels/MultiReferralPanel';
 import { OrderOfBusinessSchedulingPanel } from './panels/OrderOfBusinessSchedulingPanel';
 import { PanlalawiganOutcomePanel } from './panels/PanlalawiganOutcomePanel';
+import { PortalPublicationPanel } from './panels/PortalPublicationPanel';
 import { PublicationDatePanel } from './panels/PublicationDatePanel';
 import { ReturnedReviewDecisionPanel } from './panels/ReturnedReviewDecisionPanel';
 import { SecretariatDecisionPanel } from './panels/SecretariatDecisionPanel';
@@ -151,6 +152,10 @@ export function WorkflowStepActionPage() {
       case 'archive_confirmation':
         canAct = hasRole(identity, 'records_officer', 'sp_secretary');
         if (canAct) return <ArchivePanel instance={instance} />;
+        break;
+      case 'portal_publication_step':
+        canAct = hasRole(identity, 'sp_secretary');
+        if (canAct) return <PortalPublicationPanel instance={instance} />;
         break;
       case 'panlalawigan_outcome':
         canAct = hasRole(identity, 'sp_secretary');

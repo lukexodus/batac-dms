@@ -541,6 +541,7 @@ function computePanelHint(
   | 'veto_override_recording'
   | 'docketing'
   | 'archive_confirmation'
+  | 'portal_publication_step'
   | 'panlalawigan_outcome'
   | 'publication_date'
   | 'returned_review_decision'
@@ -577,6 +578,8 @@ function computePanelHint(
     return 'docketing';
   } else if (stepKey === 'archive') {
     return 'archive_confirmation';
+  } else if (stepKey === 'portal_publication') {
+    return 'portal_publication_step';
   } else if (stepKey === 'panlalawigan_review') {
     return 'panlalawigan_outcome';
   } else if (stepKey === 'newspaper_publication') {
