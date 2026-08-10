@@ -108,7 +108,7 @@ All environment variables follow a structured prefix hierarchy that reflects the
 | `NOTIF_` | In-app notification settings | `NOTIF_RETENTION_DAYS` |
 | `SENTRY_` | Error tracking and performance monitoring | `SENTRY_DSN`, `SENTRY_ENVIRONMENT` |
 | `LOG_` | Structured logging behaviour | `LOG_LEVEL`, `LOG_PRETTY` |
-| `PORTAL_` | Public citizen portal (Phase 3) | `PORTAL_URL`, `PORTAL_CDN_URL` |
+| `PORTAL_` | Public citizen portal (Phase 1, per ADR-UI-001) | `PORTAL_URL`, `PORTAL_CDN_URL` |
 | `JOB_` | Background job workers (pgboss, node-cron) | `JOB_WORKER_CONCURRENCY`, `JOB_RETRY_LIMIT` |
 | `CRON_` | Scheduled task timing expressions | `CRON_SLA_CHECK`, `CRON_MAYOR_LAPSE_CHECK` |
 | `RATE_` | Rate limiter thresholds per endpoint group | `RATE_AUTH_MAX`, `RATE_API_WINDOW_MS` |
@@ -440,7 +440,7 @@ The platform delivers real-time in-app notifications using Server-Sent Events (S
 
 ## 14. Public Portal Configuration
 
-The public citizen portal (`/apps/portal`) is a Next.js application delivered in Phase 3. Variables in this section are forward-declared so the schema is ready when the portal module is activated. Some variables have `NEXT_PUBLIC_` prefixes, which Next.js includes in the client-side JavaScript bundle. **Never put secrets in `NEXT_PUBLIC_` variables.**
+The public citizen portal (`/apps/portal`) is a Next.js application, built in Phase 1 per `ADR-UI-001` (see `docs/pre-development/F-frontend-architecture/f1-application-route-map-adrs/ADR-UI-001-public-portal-hosting-app.md`). `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL` are required at startup (see `apps/portal/src/config/env.portal.ts`); other variables in this section may still be forward-declared for functionality not yet built. Some variables have `NEXT_PUBLIC_` prefixes, which Next.js includes in the client-side JavaScript bundle. **Never put secrets in `NEXT_PUBLIC_` variables.**
 
 | Variable | Class | Required | Secret | Default | Example | Description |
 |---|---|---|---|---|---|---|
@@ -448,7 +448,8 @@ The public citizen portal (`/apps/portal`) is a Next.js application delivered in
 | `PORTAL_API_URL` | PH3 | No | No | `(mirrors API_URL)` | `https://api.batac.gov.ph` | The Fastify REST API base URL, as accessed by the Next.js portal server-side rendering layer. |
 | `PORTAL_CDN_URL` | PH3 | No | No | — | `https://cdn.batac.gov.ph` | CDN origin for portal static assets. Leave blank to serve from `PORTAL_URL` directly. |
 | `NEXT_PUBLIC_APP_NAME` | PH3, PUB | No | No | `Batac City LGU` | `Batac City LGU` | Application name embedded in the portal client bundle. Appears in page titles and meta tags. |
-| `NEXT_PUBLIC_API_URL` | PH3, PUB | No | No | — | `https://api.batac.gov.ph` | Base URL of the REST API, included in the portal's client-side bundle for browser-initiated requests. Must be publicly reachable. |
+| `NEXT_PUBLIC_API_URL` | PH1, PUB | Yes | No | — | `https://api.batac.gov.ph` | Base URL of the REST API, included in the portal's client-side bundle for browser-initiated requests. Must be publicly reachable. Required — `apps/portal/src/config/env.portal.ts` fails fast at startup if unset. |
+| `NEXT_PUBLIC_APP_URL` | PH1, PUB | Yes | No | — | `https://portal.batac.gov.ph` | The portal application's own public base URL, required at startup, used for constructing absolute links back to the portal itself. |
 | `NEXT_PUBLIC_PORTAL_URL` | PH3, PUB | No | No | — | `https://portal.batac.gov.ph` | The portal's own public URL, embedded in the client bundle. Used for sharing links. |
 | `NEXT_PUBLIC_QR_BASE_URL` | PH3, PUB | No | No | — | `https://portal.batac.gov.ph/track` | Base URL embedded in QR codes. When a QR code is scanned, the browser navigates to `{NEXT_PUBLIC_QR_BASE_URL}/{tracking_id}`. |
 | `PORTAL_CITIZEN_OTP_EXPIRY_S` | PH3 | No | No | `300` | `300` | Expiry in seconds for citizen portal OTP codes (phone and email verification). Default is 5 minutes. |
