@@ -1029,10 +1029,104 @@ export const APPROPRIATION_ORDINANCE_WORKFLOW: WorkflowDefinitionSeed = (() => {
   return wf;
 })();
 
+export const DOCUMENT_REQUEST_FORM_WORKFLOW: WorkflowDefinitionSeed = {
+  definition: {
+    name: 'Document Request Form — Dual Approval',
+    description:
+      'Walk-in document request form: Vice Mayor (presiding officer) then SP Secretary sequential approval, per ADR-EVT-001.',
+    document_type_code: 'DOCUMENT_REQUEST_FORM',
+    is_active: true,
+  },
+  version: {
+    version_number: 1,
+    steps: [
+      {
+        step_key: 'vm_approval',
+        step_type: 'approval',
+        label: 'Vice Mayor (Presiding Officer) Approval',
+        is_start: true,
+        position: 1,
+        legally_mandated: false,
+        config: {
+          assignee: ROLE.VICE_MAYOR,
+          allowed_outcomes: ['APPROVED', 'REJECTED'],
+          require_comment_on: ['REJECTED'],
+        },
+      },
+      {
+        step_key: 'sp_secretary_approval',
+        step_type: 'approval',
+        label: 'SP Secretary Approval',
+        is_start: false,
+        position: 2,
+        legally_mandated: false,
+        config: {
+          assignee: ROLE.SP_SECRETARY,
+          allowed_outcomes: ['APPROVED', 'REJECTED'],
+          require_comment_on: ['REJECTED'],
+        },
+      },
+      {
+        step_key: 'end_released_to_requester',
+        step_type: 'termination',
+        label: 'Request Approved — Ready for Release',
+        is_start: false,
+        position: 3,
+        legally_mandated: false,
+        config: { outcome_code: 'RELEASED_TO_REQUESTER', final_document_status: null },
+      },
+      {
+        step_key: 'end_request_denied',
+        step_type: 'termination',
+        label: 'Request Denied',
+        is_start: false,
+        position: 4,
+        legally_mandated: false,
+        config: { outcome_code: 'REQUEST_DENIED', final_document_status: 'cancelled' },
+      },
+    ],
+    transition_rules: [
+      {
+        from_step_key: 'vm_approval',
+        to_step_key: 'sp_secretary_approval',
+        outcome_filter: 'APPROVED',
+        condition_expression: null,
+        priority: 1,
+        label: 'Vice Mayor approved — proceeds to SP Secretary',
+      },
+      {
+        from_step_key: 'vm_approval',
+        to_step_key: 'end_request_denied',
+        outcome_filter: 'REJECTED',
+        condition_expression: null,
+        priority: 2,
+        label: 'Vice Mayor rejected — request denied',
+      },
+      {
+        from_step_key: 'sp_secretary_approval',
+        to_step_key: 'end_released_to_requester',
+        outcome_filter: 'APPROVED',
+        condition_expression: null,
+        priority: 1,
+        label: 'SP Secretary approved — ready for release',
+      },
+      {
+        from_step_key: 'sp_secretary_approval',
+        to_step_key: 'end_request_denied',
+        outcome_filter: 'REJECTED',
+        condition_expression: null,
+        priority: 2,
+        label: 'SP Secretary rejected — request denied',
+      },
+    ],
+  },
+};
+
 const ALL_WORKFLOWS = [
   SP_RESOLUTION_WORKFLOW,
   SP_ORDINANCE_WORKFLOW,
   APPROPRIATION_ORDINANCE_WORKFLOW,
+  DOCUMENT_REQUEST_FORM_WORKFLOW,
 ];
 
 export async function seedPhase1WorkflowDefinitions(

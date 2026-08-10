@@ -4,16 +4,20 @@
  * Router-level tests for the six documentRequests procedures.
  * Uses the same t.createCallerFactory pattern as documents.router.test.ts.
  *
- * Coverage targets (acceptance criteria from TASK-DOCS-017):
+ * Coverage targets (acceptance criteria from TASK-DOCS-017, workflow-backed
+ * approval state per ADR-EVT-001 / TASK-WF-025):
  *  AC1  createDocumentRequestClerkAssisted inserts lifecycle_state='draft',
  *       metadata.accessMode='in_person_clerk'
- *  AC2  approveAsPresidingOfficer — sp_presiding_officer succeeds; all
+ *  AC2  approveAsPresidingOfficer — sp_presiding_officer succeeds; approval
+ *       recorded via workflowService.submitStepApprovalForDocument; all
  *       other roles throw FORBIDDEN
- *  AC3  approveAsSecretary — throws PRECONDITION_FAILED when VM has not approved
+ *  AC3  approveAsSecretary — throws PRECONDITION_FAILED when the engine
+ *       reports the SP step is not active (VM has not approved)
  *  AC4  releaseCopy — marks released without requiring payment; OR number
  *       recorded when provided; throws BAD_REQUEST if not yet completed
  *  AC5  listAll — allowed roles see items; forbidden roles throw FORBIDDEN
  *  AC6  generatePrintableForm — sp_secretary can retrieve form data
+ *  AC-DR4 vmApproved/spApproved read back from the Workflow Engine step state
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -175,16 +179,26 @@ function makeMockDocumentsService() {
   };
 }
 
+function makeMockWorkflowService() {
+  return {
+    // Default: no workflow instance / step → flags resolve to false
+    getStepState: vi.fn().mockResolvedValue(null),
+    submitStepApprovalForDocument: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 function makeCtx(
   subject: AuthContext,
   overrides: {
     repository?: ReturnType<typeof makeMockRepository>;
     documentsService?: ReturnType<typeof makeMockDocumentsService>;
+    workflowService?: ReturnType<typeof makeMockWorkflowService>;
     db?: any;
   } = {},
 ): Context {
   const repository = overrides.repository ?? makeMockRepository();
   const documentsService = overrides.documentsService ?? makeMockDocumentsService();
+  const workflowService = overrides.workflowService ?? makeMockWorkflowService();
   const db = overrides.db ?? makeMockDb();
 
   return {
@@ -195,6 +209,7 @@ function makeCtx(
         db,
         documentsRepository: repository,
         documentsService,
+        workflowService,
         eventBus: null,
         auditService: null,
       },
@@ -287,21 +302,40 @@ describe('documentRequests.createDocumentRequestClerkAssisted', () => {
 describe('documentRequests.approveAsPresidingOfficer', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('AC2: sp_presiding_officer can approve; metadata receives vm_approved=true', async () => {
+  it('AC2: sp_presiding_officer can approve — submits vm_approval step to the Workflow Engine', async () => {
     const subject = makeSubject({ roles: ['sp_presiding_officer'] });
     const repository = makeMockRepository({ lifecycleState: 'draft' });
+    const workflowService = makeMockWorkflowService();
     const db = makeMockDb();
-    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const caller = callerFor(makeCtx(subject, { repository, workflowService, db }));
 
     const result = await caller.approveAsPresidingOfficer({ requestId: DOC_ID });
 
     expect(result).toEqual({ success: true });
-    expect(repository.updateDocumentMetadata).toHaveBeenCalledTimes(1);
 
-    const metaArg = repository.updateDocumentMetadata.mock.calls[0][1];
-    expect(metaArg.vm_approved).toBe(true);
-    expect(metaArg.vm_approved_by).toBe(subject.userId);
-    expect(typeof metaArg.vm_approved_at).toBe('string');
+    // Approval is recorded in the Workflow Engine (ADR-EVT-001) — the step
+    // instance carries the audit trail; no metadata write should occur.
+    expect(workflowService.submitStepApprovalForDocument).toHaveBeenCalledWith(
+      DOC_ID,
+      'vm_approval',
+      subject.userId,
+      'APPROVED',
+      null,
+    );
+    expect(repository.updateDocumentMetadata).not.toHaveBeenCalled();
+  });
+
+  it('maps STEP_NOT_ACTIVE from the engine to PRECONDITION_FAILED', async () => {
+    const subject = makeSubject({ roles: ['sp_presiding_officer'] });
+    const repository = makeMockRepository({ lifecycleState: 'draft' });
+    const workflowService = makeMockWorkflowService();
+    workflowService.submitStepApprovalForDocument.mockRejectedValue(new Error('STEP_NOT_ACTIVE'));
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, workflowService, db }));
+
+    await expect(caller.approveAsPresidingOfficer({ requestId: DOC_ID })).rejects.toMatchObject({
+      code: 'PRECONDITION_FAILED',
+    });
   });
 
   it('AC2: throws FORBIDDEN for sp_secretary', async () => {
@@ -353,87 +387,45 @@ describe('documentRequests.approveAsPresidingOfficer', () => {
 describe('documentRequests.approveAsSecretary', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('AC3: throws PRECONDITION_FAILED when presiding officer has not approved', async () => {
+  it('AC3: throws PRECONDITION_FAILED when the engine reports the SP step is not active (VM has not approved)', async () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
-    // metadata has no vm_approved field
-    const repository = makeMockRepository({
-      lifecycleState: 'draft',
-      metadata: {
-        requester: {
-          name: 'Juan',
-          contactNumber: null,
-          agencyOrOrganization: null,
-          email: null,
-          idTypePresented: null,
-          citizenUserId: null,
-        },
-        documentsRequested: [
-          {
-            documentTitle: 'Test',
-            documentId: null,
-            documentTypeLabel: null,
-            documentNumber: null,
-            numberOfPages: null,
-          },
-        ],
-        purpose: null,
-        accessMode: 'in_person_clerk',
-        payment: null,
-        notificationChannel: null,
-        // vm_approved intentionally absent
-      },
-    });
+    const workflowService = makeMockWorkflowService();
+    // Engine-enforced sequencing: the sp_secretary_approval step only becomes
+    // active after the vm_approval step is APPROVED. Simulate a request where
+    // the VM has not approved yet.
+    workflowService.submitStepApprovalForDocument.mockRejectedValue(new Error('STEP_NOT_ACTIVE'));
+    const repository = makeMockRepository({ lifecycleState: 'draft' });
     const db = makeMockDb();
-    const caller = callerFor(makeCtx(subject, { repository, db }));
+    const caller = callerFor(makeCtx(subject, { repository, workflowService, db }));
 
     await expect(caller.approveAsSecretary({ requestId: DOC_ID })).rejects.toMatchObject({
       code: 'PRECONDITION_FAILED',
     });
   });
 
-  it('AC3: succeeds and transitions to completed when vm_approved=true', async () => {
+  it('AC3: succeeds and transitions to completed after both approvals recorded in the engine', async () => {
     const subject = makeSubject({ roles: ['sp_secretary'] });
-    const repository = makeMockRepository({
-      lifecycleState: 'draft',
-      metadata: {
-        requester: {
-          name: 'Juan',
-          contactNumber: null,
-          agencyOrOrganization: null,
-          email: null,
-          idTypePresented: null,
-          citizenUserId: null,
-        },
-        documentsRequested: [
-          {
-            documentTitle: 'Test',
-            documentId: null,
-            documentTypeLabel: null,
-            documentNumber: null,
-            numberOfPages: null,
-          },
-        ],
-        purpose: null,
-        accessMode: 'in_person_clerk',
-        payment: null,
-        notificationChannel: null,
-        vm_approved: true,
-        vm_approved_at: '2026-07-07T00:00:00.000Z',
-        vm_approved_by: 'aaaa-presiding-officer-uuid',
-      },
-    });
+    const repository = makeMockRepository({ lifecycleState: 'draft' });
+    const workflowService = makeMockWorkflowService();
     const db = makeMockDb();
     const documentsService = makeMockDocumentsService();
-    const caller = callerFor(makeCtx(subject, { repository, db, documentsService }));
+    const caller = callerFor(
+      makeCtx(subject, { repository, workflowService, db, documentsService }),
+    );
 
     const result = await caller.approveAsSecretary({ requestId: DOC_ID });
 
     expect(result).toEqual({ success: true });
 
-    // Must have merged sp_approved into metadata
-    const metaArg = repository.updateDocumentMetadata.mock.calls[0][1];
-    expect(metaArg.sp_approved).toBe(true);
-    expect(metaArg.sp_approved_by).toBe(subject.userId);
+    // SP approval submitted to the Workflow Engine, not merged into metadata
+    expect(workflowService.submitStepApprovalForDocument).toHaveBeenCalledWith(
+      DOC_ID,
+      'sp_secretary_approval',
+      subject.userId,
+      'APPROVED',
+      null,
+    );
+    expect(repository.updateDocumentMetadata).not.toHaveBeenCalled();
 
     // Must transition to 'completed'
     expect(documentsService.transitionState).toHaveBeenCalledWith(
@@ -792,5 +784,31 @@ describe('documentRequests.getDocumentRequest', () => {
     expect(result.purpose).toBe('Personal reference');
     expect(result.payment).toBeNull();
     expect(result.notificationChannel).toBeNull();
+  });
+
+  it('AC-DR4: vmApproved/spApproved reflect the Workflow Engine step state', async () => {
+    const subject = makeSubject({ roles: ['sp_secretary'] });
+    const repository = makeMockRepository();
+    const workflowService = makeMockWorkflowService();
+    // vm step approved by the engine; SP step still pending
+    workflowService.getStepState.mockImplementation(async (documentId: string, stepKey: string) => {
+      if (stepKey === 'vm_approval') {
+        return {
+          status: 'completed',
+          outcome: 'APPROVED',
+          completedAt: new Date('2026-07-07T00:00:00.000Z'),
+        };
+      }
+      return null;
+    });
+    const db = makeMockDb();
+    const caller = callerFor(makeCtx(subject, { repository, workflowService, db }));
+
+    const result = await caller.getDocumentRequest({ requestId: DOC_ID });
+
+    expect(workflowService.getStepState).toHaveBeenCalledWith(DOC_ID, 'vm_approval');
+    expect(workflowService.getStepState).toHaveBeenCalledWith(DOC_ID, 'sp_secretary_approval');
+    expect(result.vmApproved).toBe(true);
+    expect(result.spApproved).toBe(false);
   });
 });

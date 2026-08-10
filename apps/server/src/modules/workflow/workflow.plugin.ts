@@ -93,7 +93,9 @@ const workflowPlugin: FastifyPluginAsync = async (fastify) => {
           event.payload.documentTypeId,
         );
         if (!activeDef) {
-          // NO_ACTIVE_VERSION: expected inert failure in Phase 1 for DOCUMENT_REQUEST_FORM
+          // NO_ACTIVE_VERSION: inert skip for document types that have no
+          // seeded workflow definition (DOCUMENT_REQUEST_FORM now has one —
+          // see DOCUMENT_REQUEST_FORM_WORKFLOW in phase1-legislative.ts).
           fastify.log.info(
             { documentId: event.payload.documentId },
             'No active workflow definition found; skipping instance creation.',

@@ -10023,3 +10023,320 @@ future E2/E3 conflicts generally.
 4. `workflow.router.ts`: Modified BOTH duplicated `drawBlock` closures to render a distinct link color and draw thin rule rectangles for underlines/links (below baseline) and strike-throughs (at half cap-height).
 
 **Note on scope:** Clickable PDF link annotations were explicitly scoped out as a separate, larger task due to `pdf-lib`'s lack of a high-level API for this, requiring low-level annotation dictionaries that must survive word-wrapping reflows.
+
+---
+
+### [LOG-0309] TODO(WF-INTEGRATION) stubs traced to ADR-EVT-001 — scoped as TASK-WF-025, not resolved directly (multi-module migration, real data-safety gate required)
+
+- date: 2026-08-10
+- task_id: (scoping only — see TASK-WF-025)
+- status: proposed
+- affects: ADR-EVT-001, B3, H2
+
+**What was found:** The TODO(WF-INTEGRATION) markers in
+document-requests.router.ts are not undiscovered technical debt — they
+point to ADR-EVT-001, a Resolved architecture decision (stakeholder:
+Luke) specifying that Document Request Form's dual approval must be
+modeled as two Workflow Engine `approval` step instances instead of
+JSONB flags, primarily for audit-coverage reasons (B2's "no exceptions"
+architectural law, B3 §9 Rule 1). No `workflow.definitions` row exists
+yet for DOCUMENT_REQUEST_FORM anywhere in the codebase — this is a
+from-scratch build, not a near-complete migration.
+
+Also found: the actual JSONB-read footprint is larger than the file's
+own header comment claims. The header states "every such site carries a
+TODO(WF-INTEGRATION) comment" — this is false. `listAllDocumentRequests`
+(~line 703-704) and `getDocumentRequest` (~line 750-751) both read
+vm_approved/sp_approved into their output schemas with no TODO comment
+present anywhere near either site. 6 call sites require migration, not
+the 4 implied by the visible TODO comments.
+
+`workflow.getStepState(...)`, the function both existing TODO comments
+name as the intended replacement, does not exist anywhere in the
+codebase (confirmed via full grep of apps/server/src). It must be built
+as part of this migration, following the existing stepInstances.outcome
+read pattern already used elsewhere in workflow.router.ts (e.g. line
+1586-1587), not invented from scratch.
+
+This environment has no reachable database connection (confirmed:
+psql not installed, port 5432 connection refused) and therefore cannot
+answer the one question that determines whether this is a pure
+code/schema migration or also requires a data-backfill step: whether any
+DOCUMENT_REQUEST_FORM documents currently exist mid-approval under the
+JSONB flags. TASK-WF-025's STEP 0 makes this check a mandatory,
+blocking gate that must run before any schema or code change, precisely
+because this could not be resolved during investigation.
+
+**What was implemented:** Nothing directly — this entry and TASK-WF-025
+exist because building ADR-EVT-001's migration is a genuine multi-module
+architectural task (new workflow.definitions row and transition rules,
+2 new termination outcome codes, closed-enum changes to 2 payload
+schemas in packages/shared, a new getStepState function, removal of 3
+H2 metadata-schema fields, migration of 6 call sites, and a
+schema-shape question — boolean vs. 3-state — for the vmApproved/
+spApproved output fields) — not a mechanical single-file fix comparable
+to LOG-0301/LOG-0307's query-filter decisions. Scoping it fully and
+writing TASK-WF-025 as a standalone, gated prompt was judged the
+appropriate action for this authority level; writing the migration code
+directly, unilaterally, on a resolved-but-unbuilt stakeholder ADR with a
+real data-safety unknown, was judged to exceed it.
+
+**What was NOT resolved:** Everything in TASK-WF-025 remains
+unexecuted pending (a) the STEP 0 data-safety check running against a
+real database connection this environment does not have, and (b) three
+explicitly-flagged design decisions within the task (N+1 vs. batched
+query shape for listAllDocumentRequests, boolean vs. enum shape for the
+vmApproved/spApproved schema fields, and whether to backfill stale
+JSONB fields in historical rows) that the prompt deliberately declines
+to pre-decide.
+
+---
+
+### [LOG-0310] TASK-PORTAL-003's delivered test is a fully-mocked unit test, not the Vitest integration test the acceptance criteria specify
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: portal.md (TASK-PORTAL-003 acceptance criteria)
+
+**What was found.** TASK-PORTAL-003's acceptance criteria (portal.md:589-590)
+explicitly require "A new Vitest integration test" for both the
+CITIZEN_COMPLAINT and DOCUMENT_REQUEST_FORM sequential-numbering assertions.
+The delivered test (documents.public-submission.service.test.ts) is a fully
+isolated unit test: DocumentsRepository.findDocumentTypeByCode,
+findNumberSeriesByKey, and insertDocument are all vi.spyOn(...)
+.mockResolvedValue(...)'d, and numberingService.reserveReferenceNumber
+itself is `vi.fn()` — the test never touches a real database (confirmed: no
+DATABASE_URL, beforeAll/afterAll, pool, or postgres() connection anywhere in
+the file). The mocked reserveReferenceNumber return values structurally
+match the real method's TypeScript signature (numbering.service.ts:372-376),
+so the mock isn't asserting an impossible shape — but the specific guarantee
+the acceptance criteria cared about (real per-series-per-year atomic
+sequencing under fn_get_next_sequence_value, including the on-demand
+year-bootstrap path the real method logs a warning for) is exactly what a
+fully-mocked test cannot exercise.
+
+This is inconsistent with TASK-PORTAL-004's own test
+(documents.public-read.service.test.ts), which is a genuine real-Postgres
+integration test requiring DATABASE_URL_MIGRATE, despite both tasks using
+similar "Vitest integration test" language in their acceptance criteria.
+
+**What was implemented.** N/A — this entry documents a gap in test coverage,
+not a code change.
+
+**Recommendation, not yet actioned.** A real integration-test variant should
+be added (or the existing unit test supplemented) exercising
+createPublicSubmission against a live Postgres connection with the real
+NumberingService, to validate the sequential-numbering guarantee the
+acceptance criteria actually asked for. Left to a human/future task to scope
+and prioritize.
+
+---
+
+### [LOG-0311] documents.documents.originating_office_id / owned_by_office_id assignment in createPublicSubmission is an undisclosed decision (NOT NULL columns, no value specified by TASK-PORTAL-003's own pseudocode)
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: portal.md (TASK-PORTAL-003 AI Prompt INSERT pseudocode), C1/docs.md (documents.documents DDL)
+
+**What was found.** documents.public-submission.service.ts:157-158 sets both
+originatingOfficeId and ownedByOfficeId to series.authorityOfficeId (the SP
+Secretariat's office, resolved from the CITIZEN_COMPLAINT_REF /
+DOCUMENT_REQUEST_REF number_series row). TASK-PORTAL-003's own INSERT
+pseudocode (portal.md, AI Prompt section, step 3) never mentions either
+column. Both are NOT NULL with no default on documents.documents
+(confirmed directly against packages/database/schema/documents.schema.ts and
+against docs.md's DDL text), so some value was mandatory — this was a real
+gap the task's own spec left open, filled without any comment in the file
+explaining the choice (confirmed: zero matches for "originatingOffice",
+"ownedByOffice", or "authorityOfficeId" search terms accompanied by any
+justifying prose in the file).
+
+The choice itself is defensible: it reuses the same office TASK-DOCS-008
+already established as the "authority" for these two series, and is
+internally consistent with how the file resolves other series-derived
+values. This entry exists to record the decision explicitly, per this
+project's disclosure convention, not to flag it as incorrect.
+
+**What was implemented.** N/A — this entry documents an already-shipped,
+undisclosed decision; no code change accompanies it.
+
+---
+
+### [LOG-0312] Public-facing DocumentRequestAccessMode enum (E2) has no translation path to the internal 3-member accessMode vocabulary (docs.md) before storage
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: E2 (DocumentRequestAccessMode schema), docs.md (document_requests metadata accessMode field, lines 627-628/1829/1921), TASK-PORTAL-006/TASK-PORTAL-007 (not yet built)
+
+**What was found.** Two distinct, both-authoritative enums exist for what is
+conceptually the same "how was this request accessed" concept:
+E2's public DocumentRequestAccessMode is `'digital_form' | 'clerk_assisted'`
+(e2-rest-api-specification-openapi3.md:1687-1689). The internal
+document_requests metadata schema's accessMode is
+`'downloaded_form' | 'digital_form_printed' | 'in_person_clerk'`
+(docs.md:628, 1829, 1921) — confirmed as the vocabulary actually used in
+production code at document-requests.router.ts:213
+(`accessMode: 'in_person_clerk'`, the internal clerk-assisted path).
+
+createPublicSubmission's default (`input.metadata['accessMode'] ??
+'digital_form_printed'`, documents.public-submission.service.ts:144) is
+itself a valid member of the correct internal enum, so the default value is
+not wrong. But CreatePublicSubmissionInput.metadata is typed as
+`Record<string, unknown>` (line 58) and stored verbatim with no validation
+or key mapping (confirmed: no accessMode translation logic exists anywhere
+in documents.public-submission.service.ts). If a future caller passes
+through a citizen-submitted E2-shaped value verbatim — e.g.
+`accessMode: 'digital_form'` from a real public API request body — that
+value would be stored as-is, since it is truthy and the `??` fallback never
+triggers, producing a stored accessMode string that matches none of the
+three real internal enum members.
+
+This is currently fully latent: no code path yet calls createPublicSubmission
+with real citizen-submitted data, since the REST handlers that would do so
+(TASK-PORTAL-006, TASK-PORTAL-007) do not yet exist in this repository
+(confirmed: not present under apps/server/src/modules/documents or
+apps/server/src/modules/portal as of this snapshot).
+
+**What was implemented.** N/A — no code change; this documents a gap for
+whichever task builds TASK-PORTAL-006/007 to close, most likely by mapping
+E2's two-member enum to the correct internal three-member value
+(`digital_form` → `digital_form_printed`, `clerk_assisted` → `in_person_clerk`)
+either inside createPublicSubmission itself or in the future REST handler
+before calling it.
+
+---
+
+### [LOG-0313] TASK-PORTAL-008's global CORS plugin set `credentials: false`, breaking cookie-authenticated cross-origin requests from the internal web app
+
+- date: 2026-08-10
+- task_id: (ad-hoc regression fix — introduced by TASK-PORTAL-008 / commit 9c6cb7a)
+- status: proposed
+- affects: E2 (CORS Configuration), apps/server/src/plugins/cors.ts
+
+**What was found.** TASK-PORTAL-008 (commit 9c6cb7a) replaced the app-wide
+CORS registration in app.ts — which used `credentials: true` — with a new
+global plugin at plugins/cors.ts that sets `credentials: false`. The
+`@fastify/cors` plugin is registered once, app-wide, and serves both the
+internal cookie-authenticated API and the public portal endpoints. The
+internal web app performs every authenticated request with
+`credentials: 'include'` (useAuthActions.ts: login/logout/lock/unlock, and
+trpc.ts's httpBatchLink). A credentialed cross-origin request requires the
+server's CORS response to include `Access-Control-Allow-Credentials: true`;
+without it the browser rejects the response and the fetch throws a network
+error ("Failed to fetch" / "NetworkError when attempting to fetch the
+resource"). The reported symptom — logging into the internal app at
+http://localhost:5173 against http://localhost:3000 failing with a network
+error while the server logs a successful 204 OPTIONS preflight — matches
+this exactly: the preflight completed at the server, but the browser blocked
+it because the allow-credentials header was absent.
+
+Verified by standalone reproduction: registering `@fastify/cors` with
+`credentials: false` and `origin: ['http://localhost:5173']`, injected
+OPTIONS preflight and POST responses carry no
+`access-control-allow-credentials` header; with `credentials: true` the
+header is `true` for both.
+
+**What was implemented.** plugins/cors.ts `credentials` restored to `true`,
+matching the pre-TASK-PORTAL-008 behavior. The `origin` allowlist,
+`methods: ['GET', 'POST', 'OPTIONS']`, and `maxAge: 600` from
+TASK-PORTAL-008 were left as-is: the internal app's only direct API methods
+are GET/POST (the two `PUT` fetches in apps/web are presigned S3 uploads,
+not Fastify routes).
+
+**Note on E2 conflict.** E2's CORS Configuration section specifies
+`credentials: false` for Phase 1 public endpoints, but the single global
+plugin cannot distinguish public from internal routes, and the pre-existing
+working state was `credentials: true` app-wide. This is an implementation
+conflict between E2's public-endpoint guidance and the internal app's
+requirement; the fix restores the previously working behavior. A human
+should decide whether E2's wording needs a caveat that the plugin is global.
+
+---
+
+### [LOG-0314] TASK-WF-025 executed — Document Request Form dual approval migrated from JSONB flags to Workflow Engine step instances (ADR-EVT-001)
+
+- date: 2026-08-10
+- task_id: TASK-WF-025
+- status: proposed
+- affects: ADR-EVT-001, B3, B4, H1, H2
+
+**What was found (and decided during execution).** This task executes the
+migration that LOG-0309 scoped. Three open design decisions flagged in
+LOG-0309 were resolved during implementation:
+
+1. **Query shape for listAllDocumentRequests (N+1 vs batched).** Implemented
+   per-row `getApprovalFlags` → two `workflowService.getStepState` calls per
+   item (N+1), because the workflow public API has no batch step-state read.
+   `[Inference]` — document-request rows are low volume (a records/secretariat
+   list), so the N+1 is acceptable; a batch read can be added later without
+   changing the router's output shape.
+2. **vmApproved/spApproved shape (boolean vs enum).** Kept booleans.
+   `[Inference]` — the output schema, the apps/web detail page, and any
+   consumers already bind to booleans; the underlying engine state remains
+   queryable as status/outcome via `getStepState` when a 3-state signal is
+   needed.
+3. **Backfill of stale JSONB fields in historical rows.** No backfill
+   performed. `[Inference]` — a full grep found no read path that consults
+   `metadata.vm_approved`/`metadata.sp_approved` after this migration, so the
+   flags in any pre-existing rows are inert; removing them is cosmetic and can
+   wait for a real-DB maintenance pass.
+
+STEP 0's data-safety gate (does any DOCUMENT_REQUEST_FORM row exist
+mid-approval under the JSONB flags?) still cannot be run in this environment —
+no reachable database connection (consistent with LOG-0309). This remains the
+one unverified precondition. The static half of the gate was confirmed: no
+`workflow.definitions` row for DOCUMENT_REQUEST_FORM existed before this task
+(added from scratch here), and `packages/shared` has no vm_approved/sp_approved
+schema fields (confirmed via grep — the H2 §6 JSONB fields live only in
+documents.documents.metadata, untyped).
+
+**What was implemented.**
+- New `DOCUMENT_REQUEST_FORM_WORKFLOW` definition in
+  packages/database/src/seeds/workflow/phase1-legislative.ts: start
+  `vm_approval` (approval) → `sp_secretary_approval` (approval) →
+  `end_released_to_requester` (termination) / `end_request_denied`
+  (termination). Engine-enforced sequencing means `sp_secretary_approval`
+  only activates once `vm_approval` is APPROVED — this replaces the old
+  `metadata.vm_approved` precondition read.
+- Two new termination outcome codes added to
+  `TerminationStepConfigSchema.outcome_code` in packages/shared:
+  `RELEASED_TO_REQUESTER` and `REQUEST_DENIED`.
+- New workflow public-API methods: `getStepState(documentId, stepKey)` and
+  `submitStepApprovalForDocument(documentId, stepKey, actorId, outcome,
+  comment)` (workflow.public-api.ts), backed by two new repository methods
+  (`getLatestInstanceForDocument`, `getStepInstanceByStepKey`); the tRPC
+  router now imports the shared `buildActionDescription` util instead of
+  owning its own copy (extracted to action-description.util.ts).
+- Six call sites in document-requests.router.ts migrated: the two approval
+  procedures now call `submitStepApprovalForDocument('vm_approval' /
+  'sp_secretary_approval')` (audit trail flows through the
+  workflow.step.completed event, per B3 §9 Rule 1); list/detail read flags
+  via `getStepState`; `createDocumentRequestClerkAssisted` emits
+  `document.created` (so the engine subscriber creates the workflow instance)
+  and now transitions to `submitted`. Removed the direct eventBus/audit
+  writes and `updateDocumentMetadata` calls from both approval procedures.
+- Design choice on the lifecycle: the `RELEASED_TO_REQUESTER` termination
+  step deliberately carries `final_document_status: null`, so the engine does
+  not stamp a lifecycle state; `approveAsSecretary` keeps its explicit
+  `documentsService.transitionState('completed')` so the existing
+  `'completed' → 'released'` flow (and releaseCopy's `lifecycleState ===
+  'completed'` guard) is preserved. `[Inference]`
+
+**Verification.** Server typecheck + full turbo typecheck pass; the new seed
+workflow passes the real seed-time semantic validator
+(`validateDefinitionForPublish` run against the seed's own row mapping, result
+`valid: true`); document-requests.router.test.ts updated to the workflow-backed
+behavior (35 tests pass, including new coverage: STEP_NOT_ACTIVE →
+PRECONDITION_FAILED mapping, approval submission args, and flag read-back from
+the engine). The 23 failures in the broader server suite were confirmed
+pre-existing: the same files fail at clean `HEAD` (baseline stash comparison),
+unrelated to this task.
+
+**What was NOT resolved.** STEP 0's live-DB data check (no reachable DB in
+this environment); stale JSONB flag cleanup in historical rows (deferred, see
+decision 3).
+
+---

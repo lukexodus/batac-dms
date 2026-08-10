@@ -10,10 +10,10 @@
  * Module 11 schema reference per AGENTS.md §1.]
  *
  * Dual approval (Vice Mayor + SP Secretary) is modelled as two sequential
- * `approval` step_instances in the Workflow Engine per ADR-EVT-001.  In Phase 1
- * (before the WF module is live) approval state is tracked via temporary JSONB
- * fields `vm_approved` / `sp_approved`.  Every such site carries a
- * TODO(WF-INTEGRATION) comment to replace them with workflow step queries.
+ * `approval` step_instances in the Workflow Engine per ADR-EVT-001. Approval
+ * actions are recorded via `workflowService.submitStepApprovalForDocument`
+ * (engine-enforced sequencing + assignment gate), and approval state is read
+ * back via `workflowService.getStepState`. See TASK-WF-025.
  *
  * Payment is OPTIONAL and does NOT block release in Phase 1 (Q-D04).
  */
@@ -41,10 +41,57 @@ function getRepository(ctx: Context) {
   return ctx.req.server.documentsRepository;
 }
 
+function getWorkflowService(ctx: Context) {
+  return ctx.req.server.workflowService;
+}
 
+/**
+ * Resolves the VM/SP approval flags for a document request from the Workflow
+ * Engine (ADR-EVT-001). A step counts as approved only when its step instance
+ * completed with outcome 'APPROVED'. Null-safe: returns false for documents
+ * with no workflow instance or no matching step.
+ */
+async function getApprovalFlags(
+  ctx: Context,
+  documentId: string,
+): Promise<{ vmApproved: boolean; spApproved: boolean }> {
+  const workflowService = getWorkflowService(ctx);
+  const [vm, sp] = await Promise.all([
+    workflowService.getStepState(documentId, 'vm_approval'),
+    workflowService.getStepState(documentId, 'sp_secretary_approval'),
+  ]);
+  return {
+    vmApproved: vm?.status === 'completed' && vm?.outcome === 'APPROVED',
+    spApproved: sp?.status === 'completed' && sp?.outcome === 'APPROVED',
+  };
+}
 
-function getAuditService(ctx: Context) {
-  return (ctx.req.server as any).auditService;
+/**
+ * Maps errors thrown by `workflowService.submitStepApprovalForDocument` to
+ * tRPC errors. The engine signals failures with stable `Error.message` codes;
+ * anything unrecognized is rethrown rather than swallowed.
+ */
+function mapWorkflowSubmitError(
+  err: unknown,
+  messages: { noActiveInstance: string; stepNotActive: string },
+): TRPCError {
+  const msg = err instanceof Error ? err.message : '';
+  if (msg === 'NO_ACTIVE_INSTANCE') {
+    return new TRPCError({ code: 'BAD_REQUEST', message: messages.noActiveInstance });
+  }
+  if (msg === 'STEP_NOT_ACTIVE' || msg === 'CONFLICT: step is not active') {
+    return new TRPCError({ code: 'PRECONDITION_FAILED', message: messages.stepNotActive });
+  }
+  if (msg.startsWith('FORBIDDEN')) {
+    return new TRPCError({ code: 'FORBIDDEN', message: msg });
+  }
+  if (msg.startsWith('VALIDATION_FAILED')) {
+    return new TRPCError({ code: 'BAD_REQUEST', message: msg });
+  }
+  return new TRPCError({
+    code: 'INTERNAL_SERVER_ERROR',
+    message: `Workflow step submission failed: ${msg || 'unknown error'}`,
+  });
 }
 
 /** Document type code for all document-request rows. */
@@ -233,6 +280,37 @@ export function createDocumentRequestsRouter() {
           createdBy: subject.userId,
         });
 
+        // The workflow engine starts an instance from the document.created
+        // event and transitions the lifecycle to 'in_workflow' inside its
+        // own transaction. 'draft' cannot transition directly to
+        // 'in_workflow', so step through 'submitted' exactly like
+        // documents.submit does before emitting the event.
+        const documentsService = ctx.req.server.documentsService;
+        await documentsService.transitionState(
+          document.id,
+          'submitted',
+          subject.userId,
+          'Document request form logged — pending workflow approval',
+        );
+
+        const eventBus = ctx.req.server.eventBus;
+        if (eventBus) {
+          eventBus.emit('document.created', {
+            eventId: crypto.randomUUID(),
+            eventType: 'document.created',
+            occurredAt: new Date().toISOString(),
+            cityId: document.cityId,
+            schemaVersion: 1,
+            payload: {
+              documentId: document.id,
+              documentTypeId: document.documentTypeId,
+              ownedByOfficeId: document.ownedByOfficeId,
+              actorId: subject.userId,
+              cityId: document.cityId,
+            },
+          });
+        }
+
         return { requestId: document.id };
       }),
 
@@ -269,7 +347,9 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
+          .where(
+            and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)),
+          )
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
@@ -299,13 +379,10 @@ export function createDocumentRequestsRouter() {
     // documentRequests.approveAsPresidingOfficer   [Vice Mayor step]
     //
     // Callable by: sp_presiding_officer ONLY (Vice Mayor per LGC).
-    // Business (Phase 1 stub): merge vm_approved fields into metadata.
-    //
-    // TODO(WF-INTEGRATION): replace metadata.vm_approved check with
-    //   workflow.submitStepAction for the VM approval step when the Workflow
-    //   Engine module (TASK-WF-NNN) is complete.  At that point, remove the
-    //   vm_approved / vm_approved_at / vm_approved_by JSONB fields from this
-    //   procedure and from approveAsSecretary's precondition check.
+    // Business: completes the VM `approval` step in the Workflow Engine
+    // (ADR-EVT-001). Engine-enforced sequencing means the SP Secretary step
+    // only becomes active once this step is approved; the assignment gate
+    // verifies the caller is a delegated presiding officer.
     // -----------------------------------------------------------------------
     approveAsPresidingOfficer: protectedProcedure
       .input(z.object({ requestId: z.string().uuid() }))
@@ -333,7 +410,9 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
+          .where(
+            and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)),
+          )
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
@@ -348,45 +427,22 @@ export function createDocumentRequestsRouter() {
           });
         }
 
-        const existingMeta = document.metadata as Record<string, unknown>;
-
-        // TODO(WF-INTEGRATION): replace with workflow.getStepState(...) once
-        // TASK-WF-NNN completes.  The check below reads from metadata JSONB
-        // as a Phase 1 stub only.
-        const mergedMeta = {
-          ...existingMeta,
-          vm_approved: true,
-          vm_approved_at: new Date().toISOString(),
-          vm_approved_by: subject.userId,
-        };
-
-        await repo.updateDocumentMetadata(document.id, mergedMeta);
-
-        // Emit audit event
-        const eventBus = ctx.req.server.eventBus;
-        if (eventBus) {
-          eventBus.emit('document_request.presiding_officer_approved', {
-            eventId: crypto.randomUUID(),
-            eventType: 'document_request.presiding_officer_approved',
-            occurredAt: new Date().toISOString(),
-            cityId: subject.cityId,
-            schemaVersion: 1,
-            payload: {
-              requestId: document.id,
-              approvedBy: subject.userId,
-            },
-          });
-        }
-
-        const auditService = getAuditService(ctx);
-        if (auditService) {
-          await auditService.logEvent({
-            cityId: subject.cityId,
-            actorId: subject.userId,
-            action: 'document_request.presiding_officer_approved',
-            resourceId: document.id,
-            resourceType: 'document',
-            metadata: {},
+        // Record the approval in the Workflow Engine. The audit trail is
+        // written by the workflow.step.completed → audit consumer; no manual
+        // metadata write or duplicate audit log here.
+        const workflowService = getWorkflowService(ctx);
+        try {
+          await workflowService.submitStepApprovalForDocument(
+            document.id,
+            'vm_approval',
+            subject.userId,
+            'APPROVED',
+            null,
+          );
+        } catch (err) {
+          throw mapWorkflowSubmitError(err, {
+            noActiveInstance: 'No active approval workflow for this request',
+            stepNotActive: 'This request has already been acted on',
           });
         }
 
@@ -397,13 +453,11 @@ export function createDocumentRequestsRouter() {
     // documentRequests.approveAsSecretary
     //
     // Callable by: sp_secretary ONLY
-    // Business (Phase 1 stub): check presiding officer approved, merge
-    //   sp_approved fields, transition lifecycle to 'completed'.
-    //
-    // TODO(WF-INTEGRATION): replace with workflow.submitStepAction for the
-    //   SP Secretary approval step when TASK-WF-NNN completes.  At that
-    //   point query workflow.step_instances for VM approval state instead of
-    //   metadata.vm_approved.
+    // Business: completes the SP Secretary `approval` step in the Workflow
+    //   Engine (ADR-EVT-001), then transitions lifecycle to 'completed'.
+    //   The engine enforces the VM-approval-first sequencing (the SP step is
+    //   only active once the VM step is approved), replacing the old
+    //   metadata.vm_approved precondition check.
     // -----------------------------------------------------------------------
     approveAsSecretary: protectedProcedure
       .input(z.object({ requestId: z.string().uuid() }))
@@ -431,34 +485,40 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
+          .where(
+            and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)),
+          )
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Document request not found' });
         }
 
-        const existingMeta = document.metadata as Record<string, unknown>;
-
-        // TODO(WF-INTEGRATION): replace metadata.vm_approved check with
-        //   workflow.getStepState(...) when TASK-WF-NNN completes.
-        if (!existingMeta['vm_approved']) {
-          throw new TRPCError({
-            code: 'PRECONDITION_FAILED',
-            message: 'Presiding officer approval required first',
+        // Record the SP Secretary approval in the Workflow Engine. If the VM
+        // has not approved yet, the sp_secretary_approval step is not active
+        // and the engine throws STEP_NOT_ACTIVE — mapped to the same
+        // PRECONDITION_FAILED the old metadata check produced.
+        const workflowService = getWorkflowService(ctx);
+        try {
+          await workflowService.submitStepApprovalForDocument(
+            document.id,
+            'sp_secretary_approval',
+            subject.userId,
+            'APPROVED',
+            null,
+          );
+        } catch (err) {
+          throw mapWorkflowSubmitError(err, {
+            noActiveInstance: 'No active approval workflow for this request',
+            stepNotActive: 'Presiding officer approval required first',
           });
         }
 
-        const mergedMeta = {
-          ...existingMeta,
-          sp_approved: true,
-          sp_approved_at: new Date().toISOString(),
-          sp_approved_by: subject.userId,
-        };
-
-        await repo.updateDocumentMetadata(document.id, mergedMeta);
-
-        // Transition lifecycle_state → 'completed' (both approvals done)
+        // Transition lifecycle_state → 'completed' (both approvals done).
+        // The RELEASED_TO_REQUESTER termination step intentionally leaves the
+        // lifecycle untouched (final_document_status: null) so this explicit
+        // transition is what reaches 'completed' — keeping releaseCopy's
+        // lifecycleState === 'completed' guard intact.
         const documentsService = ctx.req.server.documentsService;
         await documentsService.transitionState(
           document.id,
@@ -466,34 +526,6 @@ export function createDocumentRequestsRouter() {
           subject.userId,
           'Dual approval complete — presiding officer and secretary both approved',
         );
-
-        // Emit audit event
-        const eventBus = ctx.req.server.eventBus;
-        if (eventBus) {
-          eventBus.emit('document_request.secretary_approved', {
-            eventId: crypto.randomUUID(),
-            eventType: 'document_request.secretary_approved',
-            occurredAt: new Date().toISOString(),
-            cityId: subject.cityId,
-            schemaVersion: 1,
-            payload: {
-              requestId: document.id,
-              approvedBy: subject.userId,
-            },
-          });
-        }
-
-        const auditService = getAuditService(ctx);
-        if (auditService) {
-          await auditService.logEvent({
-            cityId: subject.cityId,
-            actorId: subject.userId,
-            action: 'document_request.secretary_approved',
-            resourceId: document.id,
-            resourceType: 'document',
-            metadata: {},
-          });
-        }
 
         return { success: true as const };
       }),
@@ -539,7 +571,9 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
+          .where(
+            and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)),
+          )
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
@@ -693,19 +727,22 @@ export function createDocumentRequestsRouter() {
           nextCursor = nextItem?.id ?? null;
         }
 
-        const items = rows.map((row) => {
-          const meta = row.metadata as Record<string, any>;
-          return {
-            requestId: row.id,
-            title: row.title,
-            requesterName: meta['requester']?.name ?? null,
-            lifecycleState: row.lifecycleState as LifecycleState,
-            vmApproved: !!meta['vm_approved'],
-            spApproved: !!meta['sp_approved'],
-            accessMode: meta['accessMode'] ?? null,
-            createdAt: row.createdAt.toISOString(),
-          };
-        });
+        const items = await Promise.all(
+          rows.map(async (row) => {
+            const meta = row.metadata as Record<string, any>;
+            const { vmApproved, spApproved } = await getApprovalFlags(ctx, row.id);
+            return {
+              requestId: row.id,
+              title: row.title,
+              requesterName: meta['requester']?.name ?? null,
+              lifecycleState: row.lifecycleState as LifecycleState,
+              vmApproved,
+              spApproved,
+              accessMode: meta['accessMode'] ?? null,
+              createdAt: row.createdAt.toISOString(),
+            };
+          }),
+        );
 
         return { items, nextCursor };
       }),
@@ -741,14 +778,15 @@ export function createDocumentRequestsRouter() {
         }
 
         const meta = document.metadata as Record<string, any>;
+        const { vmApproved, spApproved } = await getApprovalFlags(ctx, document.id);
 
         return {
           requestId: document.id,
           title: document.title,
           requesterName: meta['requester']?.name ?? null,
           lifecycleState: document.lifecycleState as LifecycleState,
-          vmApproved: !!meta['vm_approved'],
-          spApproved: !!meta['sp_approved'],
+          vmApproved,
+          spApproved,
           accessMode: meta['accessMode'] ?? null,
           createdAt: document.createdAt.toISOString(),
           documentsRequested: meta['documentsRequested'] ?? [],

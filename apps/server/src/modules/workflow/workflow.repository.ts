@@ -256,6 +256,26 @@ export class WorkflowRepository {
     return row || null;
   }
 
+  /**
+   * Returns the most recent (non-deleted) workflow instance for a document,
+   * regardless of status. Unlike `getActiveInstanceForDocument`, this also
+   * finds instances that have already reached a terminal status — needed for
+   * read-side step-state lookups (e.g. approval flags) that must keep
+   * resolving after the instance completes. Added for TASK-WF-025.
+   */
+  async getLatestInstanceForDocument(
+    documentId: string,
+    tx: TxOrDb = this.db,
+  ): Promise<InstanceRow | null> {
+    const [row] = await tx
+      .select()
+      .from(instances)
+      .where(and(eq(instances.documentId, documentId), isNull(instances.deletedAt)))
+      .orderBy(desc(instances.createdAt))
+      .limit(1);
+    return row || null;
+  }
+
   async updateInstanceStatus(
     id: string,
     status: 'active' | 'suspended' | 'stuck' | 'completed' | 'cancelled',
@@ -451,6 +471,32 @@ export class WorkflowRepository {
           eq(stepInstances.instanceId, instanceId),
           eq(steps.stepKey, stepKey),
           eq(stepInstances.status, 'active'),
+          isNull(stepInstances.deletedAt),
+        ),
+      )
+      .limit(1);
+    return row ? row.stepInstance : null;
+  }
+
+  /**
+   * Finds the step instance whose step has the given `stepKey` within a
+   * workflow instance, regardless of step status. Used by read-side
+   * `getStepState` lookups that must resolve approval state even after the
+   * step has completed. Added for TASK-WF-025.
+   */
+  async getStepInstanceByStepKey(
+    instanceId: string,
+    stepKey: string,
+    tx: TxOrDb = this.db,
+  ): Promise<StepInstanceRow | null> {
+    const [row] = await tx
+      .select({ stepInstance: stepInstances })
+      .from(stepInstances)
+      .innerJoin(steps, eq(stepInstances.stepId, steps.id))
+      .where(
+        and(
+          eq(stepInstances.instanceId, instanceId),
+          eq(steps.stepKey, stepKey),
           isNull(stepInstances.deletedAt),
         ),
       )

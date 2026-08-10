@@ -16,9 +16,9 @@
  *                                orNumber / collectingOfficer / amountPaid are ALL optional —
  *                                payment does NOT gate release in Phase 1 (Q-D04).
  *
- * Note: This entire router is marked "Phase 1 stub" — dual-approval tracking via
- * JSONB metadata (vm_approved / sp_approved) is temporary pending WF integration.
- * The frontend builds normally against the current contract.
+ * Note: Dual-approval state (vmApproved / spApproved) is backed by the Workflow
+ * Engine per ADR-EVT-001 — the API contract (booleans, PRECONDITION_FAILED
+ * before VM approval) is unchanged from the original JSONB-metadata stub.
  */
 
 import {
