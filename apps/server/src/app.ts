@@ -58,6 +58,9 @@ import trackingPlugin from './modules/tracking/tracking.plugin.js';
 import workflowPlugin from './modules/workflow/workflow.plugin.js';
 import notificationsPlugin from './modules/notifications/notifications.plugin.js';
 import portalPlugin from './modules/portal/portal.plugin.js';
+import openapiPlugin from './plugins/openapi.js';
+import rateLimitPlugin from './plugins/rate-limit.js';
+import corsPlugin from './plugins/cors.js';
 
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
@@ -211,6 +214,10 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   await registerHealthRoute(fastify);
 
+  await fastify.register(openapiPlugin);
+  await fastify.register(rateLimitPlugin);
+  await fastify.register(corsPlugin);
+
   await fastify.register(helmet, {
     xFrameOptions: { action: 'deny' },
     referrerPolicy: { policy: 'no-referrer' },
@@ -245,12 +252,6 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   const { fastifyTRPCPlugin } = await import('@trpc/server/adapters/fastify');
   const { appRouter } = await import('./trpc/root.js');
   const { createContext } = await import('./trpc/trpc.js');
-
-  const cors = (await import('@fastify/cors')).default;
-  await fastify.register(cors, {
-    origin: env.CORS_ALLOWED_ORIGINS,
-    credentials: true,
-  });
 
   await fastify.register(async (trpcApp) => {
     await trpcApp.register(rateLimit, {

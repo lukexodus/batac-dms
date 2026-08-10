@@ -15,10 +15,10 @@ export function createPublicLookupHandler(deps: {
   config: { APP_BASE_URL: string; PREVIEW_URL_EXPIRY_SECONDS?: string };
 }) {
   return async function publicLookupHandler(
-    request: FastifyRequest<{ Params: { trackingId: string } }>,
+    request: FastifyRequest<{ Params: { trackingNumber: string } }>,
     reply: FastifyReply,
   ) {
-    const { trackingId } = request.params;
+    const trackingId = request.params.trackingNumber;
 
     const qrCode = await deps.repository.findQrCodeByTrackingId(trackingId);
     if (!qrCode) return reply.status(404).send({ error: 'Tracking ID not found' });

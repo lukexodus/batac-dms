@@ -75,7 +75,7 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   const trackingParamsSchema = z.object({
-    trackingId: z.string().uuid(),
+    trackingNumber: z.string().uuid(),
   });
 
   const trackingSuccessSchema = z.object({
@@ -96,16 +96,20 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.withTypeProvider<ZodTypeProvider>().get(
-    '/track/:trackingId',
+    '/public/tracking/:trackingNumber',
     {
       schema: {
+        tags: ['tracking'],
+        summary: 'Document status lookup by QR tracking number',
         params: trackingParamsSchema,
         response: {
           200: trackingSuccessSchema,
-          400: trackingErrorSchema,
           404: trackingErrorSchema,
+          429: trackingErrorSchema,
+          500: trackingErrorSchema,
         },
       },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
     },
     publicLookupHandler,
   );
