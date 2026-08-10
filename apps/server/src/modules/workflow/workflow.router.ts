@@ -1447,6 +1447,7 @@ export function createWorkflowRouter() {
           currentAssigneeName: z.string().nullable(),
           status: z.enum(['Active', 'Completed', 'Cancelled']),
           slaDeadline: z.coerce.date().nullable(),
+          panlalawiganActionDeadline: z.coerce.date().nullable(),
           lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
           panelHint: z
             .enum([
@@ -1709,6 +1710,8 @@ export function createWorkflowRouter() {
           unifiedReportDocumentUrl = res.unifiedReportDocumentUrl;
         }
 
+        const instanceContext = (instance.context as Record<string, any>) || {};
+
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
@@ -1725,6 +1728,9 @@ export function createWorkflowRouter() {
           currentAssigneeName,
           status,
           slaDeadline: instance.slaDeadline,
+          panlalawiganActionDeadline: instanceContext['panlalawigan_action_deadline']
+            ? new Date(instanceContext['panlalawigan_action_deadline'])
+            : null,
           lapseStatus,
           panelHint,
           assignedCommittees,

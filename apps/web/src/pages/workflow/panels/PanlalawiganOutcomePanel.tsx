@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -35,11 +35,31 @@ export function PanlalawiganOutcomePanel({
     'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | ''
   >('');
   const [remarks, setRemarks] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+
+  const panlalawiganActionDeadline = instance.panlalawiganActionDeadline;
+  useEffect(() => {
+    if (!panlalawiganActionDeadline) return;
+
+    const remainingMs = new Date(panlalawiganActionDeadline).getTime() - Date.now();
+    if (remainingMs <= 0) {
+      setNow(Date.now());
+      return;
+    }
+
+    const timer = window.setTimeout(() => setNow(Date.now()), remainingMs);
+    return () => window.clearTimeout(timer);
+  }, [panlalawiganActionDeadline]);
+
+  const deemedApprovedWindowElapsed =
+    !!panlalawiganActionDeadline &&
+    now >= new Date(panlalawiganActionDeadline).getTime();
 
   const [resolutionPath, setResolutionPath] = useState<
     'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly'
   >('resolve_as_is');
   const [mandatoryComment, setMandatoryComment] = useState('');
+  const canResolveValidInPart = outcome === 'VALID_IN_PART';
 
   const recordMutation = trpc.workflow.recordPanlalawiganOutcome.useMutation({
     onSuccess: () => {
@@ -135,10 +155,21 @@ export function PanlalawiganOutcomePanel({
         </div>
 
         {/* Resolve Valid in Part */}
-        <div className="space-y-3 rounded-md border p-4">
+        <div
+          className={`space-y-3 rounded-md border p-4 ${
+            canResolveValidInPart ? '' : 'opacity-60'
+          }`}
+          aria-disabled={!canResolveValidInPart}
+        >
           <h3 className="text-sm font-medium">Resolve Valid in Part</h3>
+          {!canResolveValidInPart && (
+            <p className="text-xs text-muted-foreground">
+              Select “Valid in Part” under Record Outcome to enable this section.
+            </p>
+          )}
           <Select
             value={resolutionPath}
+            disabled={!canResolveValidInPart}
             onValueChange={(
               val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
             ) => setResolutionPath(val)}
@@ -157,6 +188,7 @@ export function PanlalawiganOutcomePanel({
             value={mandatoryComment}
             onChange={setMandatoryComment}
             placeholder="Comment (required)…"
+            disabled={!canResolveValidInPart}
           />
           <Button
             variant="outline"
@@ -171,7 +203,7 @@ export function PanlalawiganOutcomePanel({
                 mandatoryComment,
               });
             }}
-            disabled={resolveMutation.isPending}
+            disabled={!canResolveValidInPart || resolveMutation.isPending}
           >
             Resolve Valid in Part & Route
           </Button>
@@ -181,7 +213,10 @@ export function PanlalawiganOutcomePanel({
         <div className="flex items-center justify-between rounded-md border p-4">
           <div>
             <h3 className="text-sm font-medium">Confirm 30-Day Deemed Approved</h3>
-            <p className="text-muted-foreground text-xs">RA 7160 §56(d) — 30-day window elapsed.</p>
+            <p className="text-muted-foreground text-xs">
+              RA 7160 §56(d) —{' '}
+              {deemedApprovedWindowElapsed ? '30-day window elapsed.' : 'Available after the 30-day window.'}
+            </p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <Button
@@ -189,11 +224,15 @@ export function PanlalawiganOutcomePanel({
               onClick={() =>
                 confirmDeemedMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
               }
-              disabled={confirmDeemedMutation.isPending}
+              disabled={confirmDeemedMutation.isPending || !deemedApprovedWindowElapsed}
             >
               Confirm Deemed Approved
             </Button>
-            <p className="text-xs text-muted-foreground">Advances automatically</p>
+            <p className="text-xs text-muted-foreground">
+              {deemedApprovedWindowElapsed
+                ? 'Records an acknowledgment; the timer job advances the workflow.'
+                : 'Confirmation is disabled until the deadline.'}
+            </p>
           </div>
         </div>
       </CardContent>
