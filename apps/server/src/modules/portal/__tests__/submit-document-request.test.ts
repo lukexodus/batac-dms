@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
 import { validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
 import { ValidationErrorResponseSchema } from '@batac/shared';
+import rateLimitPlugin from '../../../plugins/rate-limit.js';
 import portalPlugin from '../portal.plugin.js';
 import fp from 'fastify-plugin';
 
@@ -43,11 +44,7 @@ describe('POST /public/document-requests', () => {
     fastify.setValidatorCompiler(validatorCompiler);
     fastify.setSerializerCompiler(serializerCompiler);
 
-    // Mock rate limit
-    await fastify.register(async (f) => {
-      // no-op
-    }, { name: '@fastify/rate-limit' });
-
+    await fastify.register(rateLimitPlugin);
     await fastify.register(mockDependenciesPlugin);
     await fastify.register(portalPlugin);
     await fastify.ready();
@@ -150,5 +147,32 @@ describe('POST /public/document-requests', () => {
     expect(second.statusCode).toBe(201);
     expect(first.json().data.referenceCode).toBe('DREQ-2026-0001');
     expect(second.json().data.referenceCode).toBe('DREQ-2026-0002');
+  });
+
+  it('returns 429 on the 21st document-request submission from the same IP', async () => {
+    mockDocumentsService.createPublicSubmission.mockResolvedValue({
+      documentId: '123e4567-e89b-12d3-a456-426614174000',
+      referenceCode: 'DREQ-2026-0003',
+      submittedAt: '2026-08-09T00:00:00Z',
+    });
+
+    const requestHeaders = { 'x-forwarded-for': '203.0.113.10' };
+    let finalResponse;
+
+    for (let attempt = 1; attempt <= 21; attempt += 1) {
+      finalResponse = await fastify.inject({
+        method: 'POST',
+        url: '/public/document-requests',
+        headers: requestHeaders,
+        payload: {
+          ...VALID_PAYLOAD,
+          accessMode: 'clerk_assisted',
+        },
+      });
+    }
+
+    expect(finalResponse?.statusCode).toBe(429);
+    expect(finalResponse?.headers['retry-after']).toBeDefined();
+    expect(mockDocumentsService.createPublicSubmission).toHaveBeenCalledTimes(20);
   });
 });
