@@ -10580,4 +10580,37 @@ rendering.
 
 ---
 
+### [LOG-0319] TASK-PORTAL-005/006/007: DocumentsPublicAPI extension accepted as the pattern, documented per human decision
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-005, TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: B2 (Module 3 DocumentsPublicAPI, Module 10 Portal)
+
+**What was found:** listPublishedDocuments, getPublishedDocumentDetail, and
+createPublicSubmission were added to DocumentsPublicAPI
+(documents.types.ts) to back the Portal module's public REST endpoints. B2
+Module 3 (b2-module-boundary-and-internal-api-contracts-v1.1.md:401-488)
+defines DocumentsPublicAPI with five methods, none of which are these three.
+B2 Module 10 (:1118-1122) states Portal's own Published API is deliberately
+empty -- event-consumer only -- and B2:477-478 names Tracking, not Documents,
+as the intended owner of the portal public first-page display pathway. This
+codebase's own established precedent for extending DocumentsPublicAPI beyond
+a task prompt's literal scope (see transitionState's trx parameter, same
+file) is to tag the addition [Inference], state the reason, and cite a
+findings-log entry with human sign-off. The three new methods had none of
+that until this entry.
+
+**What was implemented:** A human reviewed this divergence and decided to
+keep the extension as the accepted pattern rather than migrate to an
+event-driven Portal read-model. [Inference]-tagged comments were added above
+the three method signatures in DocumentsPublicAPI, matching the file's own
+established convention. No runtime behavior changed.
+
+Note: status is `proposed` here because AGENTS.md Section 4.5 reserves
+`confirmed` for a human edit even when the underlying decision is already
+settled. A B2 Module 3/10 amendment reflecting this decision is a reasonable
+follow-up but was intentionally left out of this change's scope.
+
+---
 

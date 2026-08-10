@@ -170,6 +170,15 @@ export interface DocumentsPublicAPI {
   createSupersedingDocument(input: SupersedingDocumentInput): Promise<SupersedingDocumentResult>;
 
   /**
+   * [Inference] TASK-PORTAL-005/006/007 extended DocumentsPublicAPI with the
+   * three Portal public REST endpoints below. B2 Module 10 (Portal) keeps the
+   * Portal Published API empty and event-consumer-only, and B2 Module 3's
+   * original DocumentsPublicAPI definition does not include these methods.
+   * A human reviewed that divergence during planning and kept this extension
+   * as the accepted pattern rather than migrating Portal to an event-driven
+   * read-model. See docs/development-findings-log.md, TASK-PORTAL-005/006/007
+   * entry, for the finding and decision this responds to.
+   *
    * TASK-PORTAL-003 — unauthenticated citizen-submission write path (backed by
    * POST /v1/public/complaints and /v1/public/document-requests). Creates a
    * documents.documents row with a fresh QR tracking UUID, reserves a
