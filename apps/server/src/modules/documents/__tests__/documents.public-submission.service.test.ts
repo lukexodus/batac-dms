@@ -11,6 +11,8 @@
  *  ✔ Inserted row carries preliminary_number / final_number both NULL
  *  ✔ A non-portal documentType is a compile-time type error (two-member literal union)
  *  ✔ Emits document.created after commit with the system actor sentinel
+ *  ✔ Public accessMode ('digital_form' | 'clerk_assisted') is translated to the
+ *    internal vocabulary ('digital_form_printed' | 'in_person_clerk') before storage
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -111,12 +113,12 @@ describe('createPublicSubmission', () => {
 
     const first = await createPublicSubmission(buildDeps(), {
       documentType: 'CITIZEN_COMPLAINT',
-      metadata: { complainant: { name: 'Juan Dela Cruz' } },
+      metadata: { complainant: { name: 'Juan Dela Cruz' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
     const second = await createPublicSubmission(buildDeps(), {
       documentType: 'CITIZEN_COMPLAINT',
-      metadata: { complainant: { name: 'Maria Santos' } },
+      metadata: { complainant: { name: 'Maria Santos' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
 
@@ -145,7 +147,7 @@ describe('createPublicSubmission', () => {
 
     const result = await createPublicSubmission(buildDeps(), {
       documentType: 'DOCUMENT_REQUEST_FORM',
-      metadata: { requester: { name: 'LGU Vendor' } },
+      metadata: { requester: { name: 'LGU Vendor' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
 
@@ -173,12 +175,12 @@ describe('createPublicSubmission', () => {
 
     const first = await createPublicSubmission(buildDeps(), {
       documentType: 'DOCUMENT_REQUEST_FORM',
-      metadata: { requester: { name: 'LGU Vendor' } },
+      metadata: { requester: { name: 'LGU Vendor' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
     const second = await createPublicSubmission(buildDeps(), {
       documentType: 'DOCUMENT_REQUEST_FORM',
-      metadata: { requester: { name: 'City Hall Staff' } },
+      metadata: { requester: { name: 'City Hall Staff' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
 
@@ -215,7 +217,7 @@ describe('createPublicSubmission', () => {
 
     const result = await createPublicSubmission(buildDeps(), {
       documentType: 'CITIZEN_COMPLAINT',
-      metadata: { complainant: { name: 'Juan Dela Cruz' }, subjectCategory: 'transportation' },
+      metadata: { complainant: { name: 'Juan Dela Cruz' }, subjectCategory: 'transportation', accessMode: 'digital_form' },
       cityId: 'city-1',
     });
 
@@ -241,6 +243,40 @@ describe('createPublicSubmission', () => {
     expect(result.documentId).toBe('doc-created-1');
   });
 
+  it('translates a public accessMode of digital_form to the internal digital_form_printed value', async () => {
+    numberingService.reserveReferenceNumber.mockResolvedValue({
+      numberValue: `COMP-${YEAR}-0001`,
+      sequenceNumber: 1,
+      sequenceYear: YEAR,
+    });
+
+    await createPublicSubmission(buildDeps(), {
+      documentType: 'CITIZEN_COMPLAINT',
+      metadata: { complainant: { name: 'Juan Dela Cruz' }, accessMode: 'digital_form' },
+      cityId: 'city-1',
+    });
+
+    const insertArgs = insertSpy.mock.calls[0][0];
+    expect(insertArgs.metadata.accessMode).toBe('digital_form_printed');
+  });
+
+  it('translates a public accessMode of clerk_assisted to the internal in_person_clerk value', async () => {
+    numberingService.reserveReferenceNumber.mockResolvedValue({
+      numberValue: `COMP-${YEAR}-0001`,
+      sequenceNumber: 1,
+      sequenceYear: YEAR,
+    });
+
+    await createPublicSubmission(buildDeps(), {
+      documentType: 'CITIZEN_COMPLAINT',
+      metadata: { complainant: { name: 'Juan Dela Cruz' }, accessMode: 'clerk_assisted' },
+      cityId: 'city-1',
+    });
+
+    const insertArgs = insertSpy.mock.calls[0][0];
+    expect(insertArgs.metadata.accessMode).toBe('in_person_clerk');
+  });
+
   it('emits document.created after commit with the system actor sentinel', async () => {
     numberingService.reserveReferenceNumber.mockResolvedValue({
       numberValue: `COMP-${YEAR}-0001`,
@@ -250,7 +286,7 @@ describe('createPublicSubmission', () => {
 
     await createPublicSubmission(buildDeps(), {
       documentType: 'CITIZEN_COMPLAINT',
-      metadata: { complainant: { name: 'Juan Dela Cruz' } },
+      metadata: { complainant: { name: 'Juan Dela Cruz' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
 
@@ -284,7 +320,7 @@ describe('createPublicSubmission', () => {
 
     const result = await createPublicSubmission(buildDeps(), {
       documentType: 'CITIZEN_COMPLAINT',
-      metadata: { complainant: { name: 'Juan Dela Cruz' } },
+      metadata: { complainant: { name: 'Juan Dela Cruz' }, accessMode: 'digital_form' },
       cityId: 'city-1',
     });
 

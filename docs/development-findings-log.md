@@ -10340,3 +10340,38 @@ this environment); stale JSONB flag cleanup in historical rows (deferred, see
 decision 3).
 
 ---
+
+### [LOG-0317] TASK-PORTAL-006/007: accessMode public-to-internal vocabulary translation was missing, now added
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: E2 (ComplaintAccessMode, DocumentRequestAccessMode), document-metadata.ts (CitizenComplaintMetadataSchema, documentRequestFormBase)
+
+**What was found:** LOG-0291 (TASK-PORTAL-003) identified an accessMode
+vocabulary mismatch and explicitly assigned resolving the translation to
+TASK-PORTAL-006's scope. That translation was never implemented:
+createPublicSubmission() wrote the public accessMode value ('digital_form' |
+'clerk_assisted') directly into internal metadata.accessMode unchanged,
+instead of the internal three-value vocabulary ('downloaded_form' |
+'digital_form_printed' | 'in_person_clerk') that document-metadata.ts's
+schemas and downstream consumers expect. Confirmed one live consumer of the
+untranslated value: apps/web/src/pages/documents/PrintableFormView.tsx:132-134
+only recognizes 'in_person_clerk' for its display label, so clerk-assisted
+public submissions rendered the raw string "clerk_assisted" instead of the
+intended "In-Person (Clerk-Assisted)" label.
+
+**What was implemented:** Added toInternalAccessMode() to
+documents.public-submission.service.ts, mapping 'digital_form' →
+'digital_form_printed' and 'clerk_assisted' → 'in_person_clerk'.
+'downloaded_form' has no public-facing equivalent and is not produced by this
+path. Two new test cases added to
+documents.public-submission.service.test.ts confirming the stored metadata
+carries the translated value.
+
+[Inference]: The mapping (digital_form→digital_form_printed,
+clerk_assisted→in_person_clerk) was confirmed by a human during planning, not
+derived from any pre-development document — no loaded spec states this
+mapping explicitly.
+
+---

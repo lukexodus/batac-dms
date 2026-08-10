@@ -49,6 +49,34 @@ import type { NumberingService } from './numbering.service.js';
 /** System-actor sentinel for actions with no human actor (see file header). */
 export const SYSTEM_ACTOR_ID = '00000000-0000-4000-8000-000000000000';
 
+const PUBLIC_TO_INTERNAL_ACCESS_MODE: Record<string, string> = {
+  digital_form: 'digital_form_printed',
+  clerk_assisted: 'in_person_clerk',
+};
+
+/**
+ * Translates the public ComplaintAccessMode/DocumentRequestAccessMode values
+ * ('digital_form' | 'clerk_assisted') into the internal three-value
+ * accessMode vocabulary ('downloaded_form' | 'digital_form_printed' |
+ * 'in_person_clerk') used by CitizenComplaintMetadataSchema and
+ * documentRequestFormBase (packages/shared/src/schemas/document-metadata.ts).
+ * 'downloaded_form' has no public-facing equivalent and is never produced
+ * here. Throws if the input value isn't one of the two known public values —
+ * this should be unreachable in practice since accessMode is a required,
+ * enum-validated field on both public request schemas, but a thrown error is
+ * safer than silently defaulting if that invariant is ever violated.
+ */
+function toInternalAccessMode(publicAccessMode: unknown): string {
+  if (typeof publicAccessMode !== 'string' || !(publicAccessMode in PUBLIC_TO_INTERNAL_ACCESS_MODE)) {
+    throw new Error(`Unrecognized public accessMode value: ${String(publicAccessMode)}`);
+  }
+  const translated = PUBLIC_TO_INTERNAL_ACCESS_MODE[publicAccessMode];
+  if (translated === undefined) {
+    throw new Error(`Unrecognized public accessMode value: ${publicAccessMode}`);
+  }
+  return translated;
+}
+
 export type PublicSubmissionDocumentType = 'CITIZEN_COMPLAINT' | 'DOCUMENT_REQUEST_FORM';
 
 export interface CreatePublicSubmissionInput {
@@ -141,7 +169,7 @@ export async function createPublicSubmission(
     const storedMetadata: Record<string, unknown> = {
       ...input.metadata,
       referenceCode: numberValue,
-      accessMode: input.metadata['accessMode'] ?? 'digital_form_printed',
+      accessMode: toInternalAccessMode(input.metadata['accessMode']),
     };
 
     const row = await repo.insertDocument({
