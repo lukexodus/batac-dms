@@ -1519,7 +1519,7 @@ export function createWorkflowRouter() {
           const [dt] = await ctx.db
             .select({ code: documentTypes.code })
             .from(documentTypes)
-            .where(eq(documentTypes.id, doc.documentTypeId));
+            .where(and(eq(documentTypes.id, doc.documentTypeId), isNull(documentTypes.deletedAt)));
           if (dt) {
             documentTypeCode = dt.code;
           }
