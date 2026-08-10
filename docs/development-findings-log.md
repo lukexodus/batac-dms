@@ -9664,6 +9664,61 @@ leaving verified fixes unrecorded.
 
 ---
 
+### [LOG-0301] documentTypes.deletedAt filter decision (LOG-0299 follow-up) — filter is inert in production; decided to add for convention consistency
+
+- date: 2026-08-10
+- task_id: TASK-WF-024
+- status: proposed
+- affects: LOG-0299 (refines, does not contradict)
+
+**What was found:** Following up on LOG-0299's open question (whether
+`getInstance`'s new `documentTypeCode` lookup in
+`apps/server/src/modules/workflow/workflow.router.ts` should filter on
+`isNull(documentTypes.deletedAt)` to match the dominant codebase
+convention), a full search of `apps/server/src/` found no production code
+path — no router procedure, service method, or admin mutation — that ever
+sets `documentTypes.deletedAt` to a non-null value. The only
+`.delete(documentTypes)` call in the entire server codebase is
+`documents.public-read.service.test.ts:291`'s `afterAll` test-teardown
+block, which hard-deletes test-fixture rows scoped to
+`insertedTypeCodes`, structurally unrelated to a soft-delete feature. This
+means every `documentTypes` row in production necessarily has `deletedAt
+IS NULL` today, so the filtered and unfiltered query forms are currently
+behaviorally identical for every input — the LOG-0299 inconsistency
+carries zero present risk, only a forward-looking convention question.
+
+Also re-counted the precedent split with more precision than LOG-0299's
+original count: 18 call sites use the filtered
+`documentsRepository.findDocumentTypeById` (workflow.router.ts:1317,
+4094, 4241; documents.service.ts:65, 85, 222; documents.router.ts:405,
+594, 691, 821, 843, 954, 1387, 1523, 1573, 1615, 1706, 1745). Only 5 sites
+use the unfiltered inline `eq(documentTypes.id, ...)` form
+(document-requests.router.ts:272, 336, 434, 542, plus the getInstance
+site being decided here) — and those 4 document-requests.router.ts sites
+are byte-identical copies of one `docType.code !== DOCUMENT_REQUEST_FORM_CODE`
+identity check, not 4 independent precedent decisions.
+
+**What was implemented:** Decided to add the `isNull(documentTypes.deletedAt)`
+filter to `getInstance`'s lookup, matching the dominant convention, on the
+grounds that (a) it costs nothing given the column is currently inert,
+(b) it removes the one point where `workflow.router.ts` deviates from its
+own established idiom (this same file uses the filtered pattern at 3
+other call sites), and (c) it defends against a future soft-delete
+feature being added to `documentTypes` without this site being revisited.
+This is `[Inference]`-based reasoning about future-proofing, not a
+correction of present behavior — no regression existed before this
+change and none was introduced by it.
+
+**What was NOT resolved:** The 4 document-requests.router.ts sites remain
+unfiltered and out of scope for this task, per explicit instruction in
+TASK-WF-024. Whether those should also be brought in line with the
+dominant convention is still an open question for a human to decide,
+separate from this entry — those 4 sites are a repeated identity-check
+pattern, not the same kind of forward-looking data-retrieval concern
+`getInstance` had, so the same reasoning may not transfer directly.
+
+---
+
 ### [LOG-0302] ARTA SLA estimatedWorkingDays threshold hardcoded to 3 for document-requests — configurability deferred to a human
 
 - date: 2026-08-10
@@ -9696,4 +9751,242 @@ specific.
 
 ---
 
+### [LOG-0303] TASK-PORTAL-001/002: file-layout convention diverges from both tasks' literal deliverable paths, following E3 over E2
 
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2, E3
+
+**What was found:** TASK-PORTAL-002's AI Prompt specifies 9 files under
+`schemas/common/*.ts` and `schemas/public/*.ts`, citing E2's "Shared Package
+Schema Location" section (e2-rest-api-specification-openapi3.md:1973-1990) as
+authoritative. E3 (e3-shared-zod-schema-catalog.md:96,108,147-170) states it is
+"the single source of truth for every Zod schema... no layer may define its
+own copy" and specifies a flat one-file-per-domain tree with no public/common
+subfolders. AGENTS.md's own routing table (Section 2) routes "/packages/shared
+Zod schema" tasks to E3 → C1, not E2. The two pre-development documents
+directly contradict each other on this point.
+
+**What was implemented:** The actual code (packages/shared/src/schemas/
+common.ts, tracking.ts, portal.ts) follows E3's flat-file convention. None of
+the task's 9 specified file paths exist. Verified no consumer anywhere in the
+codebase imports from a nested schemas/public/ or schemas/common/ path — every
+import goes through the flat @batac/shared barrel (packages/shared/src/
+index.ts), so this did not cause a runtime problem, but the decision to follow
+E3 over E2 was made without being logged or flagged for human review.
+
+[Inference]: E3's "single source of truth, no layer defines its own copy"
+language is stronger and more explicit than E2's folder-mirroring suggestion,
+and AGENTS.md's routing table independently corroborates E3 as the correct
+document for this task type. Recommend E2's "Shared Package Schema Location"
+section be corrected to match E3's actual convention, or a human decide
+explicitly that a migration to E2's nested layout is wanted going forward.
+
+---
+
+### [LOG-0304] TASK-PORTAL-002: ValidationErrorResponse.details/.code and PresignedImageRef.widthPx/.heightPx implemented as required, contradicting E2's own required: lists
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2
+
+**What was found:** E2's OpenAPI components (e2-rest-api-specification-openapi3.md)
+define ValidationErrorResponse.details as absent from its object's implicit
+required set (line 1029, no `required` key on the details property's parent),
+and details[].required is [field, message] only (lines 1034-1036) — code is
+optional. Similarly PresignedImageRef.required is [url, expiresAt] only (lines
+1093-1095) — widthPx/heightPx are optional, with no minimum/positive
+constraint specified. The actual implementation in packages/shared/src/
+schemas/common.ts:92-101 (ValidationErrorResponseSchema) and tracking.ts:52-58
+(PresignedImageRefSchema) makes all of these fields required, and adds
+.positive() to widthPx/heightPx which E2 does not specify.
+
+**What was implemented:** No change — flagging as found. This is a real
+divergence from E2's frozen contract, not merely from the TASK-PORTAL-002 AI
+Prompt (which specified the fields as optional, matching E2 correctly). E2's
+own Schema Synchronization Rule (line 1992-1996) states such divergences
+should be CI build failures; no contract test currently exists in this repo to
+catch this.
+
+[Inference]: Loosening these two schemas to add .optional() (and dropping
+.positive() from widthPx/heightPx) would bring the code into exact alignment
+with E2 and appears to be a mechanical, non-design-decision fix — flagging
+here rather than silently fixing because E2's explicit build-failure language
+suggests a human should confirm the fix rather than have it folded quietly
+into an unrelated PR.
+
+---
+
+### [LOG-0305] TASK-PORTAL-002: firstPagePreview made nullable in PublishedDocumentSummarySchema/TrackingLookupDataSchema, contradicting E2's required-non-null definition — refines LOG-0288's context, intentionally out of scope for FOLLOWUP-A/B
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2
+
+**What was found:** E2 lists firstPagePreview as required (not merely
+present-but-nullable) in both PublishedDocumentSummary (e2-rest-api-
+specification-openapi3.md:1317-1327, property def at 1370-1371) and
+TrackingLookupData (:1171-1179, property def at 1245-1246), and neither
+property definition carries `nullable: true` — unlike six sibling fields in
+the same objects (supersededBy, supersededAt, closureReason, etc.) which
+explicitly do. The actual code (packages/shared/src/schemas/portal.ts:171,
+tracking.ts:113) adds .nullable() to firstPagePreview in both schemas.
+
+**What was implemented:** No change. Cross-referencing LOG-0288 (TASK-PORTAL-004),
+which already documents that the current public-read data-access layer has no
+S3 presigner and firstPagePreview is therefore always null in practice — the
+.nullable() addition is necessary for today's no-presigner reality and
+reverting it would break the currently-working read path. This entry records
+that the two follow-up prompts drafted alongside this entry
+(TASK-PORTAL-002-FOLLOWUP-A and -B) deliberately exclude this field from their
+scope, so a future agent applying either prompt does not inadvertently revert
+it while fixing the unrelated ValidationErrorResponse/PresignedImageRef gaps
+in the same files.
+
+[Inference]: This should likely stay nullable until a presigner exists (see
+LOG-0288), but a human should still decide whether (a) E2 gets amended to mark
+firstPagePreview nullable as an interim/Phase-1 accommodation, or (b) this is
+treated as a known, temporary, tracked divergence to be reverted once
+TASK-PORTAL-005's presigner work lands. Unresolved — flagging again here since
+LOG-0288 documented the implementation reason but not this E2-conformance
+consequence explicitly.
+
+### [LOG-0306] TASK-PORTAL-002: no schema-parsing test file exists in packages/shared
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: none
+
+**What was found:** TASK-PORTAL-002's second acceptance criterion requires a
+new test file feeding E2's four example payloads (transportation_overcharging
+complaint, general_lgu complaint, document-request example, tracking-lookup
+response example) through their matching schemas and asserting success.
+Confirmed via `find packages/shared -iname "*.test.ts" -o -iname "*.spec.ts"`
+that no test file of any kind currently exists anywhere in packages/shared.
+
+**What was implemented:** No change — this is a plain missing deliverable,
+not an ambiguity. The underlying schema behavior was manually verified to be
+correct in this same investigation (SubmitComplaintInputSchema correctly
+rejects violationType:'other' without violationTypeOther, and rejects a
+non-24-hour incidentTime, per direct execution against the live schema) — the
+gap is narrowly the absence of a committed test file, not incorrect
+validation logic.
+
+---
+
+### [LOG-0307] documentTypes.deletedAt filter extended to document-requests.router.ts (LOG-0301 follow-up) — decided in favor, on defense-in-depth grounds for mutation gates
+
+- date: 2026-08-10
+- task_id: TASK-DOCS-031
+- status: proposed
+- affects: LOG-0299, LOG-0301 (extends the same decision to a second file)
+
+**What was found:** The 4 unfiltered `eq(documentTypes.id, ...)` sites in
+`document-requests.router.ts` (lines 272, 336, 434, 542 as of LOG-0301)
+were re-examined in full procedure context, not just pattern-matched
+against `getInstance`. They belong to 4 different procedures —
+`generatePrintableForm` (read-only), `approveAsPresidingOfficer`,
+`approveAsSecretary`, and `releaseCopy` (all three mutations, changing
+`lifecycleState` or writing approval/release metadata on a document
+request). This is a materially different risk profile than the
+`getInstance` site resolved in LOG-0301, which populates a read-only
+display field.
+
+Also found: this file has zero uses of `findDocumentsRepository.findDocumentTypeById`
+anywhere — all 4 of its `documentTypes` lookups use the unfiltered inline
+form. This means the file's own internal convention is the unfiltered
+pattern, unlike `workflow.router.ts` (LOG-0301's case), where the
+unfiltered site was a deviation from that file's own established use of
+the filtered method at 3 other locations. This is a real asymmetry
+between the two cases, not a rerun of the same fact pattern.
+
+Confirmed (re-verified, same finding as LOG-0301, re-checked because it
+applies to the same table): no production code path anywhere in
+`apps/server/src` sets `documentTypes.deletedAt` to non-null. The
+column remains fully inert; this change has zero behavioral effect in
+production today for either query form.
+
+Incidentally found, unrelated to this decision: `TODO(WF-INTEGRATION)`
+comments at `approveAsPresidingOfficer` (~line 353) and
+`approveAsSecretary` (~line 443), both noting that a metadata-JSONB
+approval check is a "Phase 1 stub" pending `workflow.getStepState(...)`
+integration once an unspecified `TASK-WF-NNN` completes. Not addressed by
+this entry — flagged here only because it surfaced during this
+investigation and is worth a human's attention as a separate, pre-existing
+open item, distinct from the deletedAt question.
+
+**What was implemented:** Decided to add the `isNull(documentTypes.deletedAt)`
+filter at all 4 sites, despite the internal-convention asymmetry noted
+above, on the grounds that (a) cross-module data-integrity conventions
+for a shared reference table should outrank a single module's copy-pasted
+local pattern, (b) 3 of the 4 sites are mutation gates, where failing
+safe (report NOT_FOUND for a hypothetically-retired type) is strictly
+preferable to failing open (proceed against a hypothetically-retired
+type), if the column is ever wired up in the future, and (c) the change
+is provably zero-risk today given the column's confirmed-inert status.
+This is `[Inference]`-based reasoning about defense-in-depth for a
+currently-hypothetical future state, not a correction of present
+behavior — no regression existed before this change and none is
+introduced by it.
+
+**What was NOT implemented:** No change to the identity-check logic
+itself, the TODO(WF-INTEGRATION) stubs, or any other file. Those remain
+separate, unaddressed items.
+
+---
+
+### [LOG-0308] TASK-PORTAL-001/002: E2-vs-E3 file-layout conflict for /packages/shared/src/schemas/ — resolved in favor of E3's flat convention
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2, E3
+- resolved_in: (none — this is a code/process decision, not a document edit; see note below)
+
+**What was found:** TASK-PORTAL-002's AI Prompt specifies 9 files under
+`schemas/common/*.ts` and `schemas/public/*.ts`, citing E2's "Shared Package
+Schema Location" section (e2-rest-api-specification-openapi3.md:1973-1990) as
+authoritative. E3 (e3-shared-zod-schema-catalog.md:96,108,147-170) states it is
+"the single source of truth for every Zod schema... no layer may define its
+own copy" and specifies a flat one-file-per-domain tree with no public/common
+subfolders. AGENTS.md's own routing table (Section 2) routes "/packages/shared
+Zod schema" tasks to E3 → C1, not E2. The two pre-development documents
+directly contradict each other on this point. The actual implementation
+already follows E3's flat convention (packages/shared/src/schemas/common.ts,
+tracking.ts, portal.ts) — none of the task's 9 specified nested paths exist —
+and this was done without being logged or flagged at the time.
+
+**Decision:** E3's flat convention is confirmed as the go-forward standard for
+`/packages/shared/src/schemas/`. Reasoning: (1) E3's "single source of truth,
+no layer defines its own copy" language is an explicit governance claim; E2's
+folder mirroring reads as an illustrative convention, not a rule of comparable
+weight. (2) AGENTS.md's routing table independently corroborates E3 as the
+correct document for this task type, decided before this conflict was known
+to exist. (3) It matches current reality — verified zero consumers anywhere in
+the codebase import from a nested schemas/public/ or schemas/common/ path;
+migrating now would be a real, non-trivial change to fix something that was
+never actually broken. (4) E2's underlying concern (REST-facing schemas
+becoming hard to audit against the OpenAPI spec as the surface grows) is real
+but not unique to a nested layout — E3's own tree already splits by domain
+(documents.ts vs workflow.ts vs tracking.ts), so the same flat-file-per-domain
+split can absorb portal.ts growing too large by splitting it into e.g.
+portal-tracking.ts / portal-documents.ts / portal-complaints.ts later, flat,
+the same way, without adopting E2's nested structure.
+
+**Action for a human:** E2's "Shared Package Schema Location" section
+(e2-rest-api-specification-openapi3.md:1973-1990) should be corrected to
+describe the actual flat convention, or explicitly marked superseded by E3,
+so it stops presenting a folder structure that contradicts E3 and doesn't
+match implementation. This entry documents the decision and its reasoning;
+the actual document edit is a human action per this log's own rules (agents
+never edit Group B-L documents directly).
+
+[Inference]: The four-point reasoning above is a considered architectural
+judgment, not a default — flagging as [Inference] because no pre-development
+document explicitly adjudicates an E2-vs-E3 conflict of this specific kind,
+and a human should confirm this before it's treated as settled precedent for
+future E2/E3 conflicts generally.
