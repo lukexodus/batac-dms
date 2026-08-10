@@ -18,6 +18,9 @@ export default async function submitComplaintRoute(fastify: FastifyInstance) {
         body: ComplaintSubmissionRequestSchema,
         response: {
           201: ComplaintSubmissionResponseSchema,
+          400: ValidationErrorResponseSchema,
+          429: ErrorResponseSchema,
+          500: ErrorResponseSchema,
         },
       },
       config: { rateLimit: { max: 20, timeWindow: '1 hour' } },

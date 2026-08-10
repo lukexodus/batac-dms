@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import {
   DocumentRequestSubmissionRequestSchema,
   DocumentRequestSubmissionResponseSchema,
+  ValidationErrorResponseSchema,
   ErrorResponseSchema,
 } from '@batac/shared';
 import { generatePrintableForm } from '../lib/generate-printable-form.js';
@@ -28,12 +29,7 @@ export default async function submitDocumentRequestRoute(fastify: FastifyInstanc
         body: DocumentRequestSubmissionRequestSchema,
         response: {
           201: DocumentRequestSubmissionResponseSchema,
-          // 400 uses ErrorResponseSchema, not ValidationErrorResponseSchema:
-          // Fastify's default validation-error body is {statusCode, error,
-          // message} with no `details` array, so declaring the stricter
-          // schema here makes the serializer throw and turns the 400 into a
-          // 500. (Same latent bug exists in list-documents.ts.)
-          400: ErrorResponseSchema,
+          400: ValidationErrorResponseSchema,
           429: ErrorResponseSchema,
           500: ErrorResponseSchema,
         },

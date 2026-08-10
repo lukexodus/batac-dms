@@ -10614,3 +10614,30 @@ follow-up but was intentionally left out of this change's scope.
 
 ---
 
+### [LOG-0320] TASK-PORTAL-005/006/007: 400-response-schema divergence across three routes resolved by empirical test — outcome A
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-005, TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: E2 (ValidationErrorResponse)
+
+**What was found:** list-documents.ts, submit-complaint.ts, and
+submit-document-request.ts each handled a claimed
+fastify-type-provider-zod response-serialization risk differently — one
+comment (submit-document-request.ts) claimed the risk already existed
+unaddressed in list-documents.ts, which was not accurate as written.
+
+**What was implemented:** Wrote an integration test directly triggering
+Fastify's native 400 validation-error path against a route declaring
+400: ValidationErrorResponseSchema, to observe actual behavior rather than
+reason about it. Result: the request returned HTTP 400 with Fastify's native
+validation-error body (`{ statusCode, error, message }`), and that body
+successfully parsed against the permissive ValidationErrorResponseSchema.
+All three files were then made consistent, using
+ValidationErrorResponseSchema for 400 responses on both POST routes, matching
+list-documents.ts's unchanged value. The stale comment in
+submit-document-request.ts was removed.
+
+[Inference]: none — this was resolved empirically, not by inference.
+
+---

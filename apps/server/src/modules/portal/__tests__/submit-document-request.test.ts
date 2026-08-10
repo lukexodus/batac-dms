@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
 import { validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
+import { ValidationErrorResponseSchema } from '@batac/shared';
 import portalPlugin from '../portal.plugin.js';
 import fp from 'fastify-plugin';
 
@@ -33,7 +34,7 @@ const VALID_PAYLOAD = {
   accessMode: 'digital_form',
 };
 
-describe('POST /v1/public/document-requests', () => {
+describe('POST /public/document-requests', () => {
   let fastify: FastifyInstance;
 
   beforeEach(async () => {
@@ -61,7 +62,7 @@ describe('POST /v1/public/document-requests', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/document-requests',
+      url: '/public/document-requests',
       payload: VALID_PAYLOAD,
     });
 
@@ -95,7 +96,7 @@ describe('POST /v1/public/document-requests', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/document-requests',
+      url: '/public/document-requests',
       payload: { ...VALID_PAYLOAD, accessMode: 'clerk_assisted' },
     });
 
@@ -110,12 +111,13 @@ describe('POST /v1/public/document-requests', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/document-requests',
+      url: '/public/document-requests',
       payload: withoutEmail,
     });
 
     expect(response.statusCode).toBe(400);
     const body = response.json();
+    expect(ValidationErrorResponseSchema.safeParse(body).success).toBe(true);
     expect(mockDocumentsService.createPublicSubmission).not.toHaveBeenCalled();
     expect(body.message).toBeDefined();
   });
@@ -135,12 +137,12 @@ describe('POST /v1/public/document-requests', () => {
 
     const first = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/document-requests',
+      url: '/public/document-requests',
       payload: VALID_PAYLOAD,
     });
     const second = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/document-requests',
+      url: '/public/document-requests',
       payload: { ...VALID_PAYLOAD, requesterName: 'Jose Santos' },
     });
 

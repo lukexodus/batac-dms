@@ -19,7 +19,7 @@ const mockDependenciesPlugin = fp(async (fastify) => {
   fastify.decorate('config', { CITY_ID: 'batac-city' });
 });
 
-describe('POST /v1/public/complaints', () => {
+describe('POST /public/complaints', () => {
   let fastify: FastifyInstance;
 
   beforeEach(async () => {
@@ -47,7 +47,7 @@ describe('POST /v1/public/complaints', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'overcharging',
         tricycleNumber: 'BTC-1234',
@@ -82,7 +82,7 @@ describe('POST /v1/public/complaints', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'overcharging',
         incidentDate: '2026-06-10',
@@ -104,7 +104,7 @@ describe('POST /v1/public/complaints', () => {
   it('returns 400 for violationType: other missing violationTypeOther', async () => {
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'other',
         incidentDate: '2026-06-10',
@@ -126,7 +126,7 @@ describe('POST /v1/public/complaints', () => {
   it('returns 400 for invalid incidentTime format', async () => {
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'overcharging',
         incidentDate: '2026-06-10',
