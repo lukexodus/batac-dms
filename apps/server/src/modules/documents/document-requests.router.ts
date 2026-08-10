@@ -269,7 +269,7 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(eq(documentTypes.id, document.documentTypeId))
+          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
@@ -333,7 +333,7 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(eq(documentTypes.id, document.documentTypeId))
+          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
@@ -431,7 +431,7 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(eq(documentTypes.id, document.documentTypeId))
+          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
@@ -539,7 +539,7 @@ export function createDocumentRequestsRouter() {
         const [docType] = await db
           .select()
           .from(documentTypes)
-          .where(eq(documentTypes.id, document.documentTypeId))
+          .where(and(eq(documentTypes.id, document.documentTypeId), isNull(documentTypes.deletedAt)))
           .limit(1);
 
         if (!docType || docType.code !== DOCUMENT_REQUEST_FORM_CODE) {
