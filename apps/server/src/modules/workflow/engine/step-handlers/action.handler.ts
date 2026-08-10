@@ -48,7 +48,7 @@ export async function submitStepAction(
 
   await deps.workflowRepository.updateStepInstance(
     stepInstance.id,
-    { status: 'completed', completedAt: now, outcome: 'DONE' },
+    { status: 'completed', completedAt: now, outcome: 'DONE', outcomeComment: comment },
     trx,
   );
 

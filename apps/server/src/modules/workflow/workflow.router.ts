@@ -2357,7 +2357,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
         const { stepInstanceId } = input;
         const comment = sanitizedComment ?? null;
 
@@ -2444,7 +2447,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
         const { stepInstanceId } = input;
         const comment = sanitizedComment ?? null;
 
@@ -2525,7 +2531,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedRemarks = input.remarks ? sanitizeRichText(input.remarks) : undefined;
+        const sanitizedRemarks =
+          input.remarks && !isRichTextEmpty(input.remarks)
+            ? sanitizeRichText(input.remarks)
+            : undefined;
         const { stepInstanceId, decision } = input;
         const remarks = sanitizedRemarks ?? null;
 
@@ -2818,7 +2827,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
         const { stepInstanceId, outcome } = input;
         const comment = sanitizedComment ?? null;
 
