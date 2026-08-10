@@ -9990,3 +9990,36 @@ judgment, not a default — flagging as [Inference] because no pre-development
 document explicitly adjudicates an E2-vs-E3 conflict of this specific kind,
 and a human should confirm this before it's treated as settled precedent for
 future E2/E3 conflicts generally.
+### [LOG-0308] TASK-WF-PDF-001: PDF formatting drops strike/underline/link due to DrawableRunFragment shape
+
+- date: 2026-08-10
+- task_id: TASK-WF-PDF-001
+- status: proposed
+- affects: rich-text-pdf.util.ts, workflow.router.ts
+
+**What was found:** Strikethrough was discovered to be a pre-existing, silently-broken formatting mark in the PDF generation path. While parsed correctly in `parseRichTextForPdf`, it was silently dropped before drawing because `DrawableRunFragment` had a narrow `{ text, font }` shape with no room for decoration-style formatting (which applies additively, unlike font substitutions). Underline and links suffered the same fate at the rendering stage.
+
+**What was implemented:** The fix required changes across three files/stages:
+1. `rich-text-pdf.util.ts`: Extended `TextRun` and updated `walkNode` to track `href` (as a parameter) and `underline` (in `FormatState`).
+2. `workflow.router.ts`: Extended `DrawableRunFragment` to include `underline`, `strike`, and `href`.
+3. `workflow.router.ts`: Updated `wrapRunsForPdf` to require matching `underline`, `strike`, and `href` before merging runs.
+4. `workflow.router.ts`: Modified BOTH duplicated `drawBlock` closures to render a distinct link color and draw thin rule rectangles for underlines/links (below baseline) and strike-throughs (at half cap-height).
+
+**Note on scope:** Clickable PDF link annotations were explicitly scoped out as a separate, larger task due to `pdf-lib`'s lack of a high-level API for this, requiring low-level annotation dictionaries that must survive word-wrapping reflows.
+
+### [LOG-0308] TASK-WF-PDF-001: PDF formatting drops strike/underline/link due to DrawableRunFragment shape
+
+- date: 2026-08-10
+- task_id: TASK-WF-PDF-001
+- status: proposed
+- affects: rich-text-pdf.util.ts, workflow.router.ts
+
+**What was found:** Strikethrough was discovered to be a pre-existing, silently-broken formatting mark in the PDF generation path. While parsed correctly in `parseRichTextForPdf`, it was silently dropped before drawing because `DrawableRunFragment` had a narrow `{ text, font }` shape with no room for decoration-style formatting (which applies additively, unlike font substitutions). Underline and links suffered the same fate at the rendering stage.
+
+**What was implemented:** The fix required changes across three files/stages:
+1. `rich-text-pdf.util.ts`: Extended `TextRun` and updated `walkNode` to track `href` (as a parameter) and `underline` (in `FormatState`).
+2. `workflow.router.ts`: Extended `DrawableRunFragment` to include `underline`, `strike`, and `href`.
+3. `workflow.router.ts`: Updated `wrapRunsForPdf` to require matching `underline`, `strike`, and `href` before merging runs.
+4. `workflow.router.ts`: Modified BOTH duplicated `drawBlock` closures to render a distinct link color and draw thin rule rectangles for underlines/links (below baseline) and strike-throughs (at half cap-height).
+
+**Note on scope:** Clickable PDF link annotations were explicitly scoped out as a separate, larger task due to `pdf-lib`'s lack of a high-level API for this, requiring low-level annotation dictionaries that must survive word-wrapping reflows.

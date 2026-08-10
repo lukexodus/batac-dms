@@ -8,7 +8,7 @@ describe('parseRichTextForPdf', () => {
     expect(result).toEqual([
       {
         type: 'paragraph',
-        runs: [{ text: 'Hello world', bold: false, italic: false, strike: false, code: false }],
+        runs: [{ text: 'Hello world', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
       },
     ]);
   });
@@ -20,13 +20,13 @@ describe('parseRichTextForPdf', () => {
       {
         type: 'paragraph',
         runs: [
-          { text: 'bold', bold: true, italic: false, strike: false, code: false },
-          { text: ' ', bold: false, italic: false, strike: false, code: false },
-          { text: 'italic', bold: false, italic: true, strike: false, code: false },
-          { text: ' ', bold: false, italic: false, strike: false, code: false },
-          { text: 'strike', bold: false, italic: false, strike: true, code: false },
-          { text: ' ', bold: false, italic: false, strike: false, code: false },
-          { text: 'code', bold: false, italic: false, strike: false, code: true },
+          { text: 'bold', bold: true, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: ' ', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'italic', bold: false, italic: true, strike: false, code: false, underline: false, href: null },
+          { text: ' ', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'strike', bold: false, italic: false, strike: true, code: false, underline: false, href: null },
+          { text: ' ', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'code', bold: false, italic: false, strike: false, code: true, underline: false, href: null },
         ],
       },
     ]);
@@ -39,9 +39,9 @@ describe('parseRichTextForPdf', () => {
       {
         type: 'paragraph',
         runs: [
-          { text: 'bold and ', bold: true, italic: false, strike: false, code: false },
-          { text: 'italic', bold: true, italic: true, strike: false, code: false },
-          { text: ' plain', bold: false, italic: false, strike: false, code: false },
+          { text: 'bold and ', bold: true, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'italic', bold: true, italic: true, strike: false, code: false, underline: false, href: null },
+          { text: ' plain', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
         ],
       },
     ]);
@@ -54,10 +54,10 @@ describe('parseRichTextForPdf', () => {
       {
         type: 'paragraph',
         runs: [
-          { text: 'Line 1', bold: false, italic: false, strike: false, code: false },
-          { text: 'bold', bold: true, italic: false, strike: false, code: false },
-          { text: '\n', bold: true, italic: false, strike: false, code: false },
-          { text: 'still bold', bold: true, italic: false, strike: false, code: false },
+          { text: 'Line 1', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'bold', bold: true, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: '\n', bold: true, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'still bold', bold: true, italic: false, strike: false, code: false, underline: false, href: null },
         ],
       },
     ]);
@@ -76,7 +76,7 @@ describe('parseRichTextForPdf', () => {
       {
         type: 'paragraph',
         runs: [
-          { text: 'Title bold ignored', bold: false, italic: false, strike: false, code: false },
+          { text: 'Title bold ignored', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
         ],
       },
     ]);
@@ -88,18 +88,18 @@ describe('parseRichTextForPdf', () => {
     expect(result).toEqual([
       {
         type: 'paragraph',
-        runs: [{ text: 'First para', bold: false, italic: false, strike: false, code: false }],
+        runs: [{ text: 'First para', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
       },
       {
         type: 'paragraph',
-        runs: [{ text: 'Heading', bold: false, italic: false, strike: false, code: false }],
+        runs: [{ text: 'Heading', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
       },
       {
         type: 'paragraph',
         runs: [
-          { text: 'Second ', bold: false, italic: false, strike: false, code: false },
-          { text: 'code', bold: false, italic: false, strike: false, code: true },
-          { text: ' para', bold: false, italic: false, strike: false, code: false },
+          { text: 'Second ', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
+          { text: 'code', bold: false, italic: false, strike: false, code: true, underline: false, href: null },
+          { text: ' para', bold: false, italic: false, strike: false, code: false, underline: false, href: null },
         ],
       },
     ]);
@@ -112,12 +112,12 @@ describe('parseRichTextForPdf', () => {
       {
         type: 'heading',
         level: 2,
-        runs: [{ text: 'Heading 2', bold: false, italic: false, strike: false, code: false }],
+        runs: [{ text: 'Heading 2', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
       },
       {
         type: 'heading',
         level: 5,
-        runs: [{ text: 'Heading 5', bold: false, italic: false, strike: false, code: false }],
+        runs: [{ text: 'Heading 5', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
       },
     ]);
   });
@@ -131,7 +131,7 @@ describe('parseRichTextForPdf', () => {
         blocks: [
           {
             type: 'paragraph',
-            runs: [{ text: 'Quote text', bold: false, italic: false, strike: false, code: false }],
+            runs: [{ text: 'Quote text', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
           },
         ],
       },
@@ -149,13 +149,13 @@ describe('parseRichTextForPdf', () => {
           [
             {
               type: 'paragraph',
-              runs: [{ text: 'Item 1', bold: false, italic: false, strike: false, code: false }],
+              runs: [{ text: 'Item 1', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
             },
           ],
           [
             {
               type: 'paragraph',
-              runs: [{ text: 'Item 2', bold: false, italic: false, strike: false, code: false }],
+              runs: [{ text: 'Item 2', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
             },
           ],
         ],
@@ -174,13 +174,13 @@ describe('parseRichTextForPdf', () => {
           [
             {
               type: 'paragraph',
-              runs: [{ text: 'Item 1', bold: false, italic: false, strike: false, code: false }],
+              runs: [{ text: 'Item 1', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
             },
           ],
           [
             {
               type: 'paragraph',
-              runs: [{ text: 'Item 2', bold: false, italic: false, strike: false, code: false }],
+              runs: [{ text: 'Item 2', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
             },
           ],
         ],
@@ -192,5 +192,49 @@ describe('parseRichTextForPdf', () => {
     const html = '<pre><code>line1\nline2</code></pre>';
     const result = parseRichTextForPdf(html);
     expect(result).toEqual([{ type: 'codeBlock', text: 'line1\nline2' }]);
+  });
+
+  it('parses an underline mark correctly', () => {
+    const html = '<p><u>underline</u></p>';
+    const result = parseRichTextForPdf(html);
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        runs: [{ text: 'underline', bold: false, italic: false, strike: false, code: false, underline: true, href: null }],
+      },
+    ]);
+  });
+
+  it('parses an href mark correctly', () => {
+    const html = '<p><a href="https://example.com">link</a></p>';
+    const result = parseRichTextForPdf(html);
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        runs: [{ text: 'link', bold: false, italic: false, strike: false, code: false, underline: false, href: 'https://example.com' }],
+      },
+    ]);
+  });
+
+  it('parses combined underline and href marks correctly', () => {
+    const html = '<p><a href="https://example.com"><u>link</u></a></p>';
+    const result = parseRichTextForPdf(html);
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        runs: [{ text: 'link', bold: false, italic: false, strike: false, code: false, underline: true, href: 'https://example.com' }],
+      },
+    ]);
+  });
+
+  it('parses an a tag with no href attribute as null href', () => {
+    const html = '<p><a>link</a></p>';
+    const result = parseRichTextForPdf(html);
+    expect(result).toEqual([
+      {
+        type: 'paragraph',
+        runs: [{ text: 'link', bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
+      },
+    ]);
   });
 });

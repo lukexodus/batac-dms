@@ -104,6 +104,9 @@ async function putS3Object(fileKey: string, body: Buffer, contentType: string): 
 export interface DrawableRunFragment {
   text: string;
   font: 'regular' | 'bold' | 'italic' | 'boldItalic' | 'code';
+  underline: boolean;
+  strike: boolean;
+  href: string | null;
 }
 
 export type DrawableLine = DrawableRunFragment[];
@@ -180,12 +183,18 @@ export function wrapRunsForPdf(
           currentLineWidth = 0;
         }
 
-        if (currentLine.length > 0 && currentLine[currentLine.length - 1]!.font === fontVariant) {
+        if (
+          currentLine.length > 0 &&
+          currentLine[currentLine.length - 1]!.font === fontVariant &&
+          currentLine[currentLine.length - 1]!.underline === run.underline &&
+          currentLine[currentLine.length - 1]!.strike === run.strike &&
+          currentLine[currentLine.length - 1]!.href === run.href
+        ) {
           currentLine[currentLine.length - 1]!.text += ' ' + word;
           currentLineWidth += spaceW + wordWidth;
         } else {
           const prefix = currentLine.length > 0 ? ' ' : '';
-          currentLine.push({ text: prefix + word, font: fontVariant });
+          currentLine.push({ text: prefix + word, font: fontVariant, underline: run.underline, strike: run.strike, href: run.href });
           currentLineWidth += (prefix ? spaceW : 0) + wordWidth;
         }
       }
@@ -1180,8 +1189,34 @@ async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string,
             for (const fragment of line) {
               const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
               const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: rgb(0, 0, 0) });
-              cursorX += font.widthOfTextAtSize(fragment.text, textSize);
+              const isLink = fragment.href !== null;
+              const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+              
+              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: drawColor });
+              
+              const textWidth = font.widthOfTextAtSize(fragment.text, textSize);
+              
+              if (fragment.underline || isLink) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY - 2,
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              if (fragment.strike) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY + (textSize * 0.35),
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              cursorX += textWidth;
             }
             textY -= textLineHeight;
           }
@@ -1195,8 +1230,34 @@ async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string,
             for (const fragment of line) {
               const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
               const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: rgb(0, 0, 0) });
-              cursorX += font.widthOfTextAtSize(fragment.text, hSize);
+              const isLink = fragment.href !== null;
+              const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+              
+              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: drawColor });
+              
+              const textWidth = font.widthOfTextAtSize(fragment.text, hSize);
+              
+              if (fragment.underline || isLink) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY - 2,
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              if (fragment.strike) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY + (hSize * 0.35),
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              cursorX += textWidth;
             }
             textY -= (hSize + 4);
           }
@@ -3915,8 +3976,34 @@ export function createWorkflowRouter() {
                   for (const fragment of line) {
                     const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
                     const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: rgb(0, 0, 0) });
-                    cursorX += font.widthOfTextAtSize(fragment.text, textSize);
+                    const isLink = fragment.href !== null;
+                    const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+                    
+                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: drawColor });
+                    
+                    const textWidth = font.widthOfTextAtSize(fragment.text, textSize);
+                    
+                    if (fragment.underline || isLink) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY - 2,
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    if (fragment.strike) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY + (textSize * 0.35),
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    cursorX += textWidth;
                   }
                   textY -= textLineHeight;
                 }
@@ -3930,8 +4017,34 @@ export function createWorkflowRouter() {
                   for (const fragment of line) {
                     const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
                     const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: rgb(0, 0, 0) });
-                    cursorX += font.widthOfTextAtSize(fragment.text, hSize);
+                    const isLink = fragment.href !== null;
+                    const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+                    
+                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: drawColor });
+                    
+                    const textWidth = font.widthOfTextAtSize(fragment.text, hSize);
+                    
+                    if (fragment.underline || isLink) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY - 2,
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    if (fragment.strike) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY + (hSize * 0.35),
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    cursorX += textWidth;
                   }
                   textY -= (hSize + 4);
                 }
