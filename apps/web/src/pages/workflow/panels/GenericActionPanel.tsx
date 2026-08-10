@@ -48,7 +48,9 @@ export function GenericActionPanel({
           </div>
         )}
         <div>
-          <label className="mb-1 block text-sm font-medium">Comment (optional)</label>
+          <label className="mb-1 block text-sm font-medium">
+            Comment ({instance.currentStepKey === 'valid_in_part_action' ? 'required' : 'optional'})
+          </label>
           <RichTextEditor
             value={comment}
             onChange={setComment}

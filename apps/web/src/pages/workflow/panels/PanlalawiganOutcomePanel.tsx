@@ -17,12 +17,8 @@ import {
   RichTextEditor,
 } from '@batac/ui';
 
-import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
-// recordPanlalawiganOutcome: { stepInstanceId, outcome, controlNumber?, panlalawiganResolutionNumber?, dateReferred?, remarks? }
-// resolveValidInPart: { documentId, resolutionPath, mandatoryComment }   ← takes documentId, NOT stepInstanceId
-// confirmPanlalawiganDeemedApproved: { stepInstanceId }  only
 export function PanlalawiganOutcomePanel({
   instance,
 }: {
@@ -56,12 +52,6 @@ export function PanlalawiganOutcomePanel({
     !!panlalawiganActionDeadline &&
     now >= new Date(panlalawiganActionDeadline).getTime();
 
-  const [resolutionPath, setResolutionPath] = useState<
-    'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly'
-  >('resolve_as_is');
-  const [mandatoryComment, setMandatoryComment] = useState('');
-  const canResolveValidInPart = outcome === 'VALID_IN_PART';
-
   const recordMutation = trpc.workflow.recordPanlalawiganOutcome.useMutation({
     onSuccess: () => {
       toast.success('Outcome recorded.');
@@ -71,17 +61,6 @@ export function PanlalawiganOutcomePanel({
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record outcome.'),
-  });
-
-  const resolveMutation = trpc.workflow.resolveValidInPart.useMutation({
-    onSuccess: () => {
-      toast.success('Valid-in-part resolved.');
-      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
-      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
-      void utils.documents.get.invalidate({ documentId: instance.documentId });
-      navigate('/workflow/steps');
-    },
-    onError: (err) => toast.error(err.message || 'Failed to resolve valid-in-part.'),
   });
 
   const confirmDeemedMutation = trpc.workflow.confirmPanlalawiganDeemedApproved.useMutation({
@@ -132,6 +111,12 @@ export function PanlalawiganOutcomePanel({
               <SelectItem value="RETURNED">Returned</SelectItem>
             </SelectContent>
           </Select>
+          {outcome === 'VALID_IN_PART' && (
+            <p className="text-xs text-muted-foreground">
+              Submitting this outcome creates “Complete Task: VALID-IN-PART — Secretary Documentation.”
+              Complete that follow-up task before the resolution-path decision becomes available.
+            </p>
+          )}
           <RichTextEditor
             value={remarks}
             onChange={setRemarks}
@@ -152,61 +137,6 @@ export function PanlalawiganOutcomePanel({
             disabled={recordMutation.isPending}
           >
             Record Outcome & Advance Workflow
-          </Button>
-        </div>
-
-        {/* Resolve Valid in Part */}
-        <div
-          className={`space-y-3 rounded-md border p-4 ${
-            canResolveValidInPart ? '' : 'opacity-60'
-          }`}
-          aria-disabled={!canResolveValidInPart}
-        >
-          <h3 className="text-sm font-medium">Resolve Valid in Part</h3>
-          {!canResolveValidInPart && (
-            <p className="text-xs text-muted-foreground">
-              Select “Valid in Part” under Record Outcome to enable this section.
-            </p>
-          )}
-          <Select
-            value={resolutionPath}
-            disabled={!canResolveValidInPart}
-            onValueChange={(
-              val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
-            ) => setResolutionPath(val)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="resolve_as_is">Resolve As-Is</SelectItem>
-              <SelectItem value="route_to_legal">Route to Legal</SelectItem>
-              <SelectItem value="route_to_committee">Route to Committee</SelectItem>
-              <SelectItem value="implement_directly">Implement Directly</SelectItem>
-            </SelectContent>
-          </Select>
-          <RichTextEditor
-            value={mandatoryComment}
-            onChange={setMandatoryComment}
-            placeholder="Comment (required)…"
-            disabled={!canResolveValidInPart}
-          />
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (isRichTextEmpty(mandatoryComment)) {
-                toast.error('Comment is required');
-                return;
-              }
-              resolveMutation.mutate({
-                documentId: instance.documentId,
-                resolutionPath,
-                mandatoryComment,
-              });
-            }}
-            disabled={!canResolveValidInPart || resolveMutation.isPending}
-          >
-            Resolve Valid in Part & Route
           </Button>
         </div>
 
