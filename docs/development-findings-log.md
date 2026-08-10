@@ -10641,3 +10641,274 @@ submit-document-request.ts was removed.
 [Inference]: none — this was resolved empirically, not by inference.
 
 ---
+
+### [LOG-0321] LOG-0313's CORS credentials:true fix was not actually present in the tree; regression re-confirmed and re-scoped with an additional undocumented partial fix found
+
+- date: 2026-08-10
+- task_id: TASK-INFRA-013 (planning-layer investigation; execution pending)
+- status: proposed
+- affects: apps/server/src/plugins/cors.ts, apps/server/src/app.ts (lines 261-274), LOG-0313 (refines, does not supersede)
+
+**What was found.** LOG-0313 (this same file, lines 10212-10257) documented
+this exact CORS credentials:false regression and claimed a fix was
+implemented (`credentials` restored to `true` in
+apps/server/src/plugins/cors.ts). Direct inspection of the current snapshot
+shows `credentials: false` still present at cors.ts:8 — the claimed fix is
+not in the live code. A previously-generated patch file
+(0001-fix-server-restore-CORS-credentials-so-cookie-authen.patch) intended
+to apply this same fix does not apply cleanly against the current tree
+(confirmed via `patch --dry-run -p1`: "Hunk #1 FAILED at 5") because an
+intervening refactor moved CORS_ALLOWED_ORIGINS parsing from inline
+process.env access to a centralized Zod-validated env singleton
+(apps/server/src/config/env.server.ts:38-43), changing the surrounding file
+context the patch's diff hunk depends on. The refactor carried
+`credentials: false` forward unchanged — it did not reintroduce the bug SO
+MUCH AS the bug's fix never survived past LOG-0313's writing into this
+refactored shape of the file, or the refactor was based on a pre-fix
+checkout. Which of these two happened could not be determined from the file
+tree alone (no .git history was available in the environment this
+investigation was performed in).
+
+**Additional finding beyond LOG-0313's original scope.** LOG-0313 describes
+the global plugin's credentials:false as breaking "cookie-authenticated
+cross-origin requests from the internal web app" without qualification. This
+is no longer fully accurate: apps/server/src/app.ts:261-274 contains an
+undocumented per-route CORS override (via an `onRoute` hook writing
+`routeOptions.config.cors`) that already sets credentials:true specifically
+for /api/trpc/* routes, independent of the global plugin. This override has
+no corresponding findings-log entry and post-dates LOG-0313's narrative (which
+does not mention it existing). Full current blast radius, confirmed by
+grepping every `credentials: 'include'` call site in apps/web/src and
+checking each target route's CORS handling:
+- BROKEN (governed only by the global plugin, no override exists):
+  useAuthActions.ts:41,74,84,98 (/api/auth/login, /logout, /lock, /unlock)
+  and SessionHydrator.tsx:39-41 (/api/auth/refresh).
+- NOT broken (has its own credentials:true override): trpc.ts:33,51
+  (/api/trpc/*).
+Confirmed via grep that apps/server/src/modules/iam/iam.routes.ts and
+iam.plugin.ts contain zero CORS-related code, ruling out any hidden
+override for the /api/auth/* routes.
+
+**Secondary, unrelated finding.** The LOG-0313 entry ID is duplicated later
+in this file for an unrelated accessMode-translation entry. Not resolved
+here — flagged for human attention since it makes LOG-0313 ambiguous to
+reference by ID going forward.
+
+**What was implemented.** [PENDING — this entry was drafted at the planning
+layer alongside the standalone executor prompt for TASK-INFRA-013, before
+the local agent executed it. Update this section with the actual verified
+outcome once TASK-INFRA-013 has been run and reported back, per this
+project's convention of describing what was implemented and verified, not
+what was planned.]
+
+**Note on E2 conflict (re-affirming LOG-0313's own note, not yet resolved).**
+E2's CORS Configuration section specifies credentials:false for Phase 1
+public endpoints; the global plugin cannot structurally distinguish
+public/portal routes from internal-app routes. TASK-INFRA-013 restores the
+global default to credentials:true (matching the pre-existing working state
+and the already-precedented /api/trpc/* override), rather than extending the
+per-route override pattern to /api/auth/* as an alternative that would have
+left the global default at credentials:false. This was a deliberate,
+human-confirmed choice for this task (Option A over Option B, presented
+during planning) — not a default assumed silently. The underlying E2-vs-
+implementation tension remains open and unresolved by a human, exactly as
+LOG-0313 already noted.
+
+---
+
+### [LOG-0322] TASK-WF-063: logSecretariatDecision's remarks truthy-check bug identified as the actual root cause for "Second Reading" steps' empty-remark display — corrects the routing assumption in LOG-0262's sibling investigation
+
+- date: 2026-08-10
+- task_id: TASK-WF-063
+- status: proposed
+- affects: workflow.router.ts (logSecretariatDecision, approveStep, submitApprovalOutcome, completeActionStep), action.handler.ts, WorkflowStepActionPage.tsx
+- supersedes: none (extends LOG-0262, does not contradict it)
+
+**What was found:** For a Secretary-role user, `second_reading_vote` and
+`second_reading_amended_vote` (both `step_type: 'approval'`, assigned via
+`ROLE.SP_SECRETARY`) route through `computePanelHint`'s office-ID-comparison
+branch (`workflow.router.ts:592-597`) to `panelHint: 'secretariat_decision'`
+→ `SecretariatDecisionPanel.tsx`, not `GenericApprovalPanel.tsx`. Confirmed:
+every seeded `sp_secretary` demo user (`apps/server/src/database/seeds/
+demo-credentials.seed.ts:105-198`) has `officeCode: 'SPS'`, matching
+`SP_SECRETARIAT_OFFICE_CODE`; `assignee-resolution.ts:4-8,55-68` populates
+`office_id` on every resolved assignee (this is current — the gap LOG-0252
+described, dated one day earlier, was evidently fixed in the interim and is
+stale; LOG-0189/LOG-0191, dated the following day, already documented the
+fix landing, though neither entry explicitly marked LOG-0252 as superseded).
+
+`SecretariatDecisionPanel.tsx:48` (`remarks: remarks || undefined`) has the
+same truthy-check bug pattern LOG-0259-0262's investigation covered for
+`approveStep`/`submitApprovalOutcome`/`completeActionStep`, via the
+`remarks` field at `workflow.router.ts:2528` instead of `comment`. This is
+a fifth occurrence of the pattern, not previously logged. This is the
+actual fix target for the user-reported empty-remark bug on "Second
+Reading — Final Vote on Amended Version," not `approveStep`/
+`submitApprovalOutcome` as an earlier planning-layer session initially
+concluded before checking panel-routing.
+
+**What was implemented:** TASK-WF-063 fixes all four truthy-check sites
+(`completeActionStep`, `approveStep`, `submitApprovalOutcome`,
+`logSecretariatDecision`) uniformly with `isRichTextEmpty`, plus
+`action.handler.ts`'s separate write-path omission (LOG-0262), plus a
+`StepHistoryComment` UI redesign (indicator-only, reveal-on-click).
+
+Note: [Confirmed] — computePanelHint, assignee-resolution.ts,
+demo-credentials.seed.ts, SecretariatDecisionPanel.tsx, and
+action.handler.ts all read in full directly against this session's
+upload (checksum e82ba681480856ff929863fdff84f875).
+
+---
+
+### [LOG-0323] TASK-WF-063 dispatched — closes LOG-0262's action.handler.ts write-path gap
+
+- date: 2026-08-10
+- task_id: TASK-WF-063
+- status: proposed
+- affects: action.handler.ts
+- supersedes: none (closes LOG-0262's open item)
+
+**What was found:** Re-confirms LOG-0262 exactly, no new information —
+`action.handler.ts:49-53`'s `updateStepInstance` call omitted
+`outcomeComment` despite `comment` being in scope. Independently
+re-verified against this session's upload before TASK-WF-063 was written.
+
+**What was implemented:** TASK-WF-063 adds `outcomeComment: comment` to
+the `updateStepInstance` call in `submitStepAction` only (not
+`autoCompleteActionStep`, which never carries a user comment).
+
+Note: [Confirmed] — action.handler.ts full file read directly against
+this session's upload.
+
+---
+
+### [LOG-0324] documents_it_admin_* RLS policies and batac_it_admin grants are permanently inert; Invariant #10 is enforced solely by documents.policy.ts's role-set omission
+
+- date: 2026-08-10
+- task_id: none (found during IT Admin gap-audit continuation)
+- status: proposed
+- affects: C1 (Part 12, documents.documents RLS), I1 §4.1 canReadContent, I2 §5, Architectural Invariant #10
+
+`packages/database/migrations/0004_documents_create_documents_schema.sql:448-457`
+defines `documents_it_admin_no_confidential` and `documents_it_admin_metadata_only_update`,
+both `TO batac_it_admin`. `batac_it_admin` is a `NOLOGIN` Postgres role
+(LOG-0132/LOG-0134) with zero `SET ROLE batac_it_admin` call sites anywhere in
+apps/server/src (confirmed via repo-wide grep). These two policies, and the
+GRANT/REVOKE statements at lines 423-430 scoped to the same role, are
+permanently unreachable by any live session.
+
+Additionally, `documents.versions` and `documents.attachments` never receive
+`ENABLE ROW LEVEL SECURITY` in any migration through 0024 (confirmed via
+`grep -rln "ENABLE ROW LEVEL SECURITY" packages/database/migrations/*.sql`) —
+the two tables holding actual file content have zero DB-layer row-level
+defense of any kind.
+
+Invariant #10 currently holds only because
+`apps/server/src/modules/documents/documents.policy.ts`'s `OWN_OFFICE_READ_ROLES`
+(lines 64-75) and `CROSS_OFFICE_READ_ROLES` (lines 78-84) both correctly omit
+`sys_admin`, so `canReadContent` (lines 730-753) can never return true for a
+sys_admin subject, and this is the sole gate on
+`documents.downloadVersion` (documents.router.ts:1130-1178), the only live
+route to version/attachment file content. This is single-layer enforcement
+for an invariant documented elsewhere (d1-use-case-diagrams.md:391) as
+"enforced at the PostgreSQL permission level" — that DB-level enforcement
+does not currently exist for the live code path. No test currently asserts
+sys_admin's absence from these role sets or from bypassOfficeIsolation
+(iam.middleware.ts:346-352) as an invariant to be protected going forward.
+
+[Inference] Two remediation paths exist: (a) build a SET ROLE batac_it_admin
+pivot so the existing RLS policies become live, restoring DB-layer
+defense-in-depth, or (b) formally retire the dead policies/grants and add a
+regression test asserting sys_admin's absence from the relevant role sets as
+the documented, sole enforcement mechanism. This is a human design decision,
+not resolved here.
+
+---
+
+### [LOG-0325] documentsService.getAttachmentRefs has no authorization check and is currently dead code — landmine for future Phase 2 wiring
+
+- date: 2026-08-10
+- task_id: none (found during IT Admin gap-audit continuation)
+- status: proposed
+- affects: I1 §4.1, documents.service.ts
+
+`apps/server/src/modules/documents/documents.service.ts:268-311`
+(`getAttachmentRefs`) generates signed S3 download URLs for every version and
+attachment on a given documentId with no role, office, or classification
+check of any kind — no canReadContent call, nothing. Confirmed via repo-wide
+grep (including compiled dist output) that this method has zero callers
+outside its own type declaration and a scaffold test that only asserts it
+exists as a function (`__tests__/documents.scaffold.test.ts:34`). The
+method's own doc comment ("B2 Module 3 -- called by Records for archiving;
+Search Meta for OCR (Phase 2)") indicates this is planned-but-unbuilt
+functionality.
+
+Not currently exploitable — the method is unreachable from any tRPC
+procedure, REST route, or frontend call site today. Flagging so that when
+this is wired up for its intended Phase 2 use, a canReadContent-equivalent
+gate is added at that time rather than assumed to already exist.
+
+---
+
+### [LOG-0326] — `app.current_role_tier` GUC is set every request but never consumed
+**Status:** proposed
+**Module:** IAM / Documents (RLS infrastructure)
+**Found during:** IT Admin Invariant #10 verification, session 3 (continuation of prior handoff)
+
+`apps/server/src/modules/iam/iam.middleware.ts:340-344,394` computes and sets
+`app.current_role_tier` (values: `IT_ADMIN` / `SECURITY_ADMIN` / `STANDARD`) via
+`set_config(...)` on every authenticated request, inside the same GUC-setting block
+that also sets `app.is_ita`, `app.bypass_office_isolation`, etc. A repo-wide search
+(`grep -rln "current_role_tier" packages/database/migrations/*.sql apps/server/src`)
+found exactly one file: the setter itself. No RLS `CREATE POLICY` predicate, no
+application-layer check, and no other server code reads this GUC anywhere in the
+current snapshot.
+
+This is the same "dead mechanism" pattern already logged for `batac_it_admin`
+(LOG-0132/LOG-0134) — infrastructure that looks like active defense-in-depth
+(three-tier role classification computed and persisted every request) but currently
+does nothing, because nothing consumes it. Unlike `batac_it_admin`, this one has no
+comment anywhere claiming it enforces a specific invariant, so it's lower urgency —
+but a future engineer skimming `iam.middleware.ts` could reasonably assume
+`current_role_tier` is load-bearing for some RLS policy, when it isn't. Flagging so
+it either gets wired to something (e.g. as part of any future Invariant #10
+DB-layer work) or gets documented as intentionally reserved/forward-looking, rather
+than left silently ambiguous.
+
+No code change proposed here — pure discovery, needs a human call on whether this
+is "build the RLS policies that should consume it" (bundled with the Option A
+decision below) or "leave it, it's forward-looking infra, comment it as such."
+
+---
+
+### [LOG-0327] — Hook 3 (`setDatabaseSessionVars`) test coverage asserts reachability, not GUC values
+**Status:** proposed
+**Module:** IAM (test infrastructure)
+**Found during:** IT Admin Invariant #10 verification, session 3
+
+`apps/server/src/modules/iam/__tests__/iam.middleware.test.ts:525-581` — the four
+existing Hook 3 tests (`describe('setDatabaseSessionVars (Hook 3)')`) each end with
+only `expect(db.execute).toHaveBeenCalledOnce()`, with explicit comments
+acknowledging the SQL object's bound parameters aren't inspected (lines 537-538,
+552-553: "the actual SQL object is opaque," "we verify the call succeeded without
+throwing"). The file's own header test-matrix (lines 27-31) lists these as
+behavioral checkmarks ("✓ IT Admin → roleTier = 'IT_ADMIN'"), which overstates what
+the test bodies actually assert — they verify the code path runs without throwing,
+not that the correct value was bound into the GUC.
+
+Practical consequence: none of these four tests would fail if a future change
+altered what value gets computed for `roleTier` or `bypassOfficeIsolation` while
+leaving the `db.execute` call itself intact (e.g., an off-by-one in the ternary at
+line 340-344, or an accidental role addition to the `bypassOfficeIsolation` OR-chain
+at line 346-352) — this describe block's tests would keep passing throughout.
+
+The TASK-IAM-DOCS-0XX prompt below adds one new test to this describe block that
+deliberately breaks from this file's existing idiom by asserting the actual bound
+value (see prompt's `[Deviation from file's existing idiom]` note for why). Flagging
+that the other four pre-existing tests in this block have the same limitation and
+were left as-is — fixing them is out of scope for this session's task (Invariant #10
+regression coverage specifically) and would be a separate, broader test-hardening
+task requiring its own scope decision, not a silent fold-in.
+
+---
+
