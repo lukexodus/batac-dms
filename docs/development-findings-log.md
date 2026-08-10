@@ -9540,58 +9540,66 @@ not as the file's `confirmed` status.
 
 ---
 
-### [LOG-0298] LOG-0293 (archive step wiring) — fix verified correct; new pre-existing gap found: `records_officer` missing from `ACTION_STEP_ROLES`
+### [LOG-0298] LOG-0293 fix (Patch 0002) — `submitStepAction` archive logic is correct but likely unreachable for `records_officer`, its own intended assignee
 
 - date: 2026-08-10
 - task_id: (patch 0002 verification)
 - status: proposed
-- affects: I1 §6.2 (`step_instance:complete_action` base role set), workflow.policy.ts
+- affects: LOG-0293 (revises), wf.md TASK-WF (ABAC policy guard task), I1 §6.2, I2 §10 row "Archive document"
 
-**What was found:** Patch `0002-fix-Archive-step-wiring-and-portal-publication-state.patch`
-correctly resolves LOG-0293 by adding a `stepDef.stepKey === 'archive'` branch
-inside `submitStepAction` (`apps/server/src/modules/workflow/engine/step-handlers/action.handler.ts:47-55`)
-that calls `deps.documentsService.transitionState(instance.documentId, 'archived',
-actorId, 'Document archived', trx)` before the step instance is marked completed,
-inside the same transaction — reproducing `documents.archive`'s atomicity without
-duplicating `archiveStepForDocument`. Duplicating `archiveStepForDocument` here
-would have been actively wrong, not just redundant: it re-resolves the same active
-step instance by key and calls `autoCompleteActionStep` on it, which would race
-against the very step completion already in progress in the same function. Verified
-this by tracing all three call sites of `autoCompleteActionStep` in the codebase
-(`action.handler.ts` self-definition aside): `workflow.public-api.ts:264`
-(`archiveStepForDocument`, not reachable from this new code path) and
-`step-resolution.ts:231` (gated on `config['auto_complete'] === true`, and the
-`archive` step's seed config has `auto_complete: false`, so this path can never
-reach an `archive`-keyed step regardless of this patch).
+**What was found:** An earlier draft of this finding (not filed) incorrectly claimed
+`ACTION_STEP_ROLES` (`apps/server/src/modules/workflow/workflow.policy.ts:131-139`)
+was missing `records_officer` as a bug. Reading the actual governing task document —
+`docs/pre-development/A-project-planning/a1-tasks/wf.md:1704` — corrects that: the
+task's own acceptance criterion (line 1687: "Users not present in
+`step_instances.assigned_to` cannot call `completeActionStep`... throws `FORBIDDEN`")
+and explicit role list ("`completeActionStep`: `dept_encoder (scoped), dept_approver,
+sp_secretary, sp_presiding_officer, mayor, brgy_encoder (scoped), brgy_captain`")
+deliberately exclude `records_officer`. This matches `ACTION_STEP_ROLES` exactly.
+`records_officer` appears by name in half a dozen other role lists in the same
+document (e.g. line 1700's `getInstance` read-permission list, two lines above),
+so its absence here reads as intentional, not an oversight.
 
-However, tracing the *upstream* gate this new code depends on surfaced an
-independent, pre-existing bug: `canCompleteActionStep`
-(`apps/server/src/modules/workflow/workflow.policy.ts:272`) requires
-`rolesIntersect(subject.roles, ACTION_STEP_ROLES)` before `submitStepAction` is
-ever called (`workflow.router.ts:2381`, inside `completeActionStep`).
-`ACTION_STEP_ROLES` (`workflow.policy.ts:131-139`) is `{dept_encoder,
-dept_approver, sp_secretary, sp_presiding_officer, mayor, brgy_encoder,
-brgy_captain}` — it does not include `records_officer`. The `archive` step's seed
-config (`packages/database/src/seeds/workflow/phase1-legislative.ts:366`) assigns
-it to `ROLE.RECORDS_OFFICER`. A user whose only role is `records_officer` would be
-rejected with `FORBIDDEN` (`cause: 'complete_action_role_denied'`) before reaching
-this patch's new logic at all — independent of whether the patch itself is correct.
+This means the `archive` step (`packages/database/src/seeds/workflow/phase1-legislative.ts:359-371`,
+assigned to `ROLE.RECORDS_OFFICER`) can never legitimately be completed via
+`completeActionStep` — the generic queue-based path `GenericActionPanel.tsx` uses —
+because its own assignee role is categorically barred from that procedure by design.
+`documents.archive` (`apps/server/src/modules/documents/documents.router.ts:1771-1817`)
+appears to be the intended completion surface instead: its role check
+(`records_officer` unconditional, or `sp_secretary` with SP Secretariat office
+membership) matches I2's matrix row "Archive document (move to inactive → archived)"
+(`i2-role-permission-matrix.md:249`, Rec Officer ✅ / SP Secretary ✅) exactly, and
+it's specifically built to resolve the matching workflow step via
+`archiveStepForDocument` — machinery that would be pointless if this procedure
+weren't meant to be the primary way a `records_officer` completes this step.
 
-Comparison to adjacent role sets in the same file suggests this is a genuine gap,
-not deliberate: `records_officer` is present in `INSTANCE_OWN_OFFICE_READ_ROLES`
-(line 117), `INSTANCE_CROSS_OFFICE_READ_ROLES` (line 124), and `SLA_READ_ROLES`
-(line 157) — three separate, similarly-scoped sets in the same file. Its specific
-absence from `ACTION_STEP_ROLES` (cited as sourced from `I1 §6.2`) looks
-inconsistent with that pattern, but I have not read the source document `I1 §6.2`
-directly and cannot confirm whether the exclusion is intentional.
+Patch `0002-fix-Archive-step-wiring-and-portal-publication-state.patch`'s change to
+`submitStepAction` (adding `transitionState` for `stepKey === 'archive'`) is
+technically correct in isolation — verified in a prior pass of this finding — but is
+very likely unreachable in practice for a `records_officer`-only user, since
+`canCompleteActionStep`'s role gate (`workflow.policy.ts:274`) throws before
+`submitStepAction` is ever called. This is the same "correct code, no live caller"
+shape already logged once in this investigation (`initiatePanlalawiganTransmittal`,
+prior session).
 
-**What was NOT implemented:** No fix. This is a design/source-of-truth question
-(does `I1 §6.2` intend to exclude `records_officer` from general action-step
-completion, or was this an omission when the set was written) that needs a human
-decision, not something to resolve by inference from adjacent sets. Whether a
-`records_officer`-only user is realistic in this system's actual role assignments
-is also unverified — I can only confirm the gate as written would reject such a
-user; I cannot confirm how common that user profile is in practice.
+**What was NOT implemented:** No fix. The real question this reopens is which of
+LOG-0293's original Option 1/Option 2 was actually viable — Option 1
+(`submitStepAction` special-case, what Patch 0002 implemented) assumed
+`completeActionStep` was a reachable path for this step's assignee; that assumption
+now looks wrong. Option 2 (a dedicated panel routing to `documents.archive` instead
+of `completeActionStep`) was flagged at the time as more invasive but may be the
+only one that actually closes the gap for a `records_officer`-only user. This needs
+a human decision, and ideally direct confirmation with whoever owns `wf.md`/I1
+whether `completeActionStep`'s role list was truly meant to exclude
+`records_officer` from ALL action steps, or only some — the task doc doesn't say
+whether `records_officer`-assigned action steps are always meant to have a
+dedicated non-generic endpoint, or whether this is specific to `archive`.
+
+**What was verified but does NOT need re-litigating:** Patch 0002's actual code
+change (transaction-threading, exclusion from `autoCompleteActionStep`, no
+duplicate `archiveStepForDocument` call) remains correct as implemented — see the
+prior pass of this finding for that trace. The concern here is reachability, not
+correctness of the code itself.
 
 ---
 
