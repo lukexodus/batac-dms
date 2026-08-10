@@ -701,51 +701,57 @@ async function resolveCommitteeReportMetadata(ctx: any, metadata: Record<string,
     return commCorrections.sort((a: any, b: any) => new Date(b.corrected_at).getTime() - new Date(a.corrected_at).getTime())[0];
   };
 
-  const committeeSubmissions = assignedCommitteeIds.map((committeeId) => {
+  const committeeSubmissions = await Promise.all(assignedCommitteeIds.map(async (committeeId) => {
     const latestCorrection = getLatestCorrection(committeeId);
     const originalSubmission = submissionsData.find((s: any) => s.committee_id === committeeId);
-    
+
+    let submittedBy: string | null = null;
+    let submittedAt: Date | null = null;
+    let contributionDocumentId: string | null = null;
+    let reportText: string | null = null;
+    let missed = true;
+    let isCorrection = false;
+
     if (latestCorrection) {
-      return {
-        committeeId,
-        submittedBy: latestCorrection.corrected_by,
-        submittedAt: latestCorrection.corrected_at ? new Date(latestCorrection.corrected_at) : null,
-        contributionDocumentId: latestCorrection.corrected_document_id || null,
-        contributionText: latestCorrection.corrected_report_text || null,
-        missed: false,
-        isCorrection: true,
-      };
+      submittedBy = latestCorrection.corrected_by;
+      submittedAt = latestCorrection.corrected_at ? new Date(latestCorrection.corrected_at) : null;
+      contributionDocumentId = latestCorrection.corrected_document_id || null;
+      reportText = latestCorrection.corrected_report_text || null;
+      missed = false;
+      isCorrection = true;
     } else if (originalSubmission) {
-      return {
-        committeeId,
-        submittedBy: originalSubmission.submitted_by,
-        submittedAt: originalSubmission.submitted_at ? new Date(originalSubmission.submitted_at) : null,
-        contributionDocumentId: originalSubmission.contribution_document_id,
-        contributionText: originalSubmission.contribution_text || null,
-        missed: !!originalSubmission.missed,
-        isCorrection: false,
-      };
-    } else {
-      return {
-        committeeId,
-        submittedBy: null,
-        submittedAt: null,
-        contributionDocumentId: null,
-        contributionText: null,
-        missed: true,
-        isCorrection: false,
-      };
+      submittedBy = originalSubmission.submitted_by;
+      submittedAt = originalSubmission.submitted_at ? new Date(originalSubmission.submitted_at) : null;
+      contributionDocumentId = originalSubmission.contribution_document_id;
+      reportText = originalSubmission.contribution_text || null;
+      missed = !!originalSubmission.missed;
+      isCorrection = false;
     }
-  });
+
+    const docSummary = await resolveReportDocumentSummary(db, contributionDocumentId);
+
+    return {
+      committeeId,
+      submittedBy,
+      submittedAt,
+      contributionDocumentId,
+      reportText,
+      missed,
+      isCorrection,
+      reportDocumentId: docSummary.reportDocumentId,
+      reportDocumentTitle: docSummary.reportDocumentTitle,
+      reportDocumentUrl: docSummary.reportDocumentUrl,
+    };
+  }));
 
   let unifiedReportDocumentTitle = null;
   let unifiedReportDocumentUrl = null;
   const unifiedReportDocumentId = metadata['unified_report_document_id'] || null;
 
   if (unifiedReportDocumentId) {
-    const [doc] = await db.select({ title: documents.title }).from(documents).where(eq(documents.id, unifiedReportDocumentId)).limit(1);
-    if (doc) unifiedReportDocumentTitle = doc.title;
-    // URL would be generated in real implementation if needed, skipping for now
+    const unifiedDocSummary = await resolveReportDocumentSummary(db, unifiedReportDocumentId);
+    unifiedReportDocumentTitle = unifiedDocSummary.reportDocumentTitle;
+    unifiedReportDocumentUrl = unifiedDocSummary.reportDocumentUrl;
   }
 
   return {
@@ -825,12 +831,12 @@ async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string,
           skippedCount++;
         }
       }
-    } else if (sub.contributionText) {
+    } else if (sub.reportText) {
       textOnlyCount++;
     }
 
-    if (sub.contributionText) {
-      textOnlyContents.push({ committeeName: committeeName ?? sub.committeeId, text: sub.contributionText });
+    if (sub.reportText) {
+      textOnlyContents.push({ committeeName: committeeName ?? sub.committeeId, text: sub.reportText });
     }
 
     sourceEntries.push({
@@ -1460,6 +1466,7 @@ export function createWorkflowRouter() {
                 submittedAt: z.coerce.date().nullable(),
                 contributionDocumentId: z.string().uuid().nullable(),
                 missed: z.boolean(),
+                isCorrection: z.boolean(),
                 reportText: z.string().nullable(),
                 reportDocumentId: z.string().uuid().nullable(),
                 reportDocumentTitle: z.string().nullable(),
@@ -1662,6 +1669,7 @@ export function createWorkflowRouter() {
           submittedAt: Date | null;
           contributionDocumentId: string | null;
           missed: boolean;
+          isCorrection: boolean;
           reportText: string | null;
           reportDocumentId: string | null;
           reportDocumentTitle: string | null;
@@ -1671,56 +1679,12 @@ export function createWorkflowRouter() {
         let unifiedReportDocumentTitle: string | null = null;
         let unifiedReportDocumentUrl: string | null = null;
         if (currentStepType === 'multi_referral' && currentStep?.metadata) {
-          const meta = currentStep.metadata as Record<string, any>;
-          const rawAssigned = meta['assigned_committees'] as Array<{ committee_id: string }>;
-          if (Array.isArray(rawAssigned) && rawAssigned.length > 0) {
-            assignedCommittees = [];
-            for (const ac of rawAssigned) {
-              const [c] = await ctx.db
-                .select({ name: committees.name })
-                .from(committees)
-                .where(eq(committees.id, ac.committee_id))
-                .limit(1);
-              assignedCommittees.push({
-                committeeId: ac.committee_id,
-                name: c?.name || null,
-              });
-            }
-          }
-          const rawSubmissions = meta['submissions'] as Array<{
-            committee_id: string;
-            submitted_by: string | null;
-            submitted_at: string | null;
-            contribution_document_id: string | null;
-            missed?: boolean;
-            report_text?: string | null;
-          }>;
-          if (Array.isArray(rawSubmissions)) {
-            committeeSubmissions = [];
-            for (const s of rawSubmissions) {
-              const report = await resolveReportDocumentSummary(ctx.db, s.contribution_document_id);
-              committeeSubmissions.push({
-                committeeId: s.committee_id,
-                submittedBy: s.submitted_by ?? null,
-                submittedAt: s.submitted_at ? new Date(s.submitted_at) : null,
-                contributionDocumentId: s.contribution_document_id ?? null,
-                missed: s.missed ?? false,
-                reportText: s.report_text ?? null,
-                reportDocumentId: report.reportDocumentId,
-                reportDocumentTitle: report.reportDocumentTitle,
-                reportDocumentUrl: report.reportDocumentUrl,
-              });
-            }
-          }
-          unifiedReportDocumentId = meta['unified_report_document_id'] ?? null;
-          if (unifiedReportDocumentId) {
-            const unifiedReport = await resolveReportDocumentSummary(
-              ctx.db,
-              unifiedReportDocumentId,
-            );
-            unifiedReportDocumentTitle = unifiedReport.reportDocumentTitle;
-            unifiedReportDocumentUrl = unifiedReport.reportDocumentUrl;
-          }
+          const res = await resolveCommitteeReportMetadata(ctx, currentStep.metadata as Record<string, any>, ctx.db);
+          assignedCommittees = res.assignedCommittees;
+          committeeSubmissions = res.committeeSubmissions;
+          unifiedReportDocumentId = res.unifiedReportDocumentId;
+          unifiedReportDocumentTitle = res.unifiedReportDocumentTitle;
+          unifiedReportDocumentUrl = res.unifiedReportDocumentUrl;
         }
 
         return {

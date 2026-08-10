@@ -477,7 +477,7 @@ export function MultiReferralPanel({
               <h3 className="text-sm font-medium">Committee Submissions</h3>
               <ul className="space-y-2 text-sm">
                 {effectiveAssignedCommittees.map((c) => {
-                  const submission = (instance.committeeSubmissions ?? []).find(
+                  const submission = (effectiveSubmissions ?? []).find(
                     (s) => s.committeeId === c.committeeId,
                   );
                   return (
