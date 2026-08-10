@@ -2437,6 +2437,116 @@ export function createWorkflowRouter() {
       }),
 
     /**
+     * `workflow.completePortalPublicationStep`
+     *
+     * Marks the portal publication action as completed and releases the
+     * document atomically with the workflow step transition.
+     */
+    completePortalPublicationStep: protectedProcedure
+      .input(
+        z.object({
+          stepInstanceId: z.string().uuid(),
+          comment: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
+        const { stepInstanceId } = input;
+        const comment = sanitizedComment ?? null;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, doc, stepAttrs } = found;
+
+        if (stepAttrs.stepKey !== 'portal_publication') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'This procedure only handles the portal_publication step.',
+          });
+        }
+
+        workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: ctx.req.server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+          iamService: server.iamService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          try {
+            await deps.documentsService.transitionState(
+              doc.id,
+              'released',
+              ctx.auth!.userId,
+              'Published to public portal',
+              tx,
+            );
+          } catch (error) {
+            if (error instanceof TRPCError) throw error;
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message:
+                'Document is not in a state that allows portal publication (must be completed).',
+              cause: error,
+            });
+          }
+
+          await submitStepAction(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            comment,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
+          );
+        });
+
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'DONE',
+              comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: buildActionDescription(step.label, step.stepKey, 'DONE'),
+              cityId: ctx.auth!.cityId,
+            },
+          });
+        }
+
+        return { success: true as const, nextStepType: null };
+      }),
+
+    /**
      * `workflow.approveStep`
      *
      * Approves an `approval` step and advances the workflow instance.

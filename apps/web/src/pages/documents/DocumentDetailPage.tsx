@@ -406,7 +406,7 @@ export default function DocumentDetailPage() {
 
   const publishMutation = trpc.documents.publishToPortal.useMutation({
     onSuccess: () => {
-      toast.success('Published to portal');
+      toast.success('Portal publish status updated.');
       void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
@@ -414,7 +414,7 @@ export default function DocumentDetailPage() {
 
   const unpublishMutation = trpc.documents.unpublishFromPortal.useMutation({
     onSuccess: () => {
-      toast.success('Unpublished from portal');
+      toast.success('Portal publish status updated.');
       void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
