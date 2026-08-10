@@ -9664,3 +9664,36 @@ leaving verified fixes unrecorded.
 
 ---
 
+### [LOG-0302] ARTA SLA estimatedWorkingDays threshold hardcoded to 3 for document-requests — configurability deferred to a human
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-007
+- status: proposed
+- affects: E2 §DocumentRequestSubmissionResult, consolidated reference Part 11.19
+
+**What was found:** E2's `DocumentRequestSubmissionResult` example payload and
+its `estimatedWorkingDays` field description ("RA 11032 (ARTA) default SLA
+thresholds. Simple transactions: ≤3 working days") require the value 3, and
+consolidated reference Part 11.19 makes ARTA SLA tracking a Phase 1 legal
+requirement with "configurable thresholds". No loaded document specifies
+where that threshold is configured — an env var, a database row, or a
+hardcoded constant. `TASK-WF-014`'s SLA escalation system may already provide
+a configuration mechanism, but that task list was not read closely enough
+during this pass to confirm whether it is reusable for a document type with
+no workflow instance (document-request submissions have no workflow in
+Phase 1 — see wf.md TASK-WF-016 scope note).
+
+**What was implemented:** `POST /v1/public/document-requests` hardcodes
+`ESTIMATED_WORKING_DAYS = 3` in
+`apps/server/src/modules/portal/routes/submit-document-request.ts` and returns
+it in the response body. No configuration mechanism was invented.
+
+[Inference]: The value 3 matches E2's own example and the ARTA simple-
+transaction SLA. The configurability question is deferred for a human
+decision: whether the threshold should move to an env var / DB row / reused
+from TASK-WF-014's escalation config, and whether it should be document-type
+specific.
+
+---
+
+

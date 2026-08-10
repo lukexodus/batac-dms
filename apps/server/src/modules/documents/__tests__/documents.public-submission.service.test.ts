@@ -152,6 +152,60 @@ describe('createPublicSubmission', () => {
     expect(result.referenceCode).toBe(`DREQ-${YEAR}-0001`);
   });
 
+  it('produces sequential DREQ-{year}-0001 / DREQ-{year}-0002 codes independent of the COMP sequence', async () => {
+    vi.spyOn(DocumentsRepository.prototype, 'findDocumentTypeByCode').mockResolvedValue(
+      REQUEST_DOC_TYPE as any,
+    );
+    vi.spyOn(DocumentsRepository.prototype, 'findNumberSeriesByKey').mockResolvedValue(
+      REQUEST_SERIES as any,
+    );
+    numberingService.reserveReferenceNumber
+      .mockResolvedValueOnce({
+        numberValue: `DREQ-${YEAR}-0001`,
+        sequenceNumber: 1,
+        sequenceYear: YEAR,
+      })
+      .mockResolvedValueOnce({
+        numberValue: `DREQ-${YEAR}-0002`,
+        sequenceNumber: 2,
+        sequenceYear: YEAR,
+      });
+
+    const first = await createPublicSubmission(buildDeps(), {
+      documentType: 'DOCUMENT_REQUEST_FORM',
+      metadata: { requester: { name: 'LGU Vendor' } },
+      cityId: 'city-1',
+    });
+    const second = await createPublicSubmission(buildDeps(), {
+      documentType: 'DOCUMENT_REQUEST_FORM',
+      metadata: { requester: { name: 'City Hall Staff' } },
+      cityId: 'city-1',
+    });
+
+    // DREQ codes are sequential within their own DOCUMENT_REQUEST_REF series —
+    // the series key passed to reserveReferenceNumber is what keeps them off
+    // the shared COMP counter (each series key has its own per-year sequence).
+    expect(first.referenceCode).toBe(`DREQ-${YEAR}-0001`);
+    expect(second.referenceCode).toBe(`DREQ-${YEAR}-0002`);
+    expect(numberingService.reserveReferenceNumber).toHaveBeenNthCalledWith(
+      1,
+      'DOCUMENT_REQUEST_REF',
+      'city-1',
+      mockDb,
+    );
+    expect(numberingService.reserveReferenceNumber).toHaveBeenNthCalledWith(
+      2,
+      'DOCUMENT_REQUEST_REF',
+      'city-1',
+      mockDb,
+    );
+
+    // Each submission is auditable via the document.created emission.
+    expect(eventBus.emit).toHaveBeenCalledTimes(2);
+    expect(eventBus.emit.mock.calls[0][0]).toBe('document.created');
+    expect(eventBus.emit.mock.calls[1][0]).toBe('document.created');
+  });
+
   it('inserts the row with preliminary_number / final_number both NULL and lifecycle draft', async () => {
     numberingService.reserveReferenceNumber.mockResolvedValue({
       numberValue: `COMP-${YEAR}-0042`,

@@ -422,6 +422,9 @@ export const SubmitDocumentRequestInputSchema = z.object({
 });
 export type SubmitDocumentRequestInput = z.infer<typeof SubmitDocumentRequestInputSchema>;
 
+export const DocumentRequestSubmissionRequestSchema = SubmitDocumentRequestInputSchema;
+export type DocumentRequestSubmissionRequest = SubmitDocumentRequestInput;
+
 /**
  * Data returned on successful document request submission.
  *
