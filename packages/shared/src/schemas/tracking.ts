@@ -52,8 +52,8 @@ export type TrackingParams = z.infer<typeof TrackingParamsSchema>;
 export const PresignedImageRefSchema = z.object({
   url: z.url(),
   expiresAt: TimestampSchema,
-  widthPx: z.number().int().positive().nullable(),
-  heightPx: z.number().int().positive().nullable(),
+  widthPx: z.number().int().nullable().optional(),
+  heightPx: z.number().int().nullable().optional(),
 });
 export type PresignedImageRef = z.infer<typeof PresignedImageRefSchema>;
 
