@@ -44,3 +44,9 @@ data/openobserve/
 *.js
 *.py
 *.cjs
+
+# Keep the typecheck guard script tracked despite the *.js ignore above
+!scripts/typecheck-guard.js
+
+# Local lock files
+.typecheck.lock

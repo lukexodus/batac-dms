@@ -5,7 +5,8 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "node scripts/typecheck-guard.js",
+    "typecheck:run": "turbo run typecheck",
     "test:unit": "turbo run test:unit",
     "test:integration": "turbo run test:integration",
     "db:seed": "pnpm --filter server db:seed",
