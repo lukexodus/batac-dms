@@ -1429,6 +1429,7 @@ export function createWorkflowRouter() {
               'mayor_lapse_confirmation',
               'veto_override_recording',
               'docketing',
+              'archive_confirmation',
               'panlalawigan_outcome',
               'publication_date',
               'returned_review_decision',
