@@ -1448,6 +1448,7 @@ export function createWorkflowRouter() {
           status: z.enum(['Active', 'Completed', 'Cancelled']),
           slaDeadline: z.coerce.date().nullable(),
           panlalawiganActionDeadline: z.coerce.date().nullable(),
+          panlalawiganActionDeadlineElapsed: z.boolean(),
           lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
           panelHint: z
             .enum([
@@ -1731,6 +1732,9 @@ export function createWorkflowRouter() {
           panlalawiganActionDeadline: instanceContext['panlalawigan_action_deadline']
             ? new Date(instanceContext['panlalawigan_action_deadline'])
             : null,
+          panlalawiganActionDeadlineElapsed:
+            !!instanceContext['panlalawigan_action_deadline'] &&
+            new Date(instanceContext['panlalawigan_action_deadline']).getTime() <= Date.now(),
           lapseStatus,
           panelHint,
           assignedCommittees,

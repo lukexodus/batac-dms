@@ -52,6 +52,7 @@ export function PanlalawiganOutcomePanel({
   }, [panlalawiganActionDeadline]);
 
   const deemedApprovedWindowElapsed =
+    instance.panlalawiganActionDeadlineElapsed &&
     !!panlalawiganActionDeadline &&
     now >= new Date(panlalawiganActionDeadline).getTime();
 
