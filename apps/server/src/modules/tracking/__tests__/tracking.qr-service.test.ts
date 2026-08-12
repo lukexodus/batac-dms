@@ -99,6 +99,30 @@ describe('QrCodeService', () => {
         qrImageFileKey: updateArg,
       });
     });
+
+    it('rejects when S3 upload fails and does not save to DB', async () => {
+      const documentId = 'doc-1';
+      const actorId = 'actor-1';
+
+      mockS3Client.send.mockRejectedValueOnce(new Error('S3 unavailable'));
+
+      await expect(service.generateAndStore(documentId, actorId)).rejects.toThrow(
+        'S3 unavailable',
+      );
+      expect(mockRepo.createQrCode).not.toHaveBeenCalled();
+    });
+
+    it('rejects when updateQrImageKey fails after saving to DB', async () => {
+      const documentId = 'doc-1';
+      const actorId = 'actor-1';
+
+      mockRepo.updateQrImageKey.mockRejectedValueOnce(new Error('DB connection lost'));
+
+      await expect(service.generateAndStore(documentId, actorId)).rejects.toThrow(
+        'DB connection lost',
+      );
+      expect(mockRepo.createQrCode).toHaveBeenCalled();
+    });
   });
 
   describe('generateCoverSheetPdf', () => {
