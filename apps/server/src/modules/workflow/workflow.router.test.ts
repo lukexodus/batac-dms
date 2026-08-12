@@ -243,6 +243,38 @@ describe('Workflow Router Read Procedures', () => {
         /You do not have permission/,
       );
     });
+
+    it('returns panelHint "portal_publication_step" for a step at stepKey portal_publication', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([
+        {
+          id: VALID_UUID,
+          documentId: VALID_UUID,
+          status: 'active',
+          definitionVersionId: VALID_UUID,
+          slaDeadline: null,
+        },
+      ]); // 1. instance
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'internal' },
+      ]); // 2. parent document
+      mockDb.mockResponse([
+        {
+          stepInstanceId: VALID_UUID,
+          stepType: 'action',
+          stepKey: 'portal_publication',
+          assignedTo: [],
+        },
+      ]); // 3. current steps lookup
+      mockDb.mockResponse([]); // 4. all steps lookup (for lapse status)
+      mockDb.mockResponse([]); // 5. step history lookup
+
+      const result = await caller.getInstance({ instanceId: VALID_UUID });
+
+      expect(result.panelHint).toBe('portal_publication_step');
+    });
   });
 
   describe('getActiveInstanceForDocument', () => {
