@@ -311,6 +311,38 @@ describe('Workflow Router Read Procedures', () => {
       expect(result).not.toBeNull();
       expect(result?.instanceId).toBe(VALID_UUID);
     });
+
+    it('returns panelHint "portal_publication_step" for a step at stepKey portal_publication', async () => {
+      const subject = makeSubject();
+      const caller = callerFor(makeCtx(subject, mockDb));
+
+      mockDb.mockResponse([
+        {
+          id: VALID_UUID,
+          documentId: VALID_UUID,
+          status: 'active',
+          definitionVersionId: VALID_UUID,
+          slaDeadline: null,
+        },
+      ]); // 1. active instance check
+      mockDb.mockResponse([
+        { id: VALID_UUID, ownedByOfficeId: OWN_OFFICE, classificationLevel: 'internal' },
+      ]); // 2. parent document
+      mockDb.mockResponse([
+        {
+          stepInstanceId: VALID_UUID,
+          stepType: 'action',
+          stepKey: 'portal_publication',
+          assignedTo: [],
+        },
+      ]); // 3. current steps lookup
+      mockDb.mockResponse([]); // 4. all steps lookup (for lapse status)
+
+      const result = await caller.getActiveInstanceForDocument({ documentId: VALID_UUID });
+
+      expect(result).not.toBeNull();
+      expect(result?.panelHint).toBe('portal_publication_step');
+    });
   });
 
   describe('listCommitteeReportIntakeTargets', () => {
