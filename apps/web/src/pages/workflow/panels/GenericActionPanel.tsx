@@ -98,7 +98,7 @@ export function GenericActionPanel({
               {provisions.map((provision, index) => (
                 <div
                   key={provision.id}
-                  className="grid gap-3 border-t pt-3 md:grid-cols-[1fr_2fr_auto] md:items-end"
+                  className="grid gap-3 border-t pt-3 md:grid-cols-[1fr_2fr_auto] md:items-start"
                 >
                   <div>
                     <label
@@ -140,6 +140,7 @@ export function GenericActionPanel({
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="mt-6"
                     onClick={() =>
                       setProvisions((current) => current.filter(({ id }) => id !== provision.id))
                     }
