@@ -132,15 +132,18 @@ export async function executeTerminationStep(
                 undefined,
                 tx,
               );
+              currentState = 'released';
             }
           }
-          await deps.documentsService.transitionState(
-            instance.documentId,
-            finalDocumentStatus,
-            'SYSTEM',
-            undefined,
-            tx,
-          );
+          if (currentState !== finalDocumentStatus) {
+            await deps.documentsService.transitionState(
+              instance.documentId,
+              finalDocumentStatus,
+              'SYSTEM',
+              undefined,
+              tx,
+            );
+          }
         }
       } catch (err) {
         console.error(
