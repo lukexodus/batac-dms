@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { ErrorResponseSchema, TrackingLookupResponseSchema } from '@batac/shared';
 import { TrackingRepository } from './tracking.repository.js';
 import { QrCodeService } from './tracking.qr-service.js';
 import { createTrackingService } from './tracking.service.js';
@@ -75,37 +75,30 @@ export const trackingPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   const trackingParamsSchema = z.object({
-    trackingId: z.string().uuid(),
+    trackingNumber: z.string().uuid(),
   });
 
-  const trackingSuccessSchema = z.object({
-    documentType: z.string(),
-    remarks: z.string().nullable(),
-    routingHistory: z.array(
-      z.object({
-        actionDescription: z.string(),
-        timestamp: z.string(),
-      }),
-    ),
-    firstPageImageUrl: z.string(),
-    getCopyUrl: z.string(),
-  });
-
-  const trackingErrorSchema = z.object({
-    error: z.string(),
-  });
-
-  fastify.withTypeProvider<ZodTypeProvider>().get(
-    '/track/:trackingId',
+  fastify.get(
+    '/v1/public/tracking/:trackingNumber',
     {
       schema: {
+        tags: ['tracking'],
+        summary: 'Document status lookup by QR tracking number',
         params: trackingParamsSchema,
         response: {
-          200: trackingSuccessSchema,
-          400: trackingErrorSchema,
-          404: trackingErrorSchema,
+          /**
+           * E2 §TrackingLookupResponse — the pre-E2 narrow shape
+           * (documentType/remarks/routingHistory/firstPageImageUrl/getCopyUrl)
+           * was retrofitted to the confirmed contract in TASK-PORTAL-009; the
+           * handler in tracking.public-handler.ts now returns this shape.
+           */
+          200: TrackingLookupResponseSchema,
+          404: ErrorResponseSchema,
+          429: ErrorResponseSchema,
+          500: ErrorResponseSchema,
         },
       },
+      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
     },
     publicLookupHandler,
   );

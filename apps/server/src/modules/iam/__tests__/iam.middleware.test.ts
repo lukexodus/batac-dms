@@ -29,6 +29,7 @@
  *   ✓ IT Admin → roleTier = 'IT_ADMIN'
  *   ✓ Auditor role → roleTier = 'SECURITY_ADMIN'
  *   ✓ Standard user → roleTier = 'STANDARD'
+ *   ✓ sys_admin-only session → bypass_office_isolation NOT set to 'true'
  *
  * Test matrix — Hook 4 (updateLastActivity):
  *   ✓ Calls iamRepository.updateLastActivity with correct sessionId
@@ -577,6 +578,20 @@ describe('setDatabaseSessionVars (Hook 3)', () => {
     });
 
     expect(db.execute).toHaveBeenCalledOnce();
+  });
+
+  it('does not set bypass_office_isolation for a sys_admin-only session (Invariant #10 backstop)', async () => {
+    const { app, db } = await buildApp();
+    const token = makeToken({ rid: ['sys_admin'], is_ita: true });
+
+    await app.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: { cookie: cookieHeader(token) },
+    });
+
+    const sqlObject = db.execute.mock.calls[0][0] as { queryChunks: unknown[] };
+    expect(sqlObject.queryChunks[13]).toBe('false');
   });
 });
 

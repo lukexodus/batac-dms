@@ -94,9 +94,9 @@ export const ValidationErrorResponseSchema = ErrorResponseSchema.extend({
     z.object({
       field: z.string(),
       message: z.string(),
-      code: z.string(),
+      code: z.string().optional(),
     })
-  ),
+  ).optional(),
 });
 export type ValidationErrorResponse = z.infer<typeof ValidationErrorResponseSchema>;
 

@@ -37,7 +37,7 @@ export interface PublicReadDeps {
    * path; the TASK-PORTAL-005 REST handler supplies this value. `firstPagePreview`
    * is always null here — S3 presigning is the handler's job.
    */
-  portalBaseUrl?: string;
+  portalBaseUrl?: string | undefined;
 }
 
 /**

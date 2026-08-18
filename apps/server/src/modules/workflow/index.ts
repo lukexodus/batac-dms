@@ -34,9 +34,7 @@ export interface WorkflowPublicAPI {
    * Retrieves summary details of a step instance for event consumers.
    * Added for TASK-NOTIF-008.
    */
-  getStepInstanceSummary(
-    stepId: string,
-  ): Promise<{ instanceId: string; assignedTo: any } | null>;
+  getStepInstanceSummary(stepId: string): Promise<{ instanceId: string; assignedTo: any } | null>;
   /**
    * Retrieves the escalation configuration from the definition snapshot of the
    * specified workflow instance. Added for TASK-NOTIF-008.
@@ -44,6 +42,36 @@ export interface WorkflowPublicAPI {
   getEscalationConfigForInstance(
     instanceId: string,
   ): Promise<{ supervisor_role: string; records_officer_role: string } | null>;
+  /**
+   * Returns the status/outcome of the step matching `stepKey` within the
+   * document's most recent workflow instance, regardless of instance or step
+   * status (so approval state remains readable after the instance completes).
+   * Returns null if no instance exists for the document, or no step with that
+   * `stepKey` was ever instantiated. Added for TASK-WF-025 (document-request
+   * approval reads).
+   */
+  getStepState(
+    documentId: string,
+    stepKey: string,
+    tx?: TxOrDb,
+  ): Promise<{ status: string; outcome: string | null; completedAt: Date | null } | null>;
+  /**
+   * Completes the currently-active `approval` step matching `stepKey` within
+   * the document's active workflow instance, on behalf of `actorId` with the
+   * given outcome, then emits `workflow.step.completed` to the event bus for
+   * the audit consumer (ADR-EVT-001: approval trail under the workflow
+   * engine). Throws `NO_ACTIVE_INSTANCE` if the document has no active
+   * workflow instance, or `STEP_NOT_ACTIVE` if no active step instance
+   * matches `stepKey` (e.g. a sequential precondition has not been satisfied).
+   * Added for TASK-WF-025.
+   */
+  submitStepApprovalForDocument(
+    documentId: string,
+    stepKey: string,
+    actorId: string,
+    outcome: string,
+    comment: string | null,
+  ): Promise<void>;
 }
 
 export interface WorkflowInstanceSummary {

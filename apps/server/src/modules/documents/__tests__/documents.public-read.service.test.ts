@@ -311,6 +311,35 @@ describe('Documents public-read service (Integration)', () => {
     expect(ids).toContain(appropriationId);
   });
 
+  it('list includes internal-classified documents when the visibility rule is title_and_first_page_public', async () => {
+    // Mirrors the seed reality (document-types.seed.ts classificationDefault
+    // 'internal' for SP_RESOLUTION) — the eligibility gate must treat
+    // internal + title_and_first_page_public as publishable, matching the
+    // canPublishPortal policy rule. Cleaned up after the assertion so the
+    // shared fixture dataset used by the hard-coded total/order assertions
+    // stays unchanged.
+    const internalDoc = await insertDocument({
+      title: 'Internal resolution published via first-page visibility rule',
+      typeCode: 'SP_RESOLUTION',
+      classificationLevel: 'internal',
+      finalNumber: '2026-07',
+    });
+    await assignFinalNumber(internalDoc.id, {
+      year: 2026,
+      seq: 7,
+      value: '2026-07',
+      assignedAt: new Date('2026-07-20T09:00:00+08:00'),
+    });
+
+    try {
+      const result = await listPublishedDocuments(deps, { page: 1, limit: 20 });
+      expect(result.data.map((d) => d.documentId)).toContain(internalDoc.id);
+    } finally {
+      await db.delete(numbers).where(eq(numbers.documentId, internalDoc.id));
+      await db.delete(documents).where(eq(documents.id, internalDoc.id));
+    }
+  });
+
   it('list orders by most recently approved first (final number assigned_at)', async () => {
     const result = await listPublishedDocuments(deps, { page: 1, limit: 20 });
 

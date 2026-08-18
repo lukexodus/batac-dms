@@ -1,7 +1,7 @@
 /**
  * apps/portal/src/app/layout.tsx
  *
- * Root layout for the public citizen portal (Phase 3 — Next.js).
+ * Root layout for the public citizen portal (Phase 1 — Next.js, per ADR-UI-001).
  * Applies font CSS variables to <html> so all child components
  * can consume --font-sans, --font-mono, --font-serif via Tailwind.
  */

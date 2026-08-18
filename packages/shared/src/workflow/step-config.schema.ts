@@ -101,6 +101,8 @@ export const TerminationStepConfigSchema = z.object({
     'CANCELLED',
     'VALID_IN_PART_RESOLVED',
     'REPASSED',
+    'RELEASED_TO_REQUESTER',
+    'REQUEST_DENIED',
   ]),
   final_document_status: z.enum(['released', 'archived', 'cancelled']).nullable(),
   emit_event: z.string().optional(),
@@ -182,10 +184,12 @@ export const WorkflowDefinitionSeedSchema = z.object({
     version_number: z.number().int().positive(),
     steps: z.array(WorkflowStepDefSchema),
     transition_rules: z.array(WorkflowTransitionRuleDefSchema),
-    escalation_config: z.object({
-      supervisor_role: z.string(),
-      records_officer_role: z.string(),
-    }).optional(),
+    escalation_config: z
+      .object({
+        supervisor_role: z.string(),
+        records_officer_role: z.string(),
+      })
+      .optional(),
   }),
 });
 export type WorkflowDefinitionSeed = z.infer<typeof WorkflowDefinitionSeedSchema>;

@@ -8,7 +8,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx src/database/seeds/orchestrator.ts",
-    "test": "vitest run",
+    "test": "node ../../scripts/run-guard.js \"server test\" .test.lock -- vitest run",
     "format": "prettier --write --config ../../packages/config/.prettierrc.json --ignore-path ../../packages/config/.prettierignore --ignore-unknown ."
   },
   "dependencies": {
@@ -19,6 +19,8 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/helmet": "^13.1.0",
     "@fastify/rate-limit": "^10.2.2",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
     "@opentelemetry/instrumentation": "^0.220.0",

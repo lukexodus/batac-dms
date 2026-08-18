@@ -58,6 +58,9 @@ import trackingPlugin from './modules/tracking/tracking.plugin.js';
 import workflowPlugin from './modules/workflow/workflow.plugin.js';
 import notificationsPlugin from './modules/notifications/notifications.plugin.js';
 import portalPlugin from './modules/portal/portal.plugin.js';
+import openapiPlugin from './plugins/openapi.js';
+import rateLimitPlugin from './plugins/rate-limit.js';
+import corsPlugin from './plugins/cors.js';
 
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
@@ -203,6 +206,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     ...(loggerConfig ? { loggerInstance: loggerConfig } : { logger: false }),
     genReqId: () => `req_${nanoid(12)}`,
     maxParamLength: 10000,
+    trustProxy: env.TRUST_PROXY,
     ...fastifyOpts,
   });
 
@@ -210,6 +214,10 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   fastify.setSerializerCompiler(serializerCompiler);
 
   await registerHealthRoute(fastify);
+
+  await fastify.register(openapiPlugin);
+  await fastify.register(rateLimitPlugin);
+  await fastify.register(corsPlugin);
 
   await fastify.register(helmet, {
     xFrameOptions: { action: 'deny' },
@@ -237,8 +245,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await fastify.register(trackingPlugin);
   await fastify.register(workflowPlugin);
   await fastify.register(notificationsPlugin);
-  await fastify.register(portalPlugin);
-
+  await fastify.register(
+    async (portalApp) => {
+      await portalApp.register(portalPlugin);
+    },
+    { prefix: '/v1' },
+  );
 
   // Merged tRPC router — must come last so every module's decorations are
   // already present when createContext/procedures run.
@@ -246,13 +258,21 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   const { appRouter } = await import('./trpc/root.js');
   const { createContext } = await import('./trpc/trpc.js');
 
-  const cors = (await import('@fastify/cors')).default;
-  await fastify.register(cors, {
-    origin: env.CORS_ALLOWED_ORIGINS,
-    credentials: true,
-  });
-
   await fastify.register(async (trpcApp) => {
+    // @fastify/cors decorates FastifyRequest globally and cannot be registered
+    // twice. Override the single global plugin's policy for this route scope.
+    trpcApp.addHook('onRoute', (routeOptions) => {
+      if (routeOptions.url.startsWith('/api/trpc')) {
+        routeOptions.config = {
+          ...routeOptions.config,
+          cors: {
+            origin: env.CORS_ALLOWED_ORIGINS,
+            credentials: true,
+          },
+        } as typeof routeOptions.config;
+      }
+    });
+
     await trpcApp.register(rateLimit, {
       max: env.RATE_API_MAX,
       timeWindow: env.RATE_API_WINDOW_MS,

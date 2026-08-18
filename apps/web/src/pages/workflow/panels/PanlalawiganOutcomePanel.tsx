@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -17,12 +17,8 @@ import {
   RichTextEditor,
 } from '@batac/ui';
 
-import { isRichTextEmpty } from '@/lib/rich-text';
 import { trpc, type RouterOutputs } from '@/lib/trpc';
 
-// recordPanlalawiganOutcome: { stepInstanceId, outcome, controlNumber?, panlalawiganResolutionNumber?, dateReferred?, remarks? }
-// resolveValidInPart: { documentId, resolutionPath, mandatoryComment }   ← takes documentId, NOT stepInstanceId
-// confirmPanlalawiganDeemedApproved: { stepInstanceId }  only
 export function PanlalawiganOutcomePanel({
   instance,
 }: {
@@ -35,11 +31,26 @@ export function PanlalawiganOutcomePanel({
     'VALID' | 'VALID_IN_PART' | 'OPERATIVE_IN_ITS_ENTIRETY' | 'RETURNED' | ''
   >('');
   const [remarks, setRemarks] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
-  const [resolutionPath, setResolutionPath] = useState<
-    'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly'
-  >('resolve_as_is');
-  const [mandatoryComment, setMandatoryComment] = useState('');
+  const panlalawiganActionDeadline = instance.panlalawiganActionDeadline;
+  useEffect(() => {
+    if (!panlalawiganActionDeadline) return;
+
+    const remainingMs = new Date(panlalawiganActionDeadline).getTime() - Date.now();
+    if (remainingMs <= 0) {
+      setNow(Date.now());
+      return;
+    }
+
+    const timer = window.setTimeout(() => setNow(Date.now()), remainingMs);
+    return () => window.clearTimeout(timer);
+  }, [panlalawiganActionDeadline]);
+
+  const deemedApprovedWindowElapsed =
+    instance.panlalawiganActionDeadlineElapsed &&
+    !!panlalawiganActionDeadline &&
+    now >= new Date(panlalawiganActionDeadline).getTime();
 
   const recordMutation = trpc.workflow.recordPanlalawiganOutcome.useMutation({
     onSuccess: () => {
@@ -50,17 +61,6 @@ export function PanlalawiganOutcomePanel({
       navigate('/workflow/steps');
     },
     onError: (err) => toast.error(err.message || 'Failed to record outcome.'),
-  });
-
-  const resolveMutation = trpc.workflow.resolveValidInPart.useMutation({
-    onSuccess: () => {
-      toast.success('Valid-in-part resolved.');
-      void utils.workflow.getInstance.invalidate({ instanceId: instance.instanceId });
-      void utils.workflow.getActiveInstanceForDocument.invalidate({ documentId: instance.documentId });
-      void utils.documents.get.invalidate({ documentId: instance.documentId });
-      navigate('/workflow/steps');
-    },
-    onError: (err) => toast.error(err.message || 'Failed to resolve valid-in-part.'),
   });
 
   const confirmDeemedMutation = trpc.workflow.confirmPanlalawiganDeemedApproved.useMutation({
@@ -105,10 +105,18 @@ export function PanlalawiganOutcomePanel({
             <SelectContent>
               <SelectItem value="VALID">Valid</SelectItem>
               <SelectItem value="VALID_IN_PART">Valid in Part</SelectItem>
-              <SelectItem value="OPERATIVE_IN_ITS_ENTIRETY">Operative in its Entirety</SelectItem>
+              {instance.documentTypeCode === 'appropriation_ordinance' && (
+                <SelectItem value="OPERATIVE_IN_ITS_ENTIRETY">Operative in its Entirety</SelectItem>
+              )}
               <SelectItem value="RETURNED">Returned</SelectItem>
             </SelectContent>
           </Select>
+          {outcome === 'VALID_IN_PART' && (
+            <p className="text-xs text-muted-foreground">
+              Submitting this outcome creates “Complete Task: VALID-IN-PART — Secretary Documentation.”
+              Complete that follow-up task before the resolution-path decision becomes available.
+            </p>
+          )}
           <RichTextEditor
             value={remarks}
             onChange={setRemarks}
@@ -132,64 +140,31 @@ export function PanlalawiganOutcomePanel({
           </Button>
         </div>
 
-        {/* Resolve Valid in Part */}
-        <div className="space-y-3 rounded-md border p-4">
-          <h3 className="text-sm font-medium">Resolve Valid in Part</h3>
-          <Select
-            value={resolutionPath}
-            onValueChange={(
-              val: 'resolve_as_is' | 'route_to_legal' | 'route_to_committee' | 'implement_directly',
-            ) => setResolutionPath(val)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="resolve_as_is">Resolve As-Is</SelectItem>
-              <SelectItem value="route_to_legal">Route to Legal</SelectItem>
-              <SelectItem value="route_to_committee">Route to Committee</SelectItem>
-              <SelectItem value="implement_directly">Implement Directly</SelectItem>
-            </SelectContent>
-          </Select>
-          <RichTextEditor
-            value={mandatoryComment}
-            onChange={setMandatoryComment}
-            placeholder="Comment (required)…"
-          />
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (isRichTextEmpty(mandatoryComment)) {
-                toast.error('Comment is required');
-                return;
-              }
-              resolveMutation.mutate({
-                documentId: instance.documentId,
-                resolutionPath,
-                mandatoryComment,
-              });
-            }}
-            disabled={resolveMutation.isPending}
-          >
-            Resolve Valid in Part & Route
-          </Button>
-        </div>
-
         {/* Confirm 30-Day Deemed Approved */}
         <div className="flex items-center justify-between rounded-md border p-4">
           <div>
             <h3 className="text-sm font-medium">Confirm 30-Day Deemed Approved</h3>
-            <p className="text-muted-foreground text-xs">RA 7160 §56(d) — 30-day window elapsed.</p>
+            <p className="text-muted-foreground text-xs">
+              RA 7160 §56(d) —{' '}
+              {deemedApprovedWindowElapsed ? '30-day window elapsed.' : 'Available after the 30-day window.'}
+            </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() =>
-              confirmDeemedMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
-            }
-            disabled={confirmDeemedMutation.isPending}
-          >
-            Confirm Deemed Approved & Advance Workflow
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              variant="outline"
+              onClick={() =>
+                confirmDeemedMutation.mutate({ stepInstanceId: instance.currentStepInstanceId })
+              }
+              disabled={confirmDeemedMutation.isPending || !deemedApprovedWindowElapsed}
+            >
+              Confirm Deemed Approved
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {deemedApprovedWindowElapsed
+                ? 'Records an acknowledgment; the timer job advances the workflow.'
+                : 'Confirmation is disabled until the deadline.'}
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -72,13 +72,13 @@ export interface PublicPortalDocumentRow {
 /** Filter accepted by listPublicPortalDocuments. */
 export interface PublicPortalListFilter {
   /** DB-level document type code (already mapped from the API enum by the caller). */
-  documentTypeCode?: string;
+  documentTypeCode?: string | undefined;
   /** Final-number approval year (numbers.sequence_year of the current final row). */
-  year?: number;
+  year?: number | undefined;
   /** Exact final series number — takes precedence over all other filters. */
-  number?: string;
+  number?: string | undefined;
   /** Full-text query; ignored unless at least 2 non-whitespace characters. */
-  q?: string;
+  q?: string | undefined;
   page: number;
   limit: number;
 }

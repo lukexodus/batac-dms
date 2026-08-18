@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
 import { validatorCompiler, serializerCompiler } from 'fastify-type-provider-zod';
+import rateLimitPlugin from '../../../plugins/rate-limit.js';
 import portalPlugin from '../portal.plugin.js';
 import fp from 'fastify-plugin';
 
@@ -19,7 +20,7 @@ const mockDependenciesPlugin = fp(async (fastify) => {
   fastify.decorate('config', { CITY_ID: 'batac-city' });
 });
 
-describe('POST /v1/public/complaints', () => {
+describe('POST /public/complaints', () => {
   let fastify: FastifyInstance;
 
   beforeEach(async () => {
@@ -28,11 +29,7 @@ describe('POST /v1/public/complaints', () => {
     fastify.setValidatorCompiler(validatorCompiler);
     fastify.setSerializerCompiler(serializerCompiler);
 
-    // Mock rate limit
-    await fastify.register(async (f) => {
-      // no-op
-    }, { name: '@fastify/rate-limit' });
-
+    await fastify.register(rateLimitPlugin);
     await fastify.register(mockDependenciesPlugin);
     await fastify.register(portalPlugin);
     await fastify.ready();
@@ -47,7 +44,7 @@ describe('POST /v1/public/complaints', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'overcharging',
         tricycleNumber: 'BTC-1234',
@@ -82,7 +79,7 @@ describe('POST /v1/public/complaints', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'overcharging',
         incidentDate: '2026-06-10',
@@ -104,7 +101,7 @@ describe('POST /v1/public/complaints', () => {
   it('returns 400 for violationType: other missing violationTypeOther', async () => {
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'other',
         incidentDate: '2026-06-10',
@@ -126,7 +123,7 @@ describe('POST /v1/public/complaints', () => {
   it('returns 400 for invalid incidentTime format', async () => {
     const response = await fastify.inject({
       method: 'POST',
-      url: '/v1/public/complaints',
+      url: '/public/complaints',
       payload: {
         violationType: 'overcharging',
         incidentDate: '2026-06-10',
@@ -142,5 +139,38 @@ describe('POST /v1/public/complaints', () => {
     expect(response.statusCode).toBe(400);
     const body = response.json();
     expect(body.message).toContain('Must be in 24-hour HH:MM format');
+  });
+
+  it('returns 429 on the 21st complaint submission from the same IP', async () => {
+    mockDocumentsService.createPublicSubmission.mockResolvedValue({
+      documentId: '123e4567-e89b-12d3-a456-426614174000',
+      referenceCode: 'COMP-2026-0003',
+      submittedAt: '2026-08-09T00:00:00Z',
+    });
+
+    const requestHeaders = { 'x-forwarded-for': '203.0.113.10' };
+    let finalResponse;
+
+    for (let attempt = 1; attempt <= 21; attempt += 1) {
+      finalResponse = await fastify.inject({
+        method: 'POST',
+        url: '/public/complaints',
+        headers: requestHeaders,
+        payload: {
+          violationType: 'overcharging',
+          incidentDate: '2026-06-10',
+          incidentTime: '14:30',
+          place: 'Public Market',
+          complainantName: 'Juan Dela Cruz',
+          complainantAddress: 'Batac City',
+          complainantContact: '09171234567',
+          accessMode: 'clerk_assisted',
+        },
+      });
+    }
+
+    expect(finalResponse?.statusCode).toBe(429);
+    expect(finalResponse?.headers['retry-after']).toBeDefined();
+    expect(mockDocumentsService.createPublicSubmission).toHaveBeenCalledTimes(20);
   });
 });

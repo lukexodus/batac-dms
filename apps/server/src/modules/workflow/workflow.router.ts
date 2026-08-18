@@ -24,6 +24,7 @@ import { WorkflowRepository } from './workflow.repository.js';
 import { DocumentsRepository } from '../documents/documents.repository.js';
 import { submitStepAction } from './engine/step-handlers/action.handler.js';
 import { submitStepApproval } from './engine/step-handlers/approval.handler.js';
+import { buildActionDescription } from './action-description.util.js';
 import {
   submitCommitteeReport as engineSubmitCommitteeReport,
   submitStepMultiReferral,
@@ -104,6 +105,9 @@ async function putS3Object(fileKey: string, body: Buffer, contentType: string): 
 export interface DrawableRunFragment {
   text: string;
   font: 'regular' | 'bold' | 'italic' | 'boldItalic' | 'code';
+  underline: boolean;
+  strike: boolean;
+  href: string | null;
 }
 
 export type DrawableLine = DrawableRunFragment[];
@@ -180,12 +184,18 @@ export function wrapRunsForPdf(
           currentLineWidth = 0;
         }
 
-        if (currentLine.length > 0 && currentLine[currentLine.length - 1]!.font === fontVariant) {
+        if (
+          currentLine.length > 0 &&
+          currentLine[currentLine.length - 1]!.font === fontVariant &&
+          currentLine[currentLine.length - 1]!.underline === run.underline &&
+          currentLine[currentLine.length - 1]!.strike === run.strike &&
+          currentLine[currentLine.length - 1]!.href === run.href
+        ) {
           currentLine[currentLine.length - 1]!.text += ' ' + word;
           currentLineWidth += spaceW + wordWidth;
         } else {
           const prefix = currentLine.length > 0 ? ' ' : '';
-          currentLine.push({ text: prefix + word, font: fontVariant });
+          currentLine.push({ text: prefix + word, font: fontVariant, underline: run.underline, strike: run.strike, href: run.href });
           currentLineWidth += (prefix ? spaceW : 0) + wordWidth;
         }
       }
@@ -530,6 +540,8 @@ function computePanelHint(
   | 'mayor_lapse_confirmation'
   | 'veto_override_recording'
   | 'docketing'
+  | 'archive_confirmation'
+  | 'portal_publication_step'
   | 'panlalawigan_outcome'
   | 'publication_date'
   | 'returned_review_decision'
@@ -564,6 +576,10 @@ function computePanelHint(
     return 'veto_override_recording';
   } else if (stepKey === 'docketing') {
     return 'docketing';
+  } else if (stepKey === 'archive') {
+    return 'archive_confirmation';
+  } else if (stepKey === 'portal_publication') {
+    return 'portal_publication_step';
   } else if (stepKey === 'panlalawigan_review') {
     return 'panlalawigan_outcome';
   } else if (stepKey === 'newspaper_publication') {
@@ -631,46 +647,6 @@ function getHumanReadableStepName(stepName: string | null, stepKey: string | nul
     .join(' ');
 }
 
-/**
- * Build a user-friendly action description for routing history entries.
- * Uses the step's human-readable label and a meaningful outcome verb
- * instead of raw technical strings like "action DONE".
- */
-function buildActionDescription(
-  stepLabel: string | null,
-  stepKey: string,
-  outcome: string,
-): string {
-  const name =
-    stepLabel ||
-    stepKey
-      .split('_')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
-
-  const OUTCOME_VERBS: Record<string, string> = {
-    DONE: 'completed',
-    APPROVED: 'approved',
-    REJECTED: 'rejected',
-    RETURNED_FOR_REVISION: 'returned for revision',
-    SIGNED: 'signed',
-    VETOED: 'vetoed',
-    REPORT_ACCEPTED: 'committee report accepted',
-    SECRETARY_ADVANCED: 'manually advanced by SP Secretary',
-    LAPSED_CONFIRMED: 'mayor lapse confirmed — document deemed approved (RA 7160 §47)',
-    DEEMED_APPROVED_CONFIRMED:
-      'Panlalawigan deemed approval confirmed — 30-day window lapsed (RA 7160 §56-d)',
-    VALID: 'affirmed in entirety by Panlalawigan',
-    VALID_IN_PART: 'approved with partial invalidity by Panlalawigan',
-    RETURNED: 'returned with objections by Panlalawigan',
-    OPERATIVE_IN_ITS_ENTIRETY: 'affirmed in entirety by Panlalawigan',
-  };
-
-  const verb = OUTCOME_VERBS[outcome] ?? outcome.toLowerCase().replace(/_/g, ' ');
-  return `${name} — ${verb}`;
-}
-
-
 async function resolveCommitteeReportMetadata(ctx: any, metadata: Record<string, any>, tx?: any) {
   const db = tx || ctx.db;
   const committeesTable = committees;
@@ -698,51 +674,57 @@ async function resolveCommitteeReportMetadata(ctx: any, metadata: Record<string,
     return commCorrections.sort((a: any, b: any) => new Date(b.corrected_at).getTime() - new Date(a.corrected_at).getTime())[0];
   };
 
-  const committeeSubmissions = assignedCommitteeIds.map((committeeId) => {
+  const committeeSubmissions = await Promise.all(assignedCommitteeIds.map(async (committeeId) => {
     const latestCorrection = getLatestCorrection(committeeId);
     const originalSubmission = submissionsData.find((s: any) => s.committee_id === committeeId);
-    
+
+    let submittedBy: string | null = null;
+    let submittedAt: Date | null = null;
+    let contributionDocumentId: string | null = null;
+    let reportText: string | null = null;
+    let missed = true;
+    let isCorrection = false;
+
     if (latestCorrection) {
-      return {
-        committeeId,
-        submittedBy: latestCorrection.corrected_by,
-        submittedAt: latestCorrection.corrected_at ? new Date(latestCorrection.corrected_at) : null,
-        contributionDocumentId: latestCorrection.corrected_document_id || null,
-        contributionText: latestCorrection.corrected_report_text || null,
-        missed: false,
-        isCorrection: true,
-      };
+      submittedBy = latestCorrection.corrected_by;
+      submittedAt = latestCorrection.corrected_at ? new Date(latestCorrection.corrected_at) : null;
+      contributionDocumentId = latestCorrection.corrected_document_id || null;
+      reportText = latestCorrection.corrected_report_text || null;
+      missed = false;
+      isCorrection = true;
     } else if (originalSubmission) {
-      return {
-        committeeId,
-        submittedBy: originalSubmission.submitted_by,
-        submittedAt: originalSubmission.submitted_at ? new Date(originalSubmission.submitted_at) : null,
-        contributionDocumentId: originalSubmission.contribution_document_id,
-        contributionText: originalSubmission.contribution_text || null,
-        missed: !!originalSubmission.missed,
-        isCorrection: false,
-      };
-    } else {
-      return {
-        committeeId,
-        submittedBy: null,
-        submittedAt: null,
-        contributionDocumentId: null,
-        contributionText: null,
-        missed: true,
-        isCorrection: false,
-      };
+      submittedBy = originalSubmission.submitted_by;
+      submittedAt = originalSubmission.submitted_at ? new Date(originalSubmission.submitted_at) : null;
+      contributionDocumentId = originalSubmission.contribution_document_id;
+      reportText = originalSubmission.contribution_text || null;
+      missed = !!originalSubmission.missed;
+      isCorrection = false;
     }
-  });
+
+    const docSummary = await resolveReportDocumentSummary(db, contributionDocumentId);
+
+    return {
+      committeeId,
+      submittedBy,
+      submittedAt,
+      contributionDocumentId,
+      reportText,
+      missed,
+      isCorrection,
+      reportDocumentId: docSummary.reportDocumentId,
+      reportDocumentTitle: docSummary.reportDocumentTitle,
+      reportDocumentUrl: docSummary.reportDocumentUrl,
+    };
+  }));
 
   let unifiedReportDocumentTitle = null;
   let unifiedReportDocumentUrl = null;
   const unifiedReportDocumentId = metadata['unified_report_document_id'] || null;
 
   if (unifiedReportDocumentId) {
-    const [doc] = await db.select({ title: documents.title }).from(documents).where(eq(documents.id, unifiedReportDocumentId)).limit(1);
-    if (doc) unifiedReportDocumentTitle = doc.title;
-    // URL would be generated in real implementation if needed, skipping for now
+    const unifiedDocSummary = await resolveReportDocumentSummary(db, unifiedReportDocumentId);
+    unifiedReportDocumentTitle = unifiedDocSummary.reportDocumentTitle;
+    unifiedReportDocumentUrl = unifiedDocSummary.reportDocumentUrl;
   }
 
   return {
@@ -822,12 +804,12 @@ async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string,
           skippedCount++;
         }
       }
-    } else if (sub.contributionText) {
+    } else if (sub.reportText) {
       textOnlyCount++;
     }
 
-    if (sub.contributionText) {
-      textOnlyContents.push({ committeeName: committeeName ?? sub.committeeId, text: sub.contributionText });
+    if (sub.reportText) {
+      textOnlyContents.push({ committeeName: committeeName ?? sub.committeeId, text: sub.reportText });
     }
 
     sourceEntries.push({
@@ -1171,8 +1153,34 @@ async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string,
             for (const fragment of line) {
               const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
               const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: rgb(0, 0, 0) });
-              cursorX += font.widthOfTextAtSize(fragment.text, textSize);
+              const isLink = fragment.href !== null;
+              const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+              
+              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: drawColor });
+              
+              const textWidth = font.widthOfTextAtSize(fragment.text, textSize);
+              
+              if (fragment.underline || isLink) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY - 2,
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              if (fragment.strike) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY + (textSize * 0.35),
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              cursorX += textWidth;
             }
             textY -= textLineHeight;
           }
@@ -1186,8 +1194,34 @@ async function buildConsolidatedCommitteeReportPDF(ctx: any, instanceId: string,
             for (const fragment of line) {
               const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
               const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: rgb(0, 0, 0) });
-              cursorX += font.widthOfTextAtSize(fragment.text, hSize);
+              const isLink = fragment.href !== null;
+              const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+              
+              textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: drawColor });
+              
+              const textWidth = font.widthOfTextAtSize(fragment.text, hSize);
+              
+              if (fragment.underline || isLink) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY - 2,
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              if (fragment.strike) {
+                textPage.drawRectangle({
+                  x: cursorX,
+                  y: textY + (hSize * 0.35),
+                  width: textWidth,
+                  height: 1,
+                  color: drawColor,
+                });
+              }
+
+              cursorX += textWidth;
             }
             textY -= (hSize + 4);
           }
@@ -1397,6 +1431,7 @@ export function createWorkflowRouter() {
           instanceId: z.string().uuid(),
           documentId: z.string().uuid(),
           documentTitle: z.string().nullable(),
+          documentTypeCode: z.string().nullable(),
           definitionVersionId: z.string().uuid(),
           currentStepType: z.enum([
             'action',
@@ -1415,6 +1450,8 @@ export function createWorkflowRouter() {
           currentAssigneeName: z.string().nullable(),
           status: z.enum(['Active', 'Completed', 'Cancelled']),
           slaDeadline: z.coerce.date().nullable(),
+          panlalawiganActionDeadline: z.coerce.date().nullable(),
+          panlalawiganActionDeadlineElapsed: z.boolean(),
           lapseStatus: z.enum(['mayor_10_day_lapsed', 'panlalawigan_30_day_deemed']).nullable(),
           panelHint: z
             .enum([
@@ -1425,6 +1462,8 @@ export function createWorkflowRouter() {
               'mayor_lapse_confirmation',
               'veto_override_recording',
               'docketing',
+              'archive_confirmation',
+              'portal_publication_step',
               'panlalawigan_outcome',
               'publication_date',
               'returned_review_decision',
@@ -1455,6 +1494,7 @@ export function createWorkflowRouter() {
                 submittedAt: z.coerce.date().nullable(),
                 contributionDocumentId: z.string().uuid().nullable(),
                 missed: z.boolean(),
+                isCorrection: z.boolean(),
                 reportText: z.string().nullable(),
                 reportDocumentId: z.string().uuid().nullable(),
                 reportDocumentTitle: z.string().nullable(),
@@ -1507,6 +1547,17 @@ export function createWorkflowRouter() {
             code: 'NOT_FOUND',
             message: 'Parent document not found',
           });
+        }
+
+        let documentTypeCode: string | null = null;
+        if (doc.documentTypeId) {
+          const [dt] = await ctx.db
+            .select({ code: documentTypes.code })
+            .from(documentTypes)
+            .where(and(eq(documentTypes.id, doc.documentTypeId), isNull(documentTypes.deletedAt)));
+          if (dt) {
+            documentTypeCode = dt.code;
+          }
         }
 
         const isAllowed = await checkWorkflowInstanceReadPermission(ctx, doc);
@@ -1646,6 +1697,7 @@ export function createWorkflowRouter() {
           submittedAt: Date | null;
           contributionDocumentId: string | null;
           missed: boolean;
+          isCorrection: boolean;
           reportText: string | null;
           reportDocumentId: string | null;
           reportDocumentTitle: string | null;
@@ -1655,62 +1707,21 @@ export function createWorkflowRouter() {
         let unifiedReportDocumentTitle: string | null = null;
         let unifiedReportDocumentUrl: string | null = null;
         if (currentStepType === 'multi_referral' && currentStep?.metadata) {
-          const meta = currentStep.metadata as Record<string, any>;
-          const rawAssigned = meta['assigned_committees'] as Array<{ committee_id: string }>;
-          if (Array.isArray(rawAssigned) && rawAssigned.length > 0) {
-            assignedCommittees = [];
-            for (const ac of rawAssigned) {
-              const [c] = await ctx.db
-                .select({ name: committees.name })
-                .from(committees)
-                .where(eq(committees.id, ac.committee_id))
-                .limit(1);
-              assignedCommittees.push({
-                committeeId: ac.committee_id,
-                name: c?.name || null,
-              });
-            }
-          }
-          const rawSubmissions = meta['submissions'] as Array<{
-            committee_id: string;
-            submitted_by: string | null;
-            submitted_at: string | null;
-            contribution_document_id: string | null;
-            missed?: boolean;
-            report_text?: string | null;
-          }>;
-          if (Array.isArray(rawSubmissions)) {
-            committeeSubmissions = [];
-            for (const s of rawSubmissions) {
-              const report = await resolveReportDocumentSummary(ctx.db, s.contribution_document_id);
-              committeeSubmissions.push({
-                committeeId: s.committee_id,
-                submittedBy: s.submitted_by ?? null,
-                submittedAt: s.submitted_at ? new Date(s.submitted_at) : null,
-                contributionDocumentId: s.contribution_document_id ?? null,
-                missed: s.missed ?? false,
-                reportText: s.report_text ?? null,
-                reportDocumentId: report.reportDocumentId,
-                reportDocumentTitle: report.reportDocumentTitle,
-                reportDocumentUrl: report.reportDocumentUrl,
-              });
-            }
-          }
-          unifiedReportDocumentId = meta['unified_report_document_id'] ?? null;
-          if (unifiedReportDocumentId) {
-            const unifiedReport = await resolveReportDocumentSummary(
-              ctx.db,
-              unifiedReportDocumentId,
-            );
-            unifiedReportDocumentTitle = unifiedReport.reportDocumentTitle;
-            unifiedReportDocumentUrl = unifiedReport.reportDocumentUrl;
-          }
+          const res = await resolveCommitteeReportMetadata(ctx, currentStep.metadata as Record<string, any>, ctx.db);
+          assignedCommittees = res.assignedCommittees;
+          committeeSubmissions = res.committeeSubmissions;
+          unifiedReportDocumentId = res.unifiedReportDocumentId;
+          unifiedReportDocumentTitle = res.unifiedReportDocumentTitle;
+          unifiedReportDocumentUrl = res.unifiedReportDocumentUrl;
         }
+
+        const instanceContext = (instance.context as Record<string, any>) || {};
 
         return {
           instanceId: instance.id,
           documentId: instance.documentId,
           documentTitle: doc.title || null,
+          documentTypeCode,
           definitionVersionId: instance.definitionVersionId,
           currentStepType,
           currentStepName: currentStep ? getHumanReadableStepName(currentStep.stepName, currentStep.stepKey, currentStepType) : null,
@@ -1722,6 +1733,12 @@ export function createWorkflowRouter() {
           currentAssigneeName,
           status,
           slaDeadline: instance.slaDeadline,
+          panlalawiganActionDeadline: instanceContext['panlalawigan_action_deadline']
+            ? new Date(instanceContext['panlalawigan_action_deadline'])
+            : null,
+          panlalawiganActionDeadlineElapsed:
+            !!instanceContext['panlalawigan_action_deadline'] &&
+            new Date(instanceContext['panlalawigan_action_deadline']).getTime() <= Date.now(),
           lapseStatus,
           panelHint,
           assignedCommittees,
@@ -1767,6 +1784,8 @@ export function createWorkflowRouter() {
                 'mayor_lapse_confirmation',
                 'veto_override_recording',
                 'docketing',
+                'archive_confirmation',
+                'portal_publication_step',
                 'panlalawigan_outcome',
                 'publication_date',
                 'returned_review_decision',
@@ -2353,7 +2372,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
         const { stepInstanceId } = input;
         const comment = sanitizedComment ?? null;
 
@@ -2420,6 +2442,116 @@ export function createWorkflowRouter() {
       }),
 
     /**
+     * `workflow.completePortalPublicationStep`
+     *
+     * Marks the portal publication action as completed and releases the
+     * document atomically with the workflow step transition.
+     */
+    completePortalPublicationStep: protectedProcedure
+      .input(
+        z.object({
+          stepInstanceId: z.string().uuid(),
+          comment: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.auth) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
+        const { stepInstanceId } = input;
+        const comment = sanitizedComment ?? null;
+
+        const found = await fetchStepContext(stepInstanceId, ctx);
+        if (!found) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Step instance not found.' });
+        }
+
+        const { stepInstance, step, instance, doc, stepAttrs } = found;
+
+        if (stepAttrs.stepKey !== 'portal_publication') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'This procedure only handles the portal_publication step.',
+          });
+        }
+
+        workflowPolicy.canCompleteActionStep(ctx.auth, stepAttrs);
+
+        const workflowRepository = new WorkflowRepository(ctx.db);
+        const server = ctx.req.server as any;
+
+        const deps = {
+          db: ctx.db,
+          workflowRepository,
+          documentsService: server.documentsService,
+          eventBus: ctx.req.server.eventBus,
+          orgService: server.organizationService,
+          delegationService: server.delegationService,
+          iamService: server.iamService,
+        };
+
+        await ctx.db.transaction(async (tx) => {
+          try {
+            await deps.documentsService.transitionState(
+              doc.id,
+              'released',
+              ctx.auth!.userId,
+              'Published to public portal',
+              tx,
+            );
+          } catch (error) {
+            if (error instanceof TRPCError) throw error;
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message:
+                'Document is not in a state that allows portal publication (must be completed).',
+              cause: error,
+            });
+          }
+
+          await submitStepAction(
+            instance,
+            stepInstance,
+            ctx.auth!.userId,
+            comment,
+            { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+            tx,
+          );
+        });
+
+        if (ctx.req.server.eventBus) {
+          ctx.req.server.eventBus.emit('workflow.step.completed', {
+            eventId: randomUUID(),
+            eventType: 'workflow.step.completed',
+            occurredAt: new Date().toISOString(),
+            cityId: ctx.auth.cityId,
+            schemaVersion: 1,
+            payload: {
+              instanceId: instance.id,
+              stepInstanceId,
+              stepId: step.id,
+              stepType: step.stepType,
+              outcome: 'DONE',
+              comment,
+              documentId: instance.documentId,
+              actorId: ctx.auth!.userId,
+              fromOfficeId: null,
+              toOfficeId: null,
+              actionDescription: buildActionDescription(step.label, step.stepKey, 'DONE'),
+              cityId: ctx.auth!.cityId,
+            },
+          });
+        }
+
+        return { success: true as const, nextStepType: null };
+      }),
+
+    /**
      * `workflow.approveStep`
      *
      * Approves an `approval` step and advances the workflow instance.
@@ -2440,7 +2572,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
         const { stepInstanceId } = input;
         const comment = sanitizedComment ?? null;
 
@@ -2521,7 +2656,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedRemarks = input.remarks ? sanitizeRichText(input.remarks) : undefined;
+        const sanitizedRemarks =
+          input.remarks && !isRichTextEmpty(input.remarks)
+            ? sanitizeRichText(input.remarks)
+            : undefined;
         const { stepInstanceId, decision } = input;
         const remarks = sanitizedRemarks ?? null;
 
@@ -2814,7 +2952,10 @@ export function createWorkflowRouter() {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
 
-        const sanitizedComment = input.comment ? sanitizeRichText(input.comment) : undefined;
+        const sanitizedComment =
+          input.comment && !isRichTextEmpty(input.comment)
+            ? sanitizeRichText(input.comment)
+            : undefined;
         const { stepInstanceId, outcome } = input;
         const comment = sanitizedComment ?? null;
 
@@ -3933,8 +4074,34 @@ export function createWorkflowRouter() {
                   for (const fragment of line) {
                     const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
                     const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: rgb(0, 0, 0) });
-                    cursorX += font.widthOfTextAtSize(fragment.text, textSize);
+                    const isLink = fragment.href !== null;
+                    const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+                    
+                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: textSize, font, color: drawColor });
+                    
+                    const textWidth = font.widthOfTextAtSize(fragment.text, textSize);
+                    
+                    if (fragment.underline || isLink) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY - 2,
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    if (fragment.strike) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY + (textSize * 0.35),
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    cursorX += textWidth;
                   }
                   textY -= textLineHeight;
                 }
@@ -3948,8 +4115,34 @@ export function createWorkflowRouter() {
                   for (const fragment of line) {
                     const variant = forceItalic ? (fragment.font === 'bold' || fragment.font === 'boldItalic' ? 'boldItalic' : 'italic') : fragment.font;
                     const font = fontByVariant[variant === 'code' ? 'regular' : variant];
-                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: rgb(0, 0, 0) });
-                    cursorX += font.widthOfTextAtSize(fragment.text, hSize);
+                    const isLink = fragment.href !== null;
+                    const drawColor = isLink ? rgb(0.06, 0.25, 0.48) : rgb(0, 0, 0);
+                    
+                    textPage.drawText(fragment.text, { x: cursorX, y: textY, size: hSize, font, color: drawColor });
+                    
+                    const textWidth = font.widthOfTextAtSize(fragment.text, hSize);
+                    
+                    if (fragment.underline || isLink) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY - 2,
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    if (fragment.strike) {
+                      textPage.drawRectangle({
+                        x: cursorX,
+                        y: textY + (hSize * 0.35),
+                        width: textWidth,
+                        height: 1,
+                        color: drawColor,
+                      });
+                    }
+
+                    cursorX += textWidth;
                   }
                   textY -= (hSize + 4);
                 }

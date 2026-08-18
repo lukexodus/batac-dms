@@ -1,4 +1,5 @@
 import { eq, and, isNull, or, gte, lte, sql } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import type { AppDb, TxOrDb } from '../../db.js';
 import type {
   WorkflowPublicAPI,
@@ -12,6 +13,8 @@ import { SlaService } from './services/sla.service.js';
 import { instances, steps, definitionVersions } from '@batac/database/schema/workflow.schema.js';
 import { documents, documentTypes } from '@batac/database/schema/documents.schema.js';
 import { autoCompleteActionStep } from './engine/step-handlers/action.handler.js';
+import { submitStepApproval } from './engine/step-handlers/approval.handler.js';
+import { buildActionDescription } from './action-description.util.js';
 import type { DocumentsPublicAPI } from '../documents/documents.types.js';
 import type { OrgService, DelegationService } from '../organization/organization.types.js';
 import type { IamPublicAPI } from '../iam/iam.types.js';
@@ -95,6 +98,82 @@ export function createWorkflowPublicAPI(deps: WorkflowPublicAPIDeps): WorkflowPu
       const instance = await repository.getActiveInstanceForDocument(documentId);
       if (!instance) return null;
       return this.getInstanceById(instance.id);
+    },
+
+    async getStepState(
+      documentId: string,
+      stepKey: string,
+      tx?: TxOrDb,
+    ): Promise<{ status: string; outcome: string | null; completedAt: Date | null } | null> {
+      const instance = await repository.getLatestInstanceForDocument(documentId, tx);
+      if (!instance) return null;
+
+      const stepInstance = await repository.getStepInstanceByStepKey(instance.id, stepKey, tx);
+      if (!stepInstance) return null;
+
+      return {
+        status: stepInstance.status,
+        outcome: stepInstance.outcome,
+        completedAt: stepInstance.completedAt,
+      };
+    },
+
+    async submitStepApprovalForDocument(
+      documentId: string,
+      stepKey: string,
+      actorId: string,
+      outcome: string,
+      comment: string | null,
+    ): Promise<void> {
+      const instance = await repository.getActiveInstanceForDocument(documentId);
+      if (!instance) throw new Error('NO_ACTIVE_INSTANCE');
+
+      const stepInstance = await repository.getActiveStepInstanceByStepKey(instance.id, stepKey);
+      if (!stepInstance) throw new Error('STEP_NOT_ACTIVE');
+
+      await db.transaction(async (tx) => {
+        await submitStepApproval(
+          instance,
+          stepInstance,
+          actorId,
+          'user',
+          outcome,
+          comment,
+          { ...deps, db: tx, workflowRepository: new WorkflowRepository(tx) },
+          tx,
+        );
+      });
+
+      // Emit to the event bus so the audit consumer records the approval
+      // (ADR-EVT-001: approval trail under the workflow engine's
+      // audit-guaranteed event bus).
+      if (deps.eventBus) {
+        const versionData = await repository.getDefinitionVersionWithSteps(
+          instance.definitionVersionId,
+        );
+        const stepDef = versionData?.steps.find((s) => s.id === stepInstance.stepId);
+        deps.eventBus.emit('workflow.step.completed', {
+          eventId: randomUUID(),
+          eventType: 'workflow.step.completed',
+          occurredAt: new Date().toISOString(),
+          cityId: instance.cityId,
+          schemaVersion: 1,
+          payload: {
+            instanceId: instance.id,
+            stepInstanceId: stepInstance.id,
+            stepId: stepInstance.stepId,
+            stepType: stepDef?.stepType ?? 'approval',
+            outcome,
+            comment,
+            documentId: instance.documentId,
+            actorId,
+            fromOfficeId: null,
+            toOfficeId: null,
+            actionDescription: buildActionDescription(stepDef?.label ?? null, stepKey, outcome),
+            cityId: instance.cityId,
+          },
+        });
+      }
     },
 
     async getWorkflowSLAData(filter: WorkflowSLAFilter): Promise<WorkflowSLAData[]> {

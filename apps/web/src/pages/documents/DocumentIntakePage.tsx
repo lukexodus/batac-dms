@@ -1182,7 +1182,7 @@ export default function DocumentIntakePage() {
         fileSizeBytes: file.size,
       });
 
-      toast.success("Document created successfully");
+      toast.success("Document created — submit it from the document page to complete intake and assign a tracking number.");
       navigate(`/documents/${documentId}`);
     } catch (err) {
       toast.error(

@@ -73,11 +73,7 @@ export class QrCodeService {
       ContentType: 'image/png',
     });
 
-    try {
-      await this.s3Client.send(command);
-    } catch (err) {
-      console.warn('Failed to upload QR code to S3, proceeding without it', err);
-    }
+    await this.s3Client.send(command);
 
     // Save to DB
     const qrCodeRow = await this.repository.createQrCode(
@@ -90,16 +86,12 @@ export class QrCodeService {
       db,
     );
 
-    try {
-      // qr_image_file_key is a UUID column (see tracking/index.ts: "UUID key,
-      // not a full URL") — store the trackingId; consumers derive the S3
-      // object key as `qr-codes/{uuid}.png`.
-      await this.repository.updateQrImageKey(qrCodeRow.id, trackingId, db);
-      // Refresh to get the updated row
-      qrCodeRow.qrImageFileKey = trackingId;
-    } catch (err) {
-      console.warn('Failed to update QR image key', err);
-    }
+    // qr_image_file_key is a UUID column (see tracking/index.ts: "UUID key,
+    // not a full URL") — store the trackingId; consumers derive the S3
+    // object key as `qr-codes/{uuid}.png`.
+    await this.repository.updateQrImageKey(qrCodeRow.id, trackingId, db);
+    // Refresh to get the updated row
+    qrCodeRow.qrImageFileKey = trackingId;
 
     return qrCodeRow;
   }

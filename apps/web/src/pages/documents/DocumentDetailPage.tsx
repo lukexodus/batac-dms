@@ -87,8 +87,21 @@ import { useSessionStore, type ActiveUserIdentity } from '@/stores';
 // E1). These are intentionally NOT the blanket 10-role page set.
 
 /** documents.submit: callable-by dept_encoder, dept_approver, sp_secretary,
- *  sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain */
-function canSubmit(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
+ *  sp_member, sp_presiding_officer, mayor, brgy_encoder, brgy_captain — except
+ *  for SP measure document types (SP_RESOLUTION, SP_ORDINANCE,
+ *  SP_APPROPRIATION_ORDINANCE), where only sp_secretary may submit, per
+ *  documents.policy.ts requiresSpSecretaryForSubmit / SP_WORKFLOW_DOCUMENT_TYPE_CODES. */
+const SP_SECRETARY_ONLY_SUBMIT_TYPE_CODES = new Set([
+  'SP_RESOLUTION',
+  'SP_ORDINANCE',
+  'SP_APPROPRIATION_ORDINANCE',
+]);
+
+function canSubmit(
+  identity: ActiveUserIdentity | null,
+  lifecycleState: string,
+  documentTypeCode: string | undefined,
+): boolean {
   if (
     !hasRole(
       identity,
@@ -101,6 +114,12 @@ function canSubmit(identity: ActiveUserIdentity | null, lifecycleState: string):
       'brgy_encoder',
       'brgy_captain',
     )
+  )
+    return false;
+  if (
+    documentTypeCode &&
+    SP_SECRETARY_ONLY_SUBMIT_TYPE_CODES.has(documentTypeCode) &&
+    !hasRole(identity, 'sp_secretary')
   )
     return false;
   return lifecycleState === 'draft';
@@ -203,7 +222,7 @@ function canLogCertificationOfUrgency(identity: ActiveUserIdentity | null): bool
 /** documents.publishToPortal / unpublishFromPortal: callable-by sp_secretary only */
 function canPublishToPortal(identity: ActiveUserIdentity | null, lifecycleState: string): boolean {
   if (!hasRole(identity, 'sp_secretary')) return false;
-  return ['released', 'superseded'].includes(lifecycleState);
+  return ['released', 'archived'].includes(lifecycleState);
 }
 
 /** documents.requestUploadUrl / confirmUpload: callable-by dept_encoder, dept_approver,
@@ -406,7 +425,7 @@ export default function DocumentDetailPage() {
 
   const publishMutation = trpc.documents.publishToPortal.useMutation({
     onSuccess: () => {
-      toast.success('Published to portal');
+      toast.success('Portal publish status updated.');
       void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
@@ -414,7 +433,7 @@ export default function DocumentDetailPage() {
 
   const unpublishMutation = trpc.documents.unpublishFromPortal.useMutation({
     onSuccess: () => {
-      toast.success('Unpublished from portal');
+      toast.success('Portal publish status updated.');
       void utils.documents.get.invalidate({ documentId: documentId! });
     },
     onError: (e) => toast.error(e.message),
@@ -801,7 +820,7 @@ export default function DocumentDetailPage() {
       <div className={trackingRecord ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-start' : ''}>
         {/* ── Action buttons ── */}
         {(() => {
-          const showSubmit = isRoutable && canSubmit(identity, lifecycleState);
+          const showSubmit = isRoutable && canSubmit(identity, lifecycleState, docType?.code);
           const showAssignPrelim =
             docType?.preliminaryNumbering === true &&
             canAssignPreliminaryNumber(

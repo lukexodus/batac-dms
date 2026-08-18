@@ -9375,6 +9375,11 @@ In `pg-boss` v10, the job payload passed to the `boss.work` handler does not inc
 **What was implemented:**
 Updated the `boss.work('ocr.process', ...)` call in `apps/server/src/modules/documents/documents.plugin.ts` to include `{ includeMetadata: true }`, ensuring `job.retryCount` is properly populated for the final-attempt logic. Also empirically verified this behavior through an integration test (`ocr-retry-boundary.integration.spec.ts`), which confirmed the final attempt logic evaluates correctly when metadata is present.
 
+**TASK-DOCS-027 addendum (actual observed values from a real test run, 2026-08-10):**
+- Test 1 (`retryLimit = 0`): `recordedRetryCount = 0`, `recordedRetryLimit = 0`. Result: PASS.
+- Test 2 (`retryLimit = 1`): `retryCounts = [0, 1]`. Result: PASS.
+- Overall: both tests passed, confirming the existing `job.retryCount >= job.retryLimit` comparison in `documents.plugin.ts` line 153 is correct as-is.
+
 ---
 
 ### [LOG-0288] TASK-PORTAL-004: E2 published-document reads — releasedAt/approvedAt sources, sponsorship mapping, and portal infra-field placeholders
@@ -9508,6 +9513,1402 @@ already-logged `MayorLapseConfirmationPanel` copy issue. Suggested fix: reword t
 something like "Confirm Deemed Approved" (drop "& Advance Workflow") and/or add a one-line note that
 the workflow advances automatically once confirmed. Purely a copy change — no design decision needed,
 safe to auto-fold into a prompt if you want it fixed alongside LOG-XXXX above rather than as its own task.
+
+---
+
+### [LOG-0297] Correction to LOG-0293/0294 formatting and cross-references
+
+- date: 2026-08-10
+- task_id: (verification pass on patches 0001/0002)
+- status: proposed
+- affects: none (log hygiene only)
+
+**What was found:** LOG-0293 through LOG-0296 were appended without this file's
+required `date`/`task_id`/`status`/`affects` fields, and used `**Status:** Confirmed`
+prose, which reads as the human-review `status` field already being set to
+`confirmed` — contradicting this file's own rule that only a human sets that value.
+LOG-0294 and LOG-0296 also contain unresolved `LOG-XXXX` placeholder
+cross-references instead of the entries' actual numbers. Per this file's
+append-only rule, those entries are not edited; this entry supersedes their
+formatting only, not their substance, which is addressed separately below.
+
+**Correction:** LOG-0294's "once LOG-XXXX above is fixed" refers to LOG-0293.
+LOG-0296's "safe to auto-fold into a prompt if you want it fixed alongside
+LOG-XXXX above" refers to LOG-0295. Both LOG-0293–0296 should be read as
+`status: proposed` (verified-by-direct-code-reading, not yet human-reviewed),
+not as the file's `confirmed` status.
+
+---
+
+### [LOG-0298] LOG-0293 fix (Patch 0002) — `submitStepAction` archive logic is correct but likely unreachable for `records_officer`, its own intended assignee
+
+- date: 2026-08-10
+- task_id: (patch 0002 verification)
+- status: proposed
+- affects: LOG-0293 (revises), wf.md TASK-WF (ABAC policy guard task), I1 §6.2, I2 §10 row "Archive document"
+
+**What was found:** An earlier draft of this finding (not filed) incorrectly claimed
+`ACTION_STEP_ROLES` (`apps/server/src/modules/workflow/workflow.policy.ts:131-139`)
+was missing `records_officer` as a bug. Reading the actual governing task document —
+`docs/pre-development/A-project-planning/a1-tasks/wf.md:1704` — corrects that: the
+task's own acceptance criterion (line 1687: "Users not present in
+`step_instances.assigned_to` cannot call `completeActionStep`... throws `FORBIDDEN`")
+and explicit role list ("`completeActionStep`: `dept_encoder (scoped), dept_approver,
+sp_secretary, sp_presiding_officer, mayor, brgy_encoder (scoped), brgy_captain`")
+deliberately exclude `records_officer`. This matches `ACTION_STEP_ROLES` exactly.
+`records_officer` appears by name in half a dozen other role lists in the same
+document (e.g. line 1700's `getInstance` read-permission list, two lines above),
+so its absence here reads as intentional, not an oversight.
+
+This means the `archive` step (`packages/database/src/seeds/workflow/phase1-legislative.ts:359-371`,
+assigned to `ROLE.RECORDS_OFFICER`) can never legitimately be completed via
+`completeActionStep` — the generic queue-based path `GenericActionPanel.tsx` uses —
+because its own assignee role is categorically barred from that procedure by design.
+`documents.archive` (`apps/server/src/modules/documents/documents.router.ts:1771-1817`)
+appears to be the intended completion surface instead: its role check
+(`records_officer` unconditional, or `sp_secretary` with SP Secretariat office
+membership) matches I2's matrix row "Archive document (move to inactive → archived)"
+(`i2-role-permission-matrix.md:249`, Rec Officer ✅ / SP Secretary ✅) exactly, and
+it's specifically built to resolve the matching workflow step via
+`archiveStepForDocument` — machinery that would be pointless if this procedure
+weren't meant to be the primary way a `records_officer` completes this step.
+
+Patch `0002-fix-Archive-step-wiring-and-portal-publication-state.patch`'s change to
+`submitStepAction` (adding `transitionState` for `stepKey === 'archive'`) is
+technically correct in isolation — verified in a prior pass of this finding — but is
+very likely unreachable in practice for a `records_officer`-only user, since
+`canCompleteActionStep`'s role gate (`workflow.policy.ts:274`) throws before
+`submitStepAction` is ever called. This is the same "correct code, no live caller"
+shape already logged once in this investigation (`initiatePanlalawiganTransmittal`,
+prior session).
+
+**What was NOT implemented:** No fix. The real question this reopens is which of
+LOG-0293's original Option 1/Option 2 was actually viable — Option 1
+(`submitStepAction` special-case, what Patch 0002 implemented) assumed
+`completeActionStep` was a reachable path for this step's assignee; that assumption
+now looks wrong. Option 2 (a dedicated panel routing to `documents.archive` instead
+of `completeActionStep`) was flagged at the time as more invasive but may be the
+only one that actually closes the gap for a `records_officer`-only user. This needs
+a human decision, and ideally direct confirmation with whoever owns `wf.md`/I1
+whether `completeActionStep`'s role list was truly meant to exclude
+`records_officer` from ALL action steps, or only some — the task doc doesn't say
+whether `records_officer`-assigned action steps are always meant to have a
+dedicated non-generic endpoint, or whether this is specific to `archive`.
+
+**What was verified but does NOT need re-litigating:** Patch 0002's actual code
+change (transaction-threading, exclusion from `autoCompleteActionStep`, no
+duplicate `archiveStepForDocument` call) remains correct as implemented — see the
+prior pass of this finding for that trace. The concern here is reachability, not
+correctness of the code itself.
+
+---
+
+### [LOG-0299] Patch 0001 (Panlalawigan panel documentTypeCode) — verified correct; noted `documentTypes.deletedAt` filter inconsistency
+
+- date: 2026-08-10
+- task_id: (patch 0001 verification)
+- status: proposed
+- affects: LOG-0295 (supersedes with confirmation, not contradiction)
+
+**What was found:** Patch `0001-fix-update-Panlalawigan-Outcome-Panel-UX.patch`
+correctly resolves LOG-0295. `getInstance`'s output schema and return object
+(`apps/server/src/modules/workflow/workflow.router.ts`) gained a
+`documentTypeCode: z.string().nullable()` field, populated via
+`select({ code: documentTypes.code }).from(documentTypes).where(eq(documentTypes.id,
+doc.documentTypeId))`. `PanlalawiganOutcomePanel.tsx`'s dropdown now conditionally
+renders `OPERATIVE_IN_ITS_ENTIRETY` only when
+`instance.documentTypeCode === 'appropriation_ordinance'`, which correctly fails
+closed (hides the option) for any other value including `null`/`undefined`, matching
+the required behavior exactly. Confirmed via the actual render call path
+(`WorkflowStepActionPage.tsx:73`, `trpc.workflow.getInstance.useQuery`) that fixing
+only `getInstance` and not also `getActiveInstanceForDocument` was correctly scoped,
+not an oversight — the latter is never called on this component's path.
+
+One inconsistency worth a decision, not a blocker: the new query does not include
+`isNull(documentTypes.deletedAt)`, unlike `documents.repository.ts:416`'s equivalent
+by-id lookup. This is not a clear convention violation — `document-requests.router.ts`
+has four call sites with the identical `eq(documentTypes.id, ...)`-only shape (lines
+272, 336, 434, 542), so the codebase itself is inconsistent on whether an
+already-validated document's `documentTypeId` FK lookup needs a soft-delete filter.
+Practical impact if the type is soft-deleted after documents already reference it:
+this new field would still resolve its `code`, so the dropdown-filter fix itself
+would not regress, but the value technically bypasses this codebase's soft-delete
+convention.
+
+**What was NOT implemented:** No fix for the `deletedAt` filter question — flagging
+for a human to decide whether `documentTypes` id-lookups should adopt the
+`isNull(deletedAt)` convention project-wide (which would mean fixing 5 call sites,
+not just this new one) or whether the FK-already-validated case is legitimately
+exempt.
+
+---
+
+### [LOG-0300] Button copy fix (LOG-0296) — verified correct
+
+- date: 2026-08-10
+- task_id: (patch 0001 verification)
+- status: proposed
+- affects: none (confirms LOG-0296 resolved, no new finding)
+
+**What was found:** Patch `0001` changed `PanlalawiganOutcomePanel.tsx`'s second
+button from "Confirm Deemed Approved & Advance Workflow" to "Confirm Deemed
+Approved" exactly as specified, and added an optional clarifying note ("Advances
+automatically", styled `text-xs text-muted-foreground`) below it, with wording
+that avoids stating a specific schedule. The sibling button ("Record Outcome &
+Advance Workflow", confirmed accurate in the prior investigation) was correctly
+left unmodified.
+
+**What was implemented:** N/A — this entry only confirms the fix, filed for
+completeness per this file's convention of one entry per discovery rather than
+leaving verified fixes unrecorded.
+
+---
+
+### [LOG-0301] documentTypes.deletedAt filter decision (LOG-0299 follow-up) — filter is inert in production; decided to add for convention consistency
+
+- date: 2026-08-10
+- task_id: TASK-WF-024
+- status: proposed
+- affects: LOG-0299 (refines, does not contradict)
+
+**What was found:** Following up on LOG-0299's open question (whether
+`getInstance`'s new `documentTypeCode` lookup in
+`apps/server/src/modules/workflow/workflow.router.ts` should filter on
+`isNull(documentTypes.deletedAt)` to match the dominant codebase
+convention), a full search of `apps/server/src/` found no production code
+path — no router procedure, service method, or admin mutation — that ever
+sets `documentTypes.deletedAt` to a non-null value. The only
+`.delete(documentTypes)` call in the entire server codebase is
+`documents.public-read.service.test.ts:291`'s `afterAll` test-teardown
+block, which hard-deletes test-fixture rows scoped to
+`insertedTypeCodes`, structurally unrelated to a soft-delete feature. This
+means every `documentTypes` row in production necessarily has `deletedAt
+IS NULL` today, so the filtered and unfiltered query forms are currently
+behaviorally identical for every input — the LOG-0299 inconsistency
+carries zero present risk, only a forward-looking convention question.
+
+Also re-counted the precedent split with more precision than LOG-0299's
+original count: 18 call sites use the filtered
+`documentsRepository.findDocumentTypeById` (workflow.router.ts:1317,
+4094, 4241; documents.service.ts:65, 85, 222; documents.router.ts:405,
+594, 691, 821, 843, 954, 1387, 1523, 1573, 1615, 1706, 1745). Only 5 sites
+use the unfiltered inline `eq(documentTypes.id, ...)` form
+(document-requests.router.ts:272, 336, 434, 542, plus the getInstance
+site being decided here) — and those 4 document-requests.router.ts sites
+are byte-identical copies of one `docType.code !== DOCUMENT_REQUEST_FORM_CODE`
+identity check, not 4 independent precedent decisions.
+
+**What was implemented:** Decided to add the `isNull(documentTypes.deletedAt)`
+filter to `getInstance`'s lookup, matching the dominant convention, on the
+grounds that (a) it costs nothing given the column is currently inert,
+(b) it removes the one point where `workflow.router.ts` deviates from its
+own established idiom (this same file uses the filtered pattern at 3
+other call sites), and (c) it defends against a future soft-delete
+feature being added to `documentTypes` without this site being revisited.
+This is `[Inference]`-based reasoning about future-proofing, not a
+correction of present behavior — no regression existed before this
+change and none was introduced by it.
+
+**What was NOT resolved:** The 4 document-requests.router.ts sites remain
+unfiltered and out of scope for this task, per explicit instruction in
+TASK-WF-024. Whether those should also be brought in line with the
+dominant convention is still an open question for a human to decide,
+separate from this entry — those 4 sites are a repeated identity-check
+pattern, not the same kind of forward-looking data-retrieval concern
+`getInstance` had, so the same reasoning may not transfer directly.
+
+---
+
+### [LOG-0302] ARTA SLA estimatedWorkingDays threshold hardcoded to 3 for document-requests — configurability deferred to a human
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-007
+- status: proposed
+- affects: E2 §DocumentRequestSubmissionResult, consolidated reference Part 11.19
+
+**What was found:** E2's `DocumentRequestSubmissionResult` example payload and
+its `estimatedWorkingDays` field description ("RA 11032 (ARTA) default SLA
+thresholds. Simple transactions: ≤3 working days") require the value 3, and
+consolidated reference Part 11.19 makes ARTA SLA tracking a Phase 1 legal
+requirement with "configurable thresholds". No loaded document specifies
+where that threshold is configured — an env var, a database row, or a
+hardcoded constant. `TASK-WF-014`'s SLA escalation system may already provide
+a configuration mechanism, but that task list was not read closely enough
+during this pass to confirm whether it is reusable for a document type with
+no workflow instance (document-request submissions have no workflow in
+Phase 1 — see wf.md TASK-WF-016 scope note).
+
+**What was implemented:** `POST /v1/public/document-requests` hardcodes
+`ESTIMATED_WORKING_DAYS = 3` in
+`apps/server/src/modules/portal/routes/submit-document-request.ts` and returns
+it in the response body. No configuration mechanism was invented.
+
+[Inference]: The value 3 matches E2's own example and the ARTA simple-
+transaction SLA. The configurability question is deferred for a human
+decision: whether the threshold should move to an env var / DB row / reused
+from TASK-WF-014's escalation config, and whether it should be document-type
+specific.
+
+---
+
+### [LOG-0303] TASK-PORTAL-001/002: file-layout convention diverges from both tasks' literal deliverable paths, following E3 over E2
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2, E3
+
+**What was found:** TASK-PORTAL-002's AI Prompt specifies 9 files under
+`schemas/common/*.ts` and `schemas/public/*.ts`, citing E2's "Shared Package
+Schema Location" section (e2-rest-api-specification-openapi3.md:1973-1990) as
+authoritative. E3 (e3-shared-zod-schema-catalog.md:96,108,147-170) states it is
+"the single source of truth for every Zod schema... no layer may define its
+own copy" and specifies a flat one-file-per-domain tree with no public/common
+subfolders. AGENTS.md's own routing table (Section 2) routes "/packages/shared
+Zod schema" tasks to E3 → C1, not E2. The two pre-development documents
+directly contradict each other on this point.
+
+**What was implemented:** The actual code (packages/shared/src/schemas/
+common.ts, tracking.ts, portal.ts) follows E3's flat-file convention. None of
+the task's 9 specified file paths exist. Verified no consumer anywhere in the
+codebase imports from a nested schemas/public/ or schemas/common/ path — every
+import goes through the flat @batac/shared barrel (packages/shared/src/
+index.ts), so this did not cause a runtime problem, but the decision to follow
+E3 over E2 was made without being logged or flagged for human review.
+
+[Inference]: E3's "single source of truth, no layer defines its own copy"
+language is stronger and more explicit than E2's folder-mirroring suggestion,
+and AGENTS.md's routing table independently corroborates E3 as the correct
+document for this task type. Recommend E2's "Shared Package Schema Location"
+section be corrected to match E3's actual convention, or a human decide
+explicitly that a migration to E2's nested layout is wanted going forward.
+
+---
+
+### [LOG-0304] TASK-PORTAL-002: ValidationErrorResponse.details/.code and PresignedImageRef.widthPx/.heightPx implemented as required, contradicting E2's own required: lists
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2
+
+**What was found:** E2's OpenAPI components (e2-rest-api-specification-openapi3.md)
+define ValidationErrorResponse.details as absent from its object's implicit
+required set (line 1029, no `required` key on the details property's parent),
+and details[].required is [field, message] only (lines 1034-1036) — code is
+optional. Similarly PresignedImageRef.required is [url, expiresAt] only (lines
+1093-1095) — widthPx/heightPx are optional, with no minimum/positive
+constraint specified. The actual implementation in packages/shared/src/
+schemas/common.ts:92-101 (ValidationErrorResponseSchema) and tracking.ts:52-58
+(PresignedImageRefSchema) makes all of these fields required, and adds
+.positive() to widthPx/heightPx which E2 does not specify.
+
+**What was implemented:** No change — flagging as found. This is a real
+divergence from E2's frozen contract, not merely from the TASK-PORTAL-002 AI
+Prompt (which specified the fields as optional, matching E2 correctly). E2's
+own Schema Synchronization Rule (line 1992-1996) states such divergences
+should be CI build failures; no contract test currently exists in this repo to
+catch this.
+
+[Inference]: Loosening these two schemas to add .optional() (and dropping
+.positive() from widthPx/heightPx) would bring the code into exact alignment
+with E2 and appears to be a mechanical, non-design-decision fix — flagging
+here rather than silently fixing because E2's explicit build-failure language
+suggests a human should confirm the fix rather than have it folded quietly
+into an unrelated PR.
+
+---
+
+### [LOG-0305] TASK-PORTAL-002: firstPagePreview made nullable in PublishedDocumentSummarySchema/TrackingLookupDataSchema, contradicting E2's required-non-null definition — refines LOG-0288's context, intentionally out of scope for FOLLOWUP-A/B
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2
+
+**What was found:** E2 lists firstPagePreview as required (not merely
+present-but-nullable) in both PublishedDocumentSummary (e2-rest-api-
+specification-openapi3.md:1317-1327, property def at 1370-1371) and
+TrackingLookupData (:1171-1179, property def at 1245-1246), and neither
+property definition carries `nullable: true` — unlike six sibling fields in
+the same objects (supersededBy, supersededAt, closureReason, etc.) which
+explicitly do. The actual code (packages/shared/src/schemas/portal.ts:171,
+tracking.ts:113) adds .nullable() to firstPagePreview in both schemas.
+
+**What was implemented:** No change. Cross-referencing LOG-0288 (TASK-PORTAL-004),
+which already documents that the current public-read data-access layer has no
+S3 presigner and firstPagePreview is therefore always null in practice — the
+.nullable() addition is necessary for today's no-presigner reality and
+reverting it would break the currently-working read path. This entry records
+that the two follow-up prompts drafted alongside this entry
+(TASK-PORTAL-002-FOLLOWUP-A and -B) deliberately exclude this field from their
+scope, so a future agent applying either prompt does not inadvertently revert
+it while fixing the unrelated ValidationErrorResponse/PresignedImageRef gaps
+in the same files.
+
+[Inference]: This should likely stay nullable until a presigner exists (see
+LOG-0288), but a human should still decide whether (a) E2 gets amended to mark
+firstPagePreview nullable as an interim/Phase-1 accommodation, or (b) this is
+treated as a known, temporary, tracked divergence to be reverted once
+TASK-PORTAL-005's presigner work lands. Unresolved — flagging again here since
+LOG-0288 documented the implementation reason but not this E2-conformance
+consequence explicitly.
+
+### [LOG-0306] TASK-PORTAL-002: no schema-parsing test file exists in packages/shared
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: none
+
+**What was found:** TASK-PORTAL-002's second acceptance criterion requires a
+new test file feeding E2's four example payloads (transportation_overcharging
+complaint, general_lgu complaint, document-request example, tracking-lookup
+response example) through their matching schemas and asserting success.
+Confirmed via `find packages/shared -iname "*.test.ts" -o -iname "*.spec.ts"`
+that no test file of any kind currently exists anywhere in packages/shared.
+
+**What was implemented:** No change — this is a plain missing deliverable,
+not an ambiguity. The underlying schema behavior was manually verified to be
+correct in this same investigation (SubmitComplaintInputSchema correctly
+rejects violationType:'other' without violationTypeOther, and rejects a
+non-24-hour incidentTime, per direct execution against the live schema) — the
+gap is narrowly the absence of a committed test file, not incorrect
+validation logic.
+
+---
+
+### [LOG-0307] documentTypes.deletedAt filter extended to document-requests.router.ts (LOG-0301 follow-up) — decided in favor, on defense-in-depth grounds for mutation gates
+
+- date: 2026-08-10
+- task_id: TASK-DOCS-031
+- status: proposed
+- affects: LOG-0299, LOG-0301 (extends the same decision to a second file)
+
+**What was found:** The 4 unfiltered `eq(documentTypes.id, ...)` sites in
+`document-requests.router.ts` (lines 272, 336, 434, 542 as of LOG-0301)
+were re-examined in full procedure context, not just pattern-matched
+against `getInstance`. They belong to 4 different procedures —
+`generatePrintableForm` (read-only), `approveAsPresidingOfficer`,
+`approveAsSecretary`, and `releaseCopy` (all three mutations, changing
+`lifecycleState` or writing approval/release metadata on a document
+request). This is a materially different risk profile than the
+`getInstance` site resolved in LOG-0301, which populates a read-only
+display field.
+
+Also found: this file has zero uses of `findDocumentsRepository.findDocumentTypeById`
+anywhere — all 4 of its `documentTypes` lookups use the unfiltered inline
+form. This means the file's own internal convention is the unfiltered
+pattern, unlike `workflow.router.ts` (LOG-0301's case), where the
+unfiltered site was a deviation from that file's own established use of
+the filtered method at 3 other locations. This is a real asymmetry
+between the two cases, not a rerun of the same fact pattern.
+
+Confirmed (re-verified, same finding as LOG-0301, re-checked because it
+applies to the same table): no production code path anywhere in
+`apps/server/src` sets `documentTypes.deletedAt` to non-null. The
+column remains fully inert; this change has zero behavioral effect in
+production today for either query form.
+
+Incidentally found, unrelated to this decision: `TODO(WF-INTEGRATION)`
+comments at `approveAsPresidingOfficer` (~line 353) and
+`approveAsSecretary` (~line 443), both noting that a metadata-JSONB
+approval check is a "Phase 1 stub" pending `workflow.getStepState(...)`
+integration once an unspecified `TASK-WF-NNN` completes. Not addressed by
+this entry — flagged here only because it surfaced during this
+investigation and is worth a human's attention as a separate, pre-existing
+open item, distinct from the deletedAt question.
+
+**What was implemented:** Decided to add the `isNull(documentTypes.deletedAt)`
+filter at all 4 sites, despite the internal-convention asymmetry noted
+above, on the grounds that (a) cross-module data-integrity conventions
+for a shared reference table should outrank a single module's copy-pasted
+local pattern, (b) 3 of the 4 sites are mutation gates, where failing
+safe (report NOT_FOUND for a hypothetically-retired type) is strictly
+preferable to failing open (proceed against a hypothetically-retired
+type), if the column is ever wired up in the future, and (c) the change
+is provably zero-risk today given the column's confirmed-inert status.
+This is `[Inference]`-based reasoning about defense-in-depth for a
+currently-hypothetical future state, not a correction of present
+behavior — no regression existed before this change and none is
+introduced by it.
+
+**What was NOT implemented:** No change to the identity-check logic
+itself, the TODO(WF-INTEGRATION) stubs, or any other file. Those remain
+separate, unaddressed items.
+
+---
+
+### [LOG-0308] TASK-PORTAL-001/002: E2-vs-E3 file-layout conflict for /packages/shared/src/schemas/ — resolved in favor of E3's flat convention
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-002
+- status: proposed
+- affects: E2, E3
+- resolved_in: (none — this is a code/process decision, not a document edit; see note below)
+
+**What was found:** TASK-PORTAL-002's AI Prompt specifies 9 files under
+`schemas/common/*.ts` and `schemas/public/*.ts`, citing E2's "Shared Package
+Schema Location" section (e2-rest-api-specification-openapi3.md:1973-1990) as
+authoritative. E3 (e3-shared-zod-schema-catalog.md:96,108,147-170) states it is
+"the single source of truth for every Zod schema... no layer may define its
+own copy" and specifies a flat one-file-per-domain tree with no public/common
+subfolders. AGENTS.md's own routing table (Section 2) routes "/packages/shared
+Zod schema" tasks to E3 → C1, not E2. The two pre-development documents
+directly contradict each other on this point. The actual implementation
+already follows E3's flat convention (packages/shared/src/schemas/common.ts,
+tracking.ts, portal.ts) — none of the task's 9 specified nested paths exist —
+and this was done without being logged or flagged at the time.
+
+**Decision:** E3's flat convention is confirmed as the go-forward standard for
+`/packages/shared/src/schemas/`. Reasoning: (1) E3's "single source of truth,
+no layer defines its own copy" language is an explicit governance claim; E2's
+folder mirroring reads as an illustrative convention, not a rule of comparable
+weight. (2) AGENTS.md's routing table independently corroborates E3 as the
+correct document for this task type, decided before this conflict was known
+to exist. (3) It matches current reality — verified zero consumers anywhere in
+the codebase import from a nested schemas/public/ or schemas/common/ path;
+migrating now would be a real, non-trivial change to fix something that was
+never actually broken. (4) E2's underlying concern (REST-facing schemas
+becoming hard to audit against the OpenAPI spec as the surface grows) is real
+but not unique to a nested layout — E3's own tree already splits by domain
+(documents.ts vs workflow.ts vs tracking.ts), so the same flat-file-per-domain
+split can absorb portal.ts growing too large by splitting it into e.g.
+portal-tracking.ts / portal-documents.ts / portal-complaints.ts later, flat,
+the same way, without adopting E2's nested structure.
+
+**Action for a human:** E2's "Shared Package Schema Location" section
+(e2-rest-api-specification-openapi3.md:1973-1990) should be corrected to
+describe the actual flat convention, or explicitly marked superseded by E3,
+so it stops presenting a folder structure that contradicts E3 and doesn't
+match implementation. This entry documents the decision and its reasoning;
+the actual document edit is a human action per this log's own rules (agents
+never edit Group B-L documents directly).
+
+[Inference]: The four-point reasoning above is a considered architectural
+judgment, not a default — flagging as [Inference] because no pre-development
+document explicitly adjudicates an E2-vs-E3 conflict of this specific kind,
+and a human should confirm this before it's treated as settled precedent for
+future E2/E3 conflicts generally.
+### [LOG-0308] TASK-WF-PDF-001: PDF formatting drops strike/underline/link due to DrawableRunFragment shape
+
+- date: 2026-08-10
+- task_id: TASK-WF-PDF-001
+- status: proposed
+- affects: rich-text-pdf.util.ts, workflow.router.ts
+
+**What was found:** Strikethrough was discovered to be a pre-existing, silently-broken formatting mark in the PDF generation path. While parsed correctly in `parseRichTextForPdf`, it was silently dropped before drawing because `DrawableRunFragment` had a narrow `{ text, font }` shape with no room for decoration-style formatting (which applies additively, unlike font substitutions). Underline and links suffered the same fate at the rendering stage.
+
+**What was implemented:** The fix required changes across three files/stages:
+1. `rich-text-pdf.util.ts`: Extended `TextRun` and updated `walkNode` to track `href` (as a parameter) and `underline` (in `FormatState`).
+2. `workflow.router.ts`: Extended `DrawableRunFragment` to include `underline`, `strike`, and `href`.
+3. `workflow.router.ts`: Updated `wrapRunsForPdf` to require matching `underline`, `strike`, and `href` before merging runs.
+4. `workflow.router.ts`: Modified BOTH duplicated `drawBlock` closures to render a distinct link color and draw thin rule rectangles for underlines/links (below baseline) and strike-throughs (at half cap-height).
+
+**Note on scope:** Clickable PDF link annotations were explicitly scoped out as a separate, larger task due to `pdf-lib`'s lack of a high-level API for this, requiring low-level annotation dictionaries that must survive word-wrapping reflows.
+
+### [LOG-0308] TASK-WF-PDF-001: PDF formatting drops strike/underline/link due to DrawableRunFragment shape
+
+- date: 2026-08-10
+- task_id: TASK-WF-PDF-001
+- status: proposed
+- affects: rich-text-pdf.util.ts, workflow.router.ts
+
+**What was found:** Strikethrough was discovered to be a pre-existing, silently-broken formatting mark in the PDF generation path. While parsed correctly in `parseRichTextForPdf`, it was silently dropped before drawing because `DrawableRunFragment` had a narrow `{ text, font }` shape with no room for decoration-style formatting (which applies additively, unlike font substitutions). Underline and links suffered the same fate at the rendering stage.
+
+**What was implemented:** The fix required changes across three files/stages:
+1. `rich-text-pdf.util.ts`: Extended `TextRun` and updated `walkNode` to track `href` (as a parameter) and `underline` (in `FormatState`).
+2. `workflow.router.ts`: Extended `DrawableRunFragment` to include `underline`, `strike`, and `href`.
+3. `workflow.router.ts`: Updated `wrapRunsForPdf` to require matching `underline`, `strike`, and `href` before merging runs.
+4. `workflow.router.ts`: Modified BOTH duplicated `drawBlock` closures to render a distinct link color and draw thin rule rectangles for underlines/links (below baseline) and strike-throughs (at half cap-height).
+
+**Note on scope:** Clickable PDF link annotations were explicitly scoped out as a separate, larger task due to `pdf-lib`'s lack of a high-level API for this, requiring low-level annotation dictionaries that must survive word-wrapping reflows.
+
+---
+
+### [LOG-0309] TODO(WF-INTEGRATION) stubs traced to ADR-EVT-001 — scoped as TASK-WF-025, not resolved directly (multi-module migration, real data-safety gate required)
+
+- date: 2026-08-10
+- task_id: (scoping only — see TASK-WF-025)
+- status: proposed
+- affects: ADR-EVT-001, B3, H2
+
+**What was found:** The TODO(WF-INTEGRATION) markers in
+document-requests.router.ts are not undiscovered technical debt — they
+point to ADR-EVT-001, a Resolved architecture decision (stakeholder:
+Luke) specifying that Document Request Form's dual approval must be
+modeled as two Workflow Engine `approval` step instances instead of
+JSONB flags, primarily for audit-coverage reasons (B2's "no exceptions"
+architectural law, B3 §9 Rule 1). No `workflow.definitions` row exists
+yet for DOCUMENT_REQUEST_FORM anywhere in the codebase — this is a
+from-scratch build, not a near-complete migration.
+
+Also found: the actual JSONB-read footprint is larger than the file's
+own header comment claims. The header states "every such site carries a
+TODO(WF-INTEGRATION) comment" — this is false. `listAllDocumentRequests`
+(~line 703-704) and `getDocumentRequest` (~line 750-751) both read
+vm_approved/sp_approved into their output schemas with no TODO comment
+present anywhere near either site. 6 call sites require migration, not
+the 4 implied by the visible TODO comments.
+
+`workflow.getStepState(...)`, the function both existing TODO comments
+name as the intended replacement, does not exist anywhere in the
+codebase (confirmed via full grep of apps/server/src). It must be built
+as part of this migration, following the existing stepInstances.outcome
+read pattern already used elsewhere in workflow.router.ts (e.g. line
+1586-1587), not invented from scratch.
+
+This environment has no reachable database connection (confirmed:
+psql not installed, port 5432 connection refused) and therefore cannot
+answer the one question that determines whether this is a pure
+code/schema migration or also requires a data-backfill step: whether any
+DOCUMENT_REQUEST_FORM documents currently exist mid-approval under the
+JSONB flags. TASK-WF-025's STEP 0 makes this check a mandatory,
+blocking gate that must run before any schema or code change, precisely
+because this could not be resolved during investigation.
+
+**What was implemented:** Nothing directly — this entry and TASK-WF-025
+exist because building ADR-EVT-001's migration is a genuine multi-module
+architectural task (new workflow.definitions row and transition rules,
+2 new termination outcome codes, closed-enum changes to 2 payload
+schemas in packages/shared, a new getStepState function, removal of 3
+H2 metadata-schema fields, migration of 6 call sites, and a
+schema-shape question — boolean vs. 3-state — for the vmApproved/
+spApproved output fields) — not a mechanical single-file fix comparable
+to LOG-0301/LOG-0307's query-filter decisions. Scoping it fully and
+writing TASK-WF-025 as a standalone, gated prompt was judged the
+appropriate action for this authority level; writing the migration code
+directly, unilaterally, on a resolved-but-unbuilt stakeholder ADR with a
+real data-safety unknown, was judged to exceed it.
+
+**What was NOT resolved:** Everything in TASK-WF-025 remains
+unexecuted pending (a) the STEP 0 data-safety check running against a
+real database connection this environment does not have, and (b) three
+explicitly-flagged design decisions within the task (N+1 vs. batched
+query shape for listAllDocumentRequests, boolean vs. enum shape for the
+vmApproved/spApproved schema fields, and whether to backfill stale
+JSONB fields in historical rows) that the prompt deliberately declines
+to pre-decide.
+
+---
+
+### [LOG-0310] TASK-PORTAL-003's delivered test is a fully-mocked unit test, not the Vitest integration test the acceptance criteria specify
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: portal.md (TASK-PORTAL-003 acceptance criteria)
+
+**What was found.** TASK-PORTAL-003's acceptance criteria (portal.md:589-590)
+explicitly require "A new Vitest integration test" for both the
+CITIZEN_COMPLAINT and DOCUMENT_REQUEST_FORM sequential-numbering assertions.
+The delivered test (documents.public-submission.service.test.ts) is a fully
+isolated unit test: DocumentsRepository.findDocumentTypeByCode,
+findNumberSeriesByKey, and insertDocument are all vi.spyOn(...)
+.mockResolvedValue(...)'d, and numberingService.reserveReferenceNumber
+itself is `vi.fn()` — the test never touches a real database (confirmed: no
+DATABASE_URL, beforeAll/afterAll, pool, or postgres() connection anywhere in
+the file). The mocked reserveReferenceNumber return values structurally
+match the real method's TypeScript signature (numbering.service.ts:372-376),
+so the mock isn't asserting an impossible shape — but the specific guarantee
+the acceptance criteria cared about (real per-series-per-year atomic
+sequencing under fn_get_next_sequence_value, including the on-demand
+year-bootstrap path the real method logs a warning for) is exactly what a
+fully-mocked test cannot exercise.
+
+This is inconsistent with TASK-PORTAL-004's own test
+(documents.public-read.service.test.ts), which is a genuine real-Postgres
+integration test requiring DATABASE_URL_MIGRATE, despite both tasks using
+similar "Vitest integration test" language in their acceptance criteria.
+
+**What was implemented.** N/A — this entry documents a gap in test coverage,
+not a code change.
+
+**Recommendation, not yet actioned.** A real integration-test variant should
+be added (or the existing unit test supplemented) exercising
+createPublicSubmission against a live Postgres connection with the real
+NumberingService, to validate the sequential-numbering guarantee the
+acceptance criteria actually asked for. Left to a human/future task to scope
+and prioritize.
+
+---
+
+### [LOG-0311] documents.documents.originating_office_id / owned_by_office_id assignment in createPublicSubmission is an undisclosed decision (NOT NULL columns, no value specified by TASK-PORTAL-003's own pseudocode)
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: portal.md (TASK-PORTAL-003 AI Prompt INSERT pseudocode), C1/docs.md (documents.documents DDL)
+
+**What was found.** documents.public-submission.service.ts:157-158 sets both
+originatingOfficeId and ownedByOfficeId to series.authorityOfficeId (the SP
+Secretariat's office, resolved from the CITIZEN_COMPLAINT_REF /
+DOCUMENT_REQUEST_REF number_series row). TASK-PORTAL-003's own INSERT
+pseudocode (portal.md, AI Prompt section, step 3) never mentions either
+column. Both are NOT NULL with no default on documents.documents
+(confirmed directly against packages/database/schema/documents.schema.ts and
+against docs.md's DDL text), so some value was mandatory — this was a real
+gap the task's own spec left open, filled without any comment in the file
+explaining the choice (confirmed: zero matches for "originatingOffice",
+"ownedByOffice", or "authorityOfficeId" search terms accompanied by any
+justifying prose in the file).
+
+The choice itself is defensible: it reuses the same office TASK-DOCS-008
+already established as the "authority" for these two series, and is
+internally consistent with how the file resolves other series-derived
+values. This entry exists to record the decision explicitly, per this
+project's disclosure convention, not to flag it as incorrect.
+
+**What was implemented.** N/A — this entry documents an already-shipped,
+undisclosed decision; no code change accompanies it.
+
+---
+
+### [LOG-0312] Public-facing DocumentRequestAccessMode enum (E2) has no translation path to the internal 3-member accessMode vocabulary (docs.md) before storage
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-003
+- status: proposed
+- affects: E2 (DocumentRequestAccessMode schema), docs.md (document_requests metadata accessMode field, lines 627-628/1829/1921), TASK-PORTAL-006/TASK-PORTAL-007 (not yet built)
+
+**What was found.** Two distinct, both-authoritative enums exist for what is
+conceptually the same "how was this request accessed" concept:
+E2's public DocumentRequestAccessMode is `'digital_form' | 'clerk_assisted'`
+(e2-rest-api-specification-openapi3.md:1687-1689). The internal
+document_requests metadata schema's accessMode is
+`'downloaded_form' | 'digital_form_printed' | 'in_person_clerk'`
+(docs.md:628, 1829, 1921) — confirmed as the vocabulary actually used in
+production code at document-requests.router.ts:213
+(`accessMode: 'in_person_clerk'`, the internal clerk-assisted path).
+
+createPublicSubmission's default (`input.metadata['accessMode'] ??
+'digital_form_printed'`, documents.public-submission.service.ts:144) is
+itself a valid member of the correct internal enum, so the default value is
+not wrong. But CreatePublicSubmissionInput.metadata is typed as
+`Record<string, unknown>` (line 58) and stored verbatim with no validation
+or key mapping (confirmed: no accessMode translation logic exists anywhere
+in documents.public-submission.service.ts). If a future caller passes
+through a citizen-submitted E2-shaped value verbatim — e.g.
+`accessMode: 'digital_form'` from a real public API request body — that
+value would be stored as-is, since it is truthy and the `??` fallback never
+triggers, producing a stored accessMode string that matches none of the
+three real internal enum members.
+
+This is currently fully latent: no code path yet calls createPublicSubmission
+with real citizen-submitted data, since the REST handlers that would do so
+(TASK-PORTAL-006, TASK-PORTAL-007) do not yet exist in this repository
+(confirmed: not present under apps/server/src/modules/documents or
+apps/server/src/modules/portal as of this snapshot).
+
+**What was implemented.** N/A — no code change; this documents a gap for
+whichever task builds TASK-PORTAL-006/007 to close, most likely by mapping
+E2's two-member enum to the correct internal three-member value
+(`digital_form` → `digital_form_printed`, `clerk_assisted` → `in_person_clerk`)
+either inside createPublicSubmission itself or in the future REST handler
+before calling it.
+
+---
+
+### [LOG-0313] TASK-PORTAL-008's global CORS plugin set `credentials: false`, breaking cookie-authenticated cross-origin requests from the internal web app
+
+- date: 2026-08-10
+- task_id: (ad-hoc regression fix — introduced by TASK-PORTAL-008 / commit 9c6cb7a)
+- status: proposed
+- affects: E2 (CORS Configuration), apps/server/src/plugins/cors.ts
+
+**What was found.** TASK-PORTAL-008 (commit 9c6cb7a) replaced the app-wide
+CORS registration in app.ts — which used `credentials: true` — with a new
+global plugin at plugins/cors.ts that sets `credentials: false`. The
+`@fastify/cors` plugin is registered once, app-wide, and serves both the
+internal cookie-authenticated API and the public portal endpoints. The
+internal web app performs every authenticated request with
+`credentials: 'include'` (useAuthActions.ts: login/logout/lock/unlock, and
+trpc.ts's httpBatchLink). A credentialed cross-origin request requires the
+server's CORS response to include `Access-Control-Allow-Credentials: true`;
+without it the browser rejects the response and the fetch throws a network
+error ("Failed to fetch" / "NetworkError when attempting to fetch the
+resource"). The reported symptom — logging into the internal app at
+http://localhost:5173 against http://localhost:3000 failing with a network
+error while the server logs a successful 204 OPTIONS preflight — matches
+this exactly: the preflight completed at the server, but the browser blocked
+it because the allow-credentials header was absent.
+
+Verified by standalone reproduction: registering `@fastify/cors` with
+`credentials: false` and `origin: ['http://localhost:5173']`, injected
+OPTIONS preflight and POST responses carry no
+`access-control-allow-credentials` header; with `credentials: true` the
+header is `true` for both.
+
+**What was implemented.** plugins/cors.ts `credentials` restored to `true`,
+matching the pre-TASK-PORTAL-008 behavior. The `origin` allowlist,
+`methods: ['GET', 'POST', 'OPTIONS']`, and `maxAge: 600` from
+TASK-PORTAL-008 were left as-is: the internal app's only direct API methods
+are GET/POST (the two `PUT` fetches in apps/web are presigned S3 uploads,
+not Fastify routes).
+
+**Note on E2 conflict.** E2's CORS Configuration section specifies
+`credentials: false` for Phase 1 public endpoints, but the single global
+plugin cannot distinguish public from internal routes, and the pre-existing
+working state was `credentials: true` app-wide. This is an implementation
+conflict between E2's public-endpoint guidance and the internal app's
+requirement; the fix restores the previously working behavior. A human
+should decide whether E2's wording needs a caveat that the plugin is global.
+
+---
+
+### [LOG-0314] TASK-WF-025 executed — Document Request Form dual approval migrated from JSONB flags to Workflow Engine step instances (ADR-EVT-001)
+
+- date: 2026-08-10
+- task_id: TASK-WF-025
+- status: proposed
+- affects: ADR-EVT-001, B3, B4, H1, H2
+
+**What was found (and decided during execution).** This task executes the
+migration that LOG-0309 scoped. Three open design decisions flagged in
+LOG-0309 were resolved during implementation:
+
+1. **Query shape for listAllDocumentRequests (N+1 vs batched).** Implemented
+   per-row `getApprovalFlags` → two `workflowService.getStepState` calls per
+   item (N+1), because the workflow public API has no batch step-state read.
+   `[Inference]` — document-request rows are low volume (a records/secretariat
+   list), so the N+1 is acceptable; a batch read can be added later without
+   changing the router's output shape.
+2. **vmApproved/spApproved shape (boolean vs enum).** Kept booleans.
+   `[Inference]` — the output schema, the apps/web detail page, and any
+   consumers already bind to booleans; the underlying engine state remains
+   queryable as status/outcome via `getStepState` when a 3-state signal is
+   needed.
+3. **Backfill of stale JSONB fields in historical rows.** No backfill
+   performed. `[Inference]` — a full grep found no read path that consults
+   `metadata.vm_approved`/`metadata.sp_approved` after this migration, so the
+   flags in any pre-existing rows are inert; removing them is cosmetic and can
+   wait for a real-DB maintenance pass.
+
+STEP 0's data-safety gate (does any DOCUMENT_REQUEST_FORM row exist
+mid-approval under the JSONB flags?) still cannot be run in this environment —
+no reachable database connection (consistent with LOG-0309). This remains the
+one unverified precondition. The static half of the gate was confirmed: no
+`workflow.definitions` row for DOCUMENT_REQUEST_FORM existed before this task
+(added from scratch here), and `packages/shared` has no vm_approved/sp_approved
+schema fields (confirmed via grep — the H2 §6 JSONB fields live only in
+documents.documents.metadata, untyped).
+
+**What was implemented.**
+- New `DOCUMENT_REQUEST_FORM_WORKFLOW` definition in
+  packages/database/src/seeds/workflow/phase1-legislative.ts: start
+  `vm_approval` (approval) → `sp_secretary_approval` (approval) →
+  `end_released_to_requester` (termination) / `end_request_denied`
+  (termination). Engine-enforced sequencing means `sp_secretary_approval`
+  only activates once `vm_approval` is APPROVED — this replaces the old
+  `metadata.vm_approved` precondition read.
+- Two new termination outcome codes added to
+  `TerminationStepConfigSchema.outcome_code` in packages/shared:
+  `RELEASED_TO_REQUESTER` and `REQUEST_DENIED`.
+- New workflow public-API methods: `getStepState(documentId, stepKey)` and
+  `submitStepApprovalForDocument(documentId, stepKey, actorId, outcome,
+  comment)` (workflow.public-api.ts), backed by two new repository methods
+  (`getLatestInstanceForDocument`, `getStepInstanceByStepKey`); the tRPC
+  router now imports the shared `buildActionDescription` util instead of
+  owning its own copy (extracted to action-description.util.ts).
+- Six call sites in document-requests.router.ts migrated: the two approval
+  procedures now call `submitStepApprovalForDocument('vm_approval' /
+  'sp_secretary_approval')` (audit trail flows through the
+  workflow.step.completed event, per B3 §9 Rule 1); list/detail read flags
+  via `getStepState`; `createDocumentRequestClerkAssisted` emits
+  `document.created` (so the engine subscriber creates the workflow instance)
+  and now transitions to `submitted`. Removed the direct eventBus/audit
+  writes and `updateDocumentMetadata` calls from both approval procedures.
+- Design choice on the lifecycle: the `RELEASED_TO_REQUESTER` termination
+  step deliberately carries `final_document_status: null`, so the engine does
+  not stamp a lifecycle state; `approveAsSecretary` keeps its explicit
+  `documentsService.transitionState('completed')` so the existing
+  `'completed' → 'released'` flow (and releaseCopy's `lifecycleState ===
+  'completed'` guard) is preserved. `[Inference]`
+
+**Verification.** Server typecheck + full turbo typecheck pass; the new seed
+workflow passes the real seed-time semantic validator
+(`validateDefinitionForPublish` run against the seed's own row mapping, result
+`valid: true`); document-requests.router.test.ts updated to the workflow-backed
+behavior (35 tests pass, including new coverage: STEP_NOT_ACTIVE →
+PRECONDITION_FAILED mapping, approval submission args, and flag read-back from
+the engine). The 23 failures in the broader server suite were confirmed
+pre-existing: the same files fail at clean `HEAD` (baseline stash comparison),
+unrelated to this task.
+
+**What was NOT resolved.** STEP 0's live-DB data check (no reachable DB in
+this environment); stale JSONB flag cleanup in historical rows (deferred, see
+decision 3).
+
+---
+
+### [LOG-0317] TASK-PORTAL-006/007: accessMode public-to-internal vocabulary translation was missing, now added
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: E2 (ComplaintAccessMode, DocumentRequestAccessMode), document-metadata.ts (CitizenComplaintMetadataSchema, documentRequestFormBase)
+
+**What was found:** LOG-0291 (TASK-PORTAL-003) identified an accessMode
+vocabulary mismatch and explicitly assigned resolving the translation to
+TASK-PORTAL-006's scope. That translation was never implemented:
+createPublicSubmission() wrote the public accessMode value ('digital_form' |
+'clerk_assisted') directly into internal metadata.accessMode unchanged,
+instead of the internal three-value vocabulary ('downloaded_form' |
+'digital_form_printed' | 'in_person_clerk') that document-metadata.ts's
+schemas and downstream consumers expect. Confirmed one live consumer of the
+untranslated value: apps/web/src/pages/documents/PrintableFormView.tsx:132-134
+only recognizes 'in_person_clerk' for its display label, so clerk-assisted
+public submissions rendered the raw string "clerk_assisted" instead of the
+intended "In-Person (Clerk-Assisted)" label.
+
+**What was implemented:** Added toInternalAccessMode() to
+documents.public-submission.service.ts, mapping 'digital_form' →
+'digital_form_printed' and 'clerk_assisted' → 'in_person_clerk'.
+'downloaded_form' has no public-facing equivalent and is not produced by this
+path. Two new test cases added to
+documents.public-submission.service.test.ts confirming the stored metadata
+carries the translated value.
+
+[Inference]: The mapping (digital_form→digital_form_printed,
+clerk_assisted→in_person_clerk) was confirmed by a human during planning, not
+derived from any pre-development document — no loaded spec states this
+mapping explicitly.
+
+---
+
+### [LOG-0313] TASK-PORTAL-006/007: accessMode public-to-internal vocabulary translation was missing, now added
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: E2 (ComplaintAccessMode, DocumentRequestAccessMode), document-metadata.ts (CitizenComplaintMetadataSchema, documentRequestFormBase)
+
+**What was found:** LOG-0291 (TASK-PORTAL-003) identified an accessMode
+vocabulary mismatch and explicitly assigned resolving the translation to
+TASK-PORTAL-006's scope. That translation was never implemented:
+createPublicSubmission() wrote the public accessMode value ('digital_form' |
+'clerk_assisted') directly into internal metadata.accessMode unchanged,
+instead of the internal three-value vocabulary ('downloaded_form' |
+'digital_form_printed' | 'in_person_clerk') that document-metadata.ts's
+schemas and downstream consumers expect. Confirmed one live consumer of the
+untranslated value: apps/web/src/pages/documents/PrintableFormView.tsx:132-134
+only recognizes 'in_person_clerk' for its display label, so clerk-assisted
+public submissions rendered the raw string "clerk_assisted" instead of the
+intended "In-Person (Clerk-Assisted)" label.
+
+**What was implemented:** Added toInternalAccessMode() to
+documents.public-submission.service.ts, mapping 'digital_form' →
+'digital_form_printed' and 'clerk_assisted' → 'in_person_clerk'.
+'downloaded_form' has no public-facing equivalent and is not produced by this
+path. Two new test cases added to
+documents.public-submission.service.test.ts confirming the stored metadata
+carries the translated value.
+
+[Inference]: The mapping (digital_form→digital_form_printed,
+clerk_assisted→in_person_clerk) was confirmed by a human during planning, not
+derived from any pre-development document — no loaded spec states this
+mapping explicitly.
+
+---
+
+### [LOG-0315] Document-type display name map has no findings-log precedent despite code comment's claim
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-008-FIX-01
+- status: proposed
+- affects: E2 (§ document type display fields), TASK-TRACK-007, TASK-PORTAL-009
+
+**What was found:**
+
+`apps/server/src/modules/tracking/tracking.public-handler.ts:22-29` defines
+`DOCUMENT_TYPE_NAMES`, a hardcoded `documentTypeCode → display name` map used
+because `DocumentSummary` (the Documents Public API shape this handler
+consumes) exposes only `documentTypeCode`, not a display name, and the
+public tracking response needs one (matching E2's example payload style,
+e.g. "SP Resolution"). The comment above this map claimed the underlying
+`[Inference]` decision was "Recorded in docs/development-findings-log.md."
+A search of this log (multiple phrasings) found no entry documenting this
+decision, and no entry anywhere in the log carries `task_id: TASK-PORTAL-009`
+— the task the comment separately attributed the map to. `TASK-PORTAL-009`
+itself has no built deliverables in the repository (`apps/portal/src/app/`
+contains only a placeholder home page as of this finding). This entry exists
+to make the comment's claim true going forward; it does not resolve the
+underlying design question of whether this map should instead live as a
+shared constant (e.g. in `packages/shared`) so it doesn't drift from any
+equivalent display-name mapping the frontend eventually needs of its own.
+
+**What was implemented:**
+
+No code change. This is a documentation-only entry filed as part of
+`TASK-PORTAL-008-FIX-01`, alongside a correction to the code comment itself
+(which previously asserted this entry already existed). A human should
+confirm whether a single shared display-name map (rather than one
+independently maintained per consumer) is worth centralizing, and whether
+`packages/shared` is the right location if so.
+
+---
+
+### [LOG-0316] Lifecycle status label map is a workflow-step-blind approximation; findings-log claim in code comment was false
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-008-FIX-01
+- status: proposed
+- affects: E2 (§ lifecycleStatus field definition), TASK-TRACK-007, TASK-PORTAL-009
+
+**What was found:**
+
+`apps/server/src/modules/tracking/tracking.public-handler.ts:40-49` defines
+`LIFECYCLE_STATUS_LABELS`, mapping the raw `documents.lifecycle_state`
+database enum to a human-readable label for the public tracking response.
+E2 (`e2-rest-api-specification-openapi3.md:1223-1231`) specifies
+`lifecycleStatus` as "a human-readable display label ... not an enum — the
+label is derived from both the lifecycle_state and the current workflow
+step for richer display," giving the concrete example `"With Mayor —
+Pending Signature"` rather than the raw `"under_review"`. The Tracking
+module's public handler has no access to workflow-step data (it consumes
+only the Documents Published API and its own repository), so
+`LIFECYCLE_STATUS_LABELS` can only approximate off `lifecycle_state` alone
+— for example, a document in `pending_mayor_action` always renders as
+`"With Mayor — Pending Signature"` regardless of which specific step within
+that phase it's actually in, even though E2's own example implies the
+step-specific text is the intended richer behavior. The comment above this
+map claimed this `[Inference]` decision was "Recorded in
+docs/development-findings-log.md." As with LOG-0313, no entry documenting
+this decision existed anywhere in the log prior to this one, and no entry
+carries `task_id: TASK-PORTAL-009`, which the comment separately (and, per
+LOG-0313, incorrectly) attributed this work to.
+
+**What was implemented:**
+
+No code change. This is a documentation-only entry filed as part of
+`TASK-PORTAL-008-FIX-01`, alongside a correction to the code comment itself.
+A human should confirm whether this lifecycle-state-only approximation is
+acceptable as a permanent Phase 1 behavior, or whether the Tracking module's
+public handler needs a cross-module read into workflow-step state (which
+would be a new dependency this module doesn't currently have) to produce
+the step-specific labels E2's example implies.
+
+---
+
+### [LOG-0317] `@batac/ui` barrel cannot be imported from a Next.js Server Component (Next 15.5.23)
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-009
+- status: proposed
+- affects: F1, F5
+
+During TASK-PORTAL-009 the four portal pages were written as Next.js Server
+Components. Importing UI primitives from the `@batac/ui` barrel (`import {
+Card } from '@batac/ui'`) made the Next 15.5.23 dev server fail to compile
+any route with:
+
+```
+Module build failed ... next-flight-loader:
+Error: It's currently unsupported to use "export *" in a client boundary.
+```
+
+The failing import chain (from the dev-server error trace) is:
+
+```
+node_modules/@tiptap/react/dist/index.js   <- 'use client' + export *
+packages/ui/src/components/domain/RichTextEditor.tsx
+packages/ui/src/index.ts                   <- the @batac/ui barrel (export *)
+apps/portal/src/app/page.tsx
+```
+
+`@tiptap/react`'s dist barrel is a `'use client'` module that uses
+`export *`, which the flight loader rejects when the barrel that
+transitively re-exports it is pulled into a Server Component's module graph
+(`next-flight-loader` throws when a client boundary's `clientRefs` contains
+`'*'`). Client Components that import the same barrel compile fine (the
+complaints form, `/complaints/new`, was unaffected) because they do not
+cross the server → client flight boundary. Verified with the running dev
+server: `next build` and `next dev` both compile the portal once the barrel
+is avoided in Server Components.
+
+**What was implemented:** the portal's Server Components now import UI
+primitives via deep subpath exports (`@batac/ui/components/ui/card`,
+`@batac/ui/components/ui/button`, `@batac/ui/components/ui/input`,
+`@batac/ui/lib/utils`) instead of the barrel. `@batac/ui/package.json`
+gained `./components/ui/card` and `./components/ui/input` export entries
+(existing entries for `button`, `tabs`, `avatar`, `lib/utils`,
+`lib/date-locale` already covered the rest). Client Components under
+`/apps/portal/src` were switched to deep imports too, so no portal code
+depends on the barrel. The existing `/complaints/new` pages still use the
+barrel and are left untouched.
+
+[Inference] the same failure would occur for any other Next.js app whose
+Server Components import the `@batac/ui` barrel while `RichTextEditor` →
+`@tiptap/react` remains in its export graph; the web app was not running
+during this pass so this was not tested there. A human should decide
+whether to restructure the ui barrel (e.g. per-component `'use client'`
+boundaries or named re-exports) as a permanent fix.
+
+---
+
+### [LOG-0318] Portal links to `/requests/new` instead of the API-provided `documentRequestUrl`
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-009
+- status: proposed
+- affects: E2, F1
+
+The tracking and published-document pages render a "Request a certified
+copy" link. E2 and the server code both build `documentRequestUrl` as
+`${PORTAL_BASE_URL}/document-requests?ref=${finalNumber}` (verified in
+`apps/server/src/modules/documents/documents.public-read.service.ts:100` and
+`apps/server/src/modules/tracking/tracking.public-handler.ts:113`), but the
+citizen request form lives at `/requests/new` per F1 §14.2 and
+TASK-PORTAL-011's deliverables — TASK-PORTAL-011 itself flags this as an
+unresolved `[CONFLICT]` between E2's example string and F1's route table.
+Linking citizens to `documentRequestUrl` verbatim would point them at a
+route this app does not serve.
+
+**What was implemented:** a small helper
+`apps/portal/src/lib/document-request.ts` (`documentRequestHref`) returns
+`/requests/new?ref=<finalNumber>` (falling back to `?ref=<documentId>` when
+`finalNumber` is null) and all portal pages link to that. The `?ref=` value
+matches what TASK-PORTAL-011's deep-link pre-fill reads from
+`useSearchParams()`.
+
+[Inference] the durable fix is on the server side — have
+TASK-PORTAL-005's `documentRequestUrl` construction emit
+`/requests/new?ref=...` so the API and the frontend agree, which
+TASK-PORTAL-011's AI Prompt already asks a human to revisit. Until then the
+frontend deliberately ignores the API's `documentRequestUrl` field for link
+rendering.
+
+---
+
+### [LOG-0319] TASK-PORTAL-005/006/007: DocumentsPublicAPI extension accepted as the pattern, documented per human decision
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-005, TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: B2 (Module 3 DocumentsPublicAPI, Module 10 Portal)
+
+**What was found:** listPublishedDocuments, getPublishedDocumentDetail, and
+createPublicSubmission were added to DocumentsPublicAPI
+(documents.types.ts) to back the Portal module's public REST endpoints. B2
+Module 3 (b2-module-boundary-and-internal-api-contracts-v1.1.md:401-488)
+defines DocumentsPublicAPI with five methods, none of which are these three.
+B2 Module 10 (:1118-1122) states Portal's own Published API is deliberately
+empty -- event-consumer only -- and B2:477-478 names Tracking, not Documents,
+as the intended owner of the portal public first-page display pathway. This
+codebase's own established precedent for extending DocumentsPublicAPI beyond
+a task prompt's literal scope (see transitionState's trx parameter, same
+file) is to tag the addition [Inference], state the reason, and cite a
+findings-log entry with human sign-off. The three new methods had none of
+that until this entry.
+
+**What was implemented:** A human reviewed this divergence and decided to
+keep the extension as the accepted pattern rather than migrate to an
+event-driven Portal read-model. [Inference]-tagged comments were added above
+the three method signatures in DocumentsPublicAPI, matching the file's own
+established convention. No runtime behavior changed.
+
+Note: status is `proposed` here because AGENTS.md Section 4.5 reserves
+`confirmed` for a human edit even when the underlying decision is already
+settled. A B2 Module 3/10 amendment reflecting this decision is a reasonable
+follow-up but was intentionally left out of this change's scope.
+
+---
+
+### [LOG-0320] TASK-PORTAL-005/006/007: 400-response-schema divergence across three routes resolved by empirical test — outcome A
+
+- date: 2026-08-10
+- task_id: TASK-PORTAL-005, TASK-PORTAL-006, TASK-PORTAL-007
+- status: proposed
+- affects: E2 (ValidationErrorResponse)
+
+**What was found:** list-documents.ts, submit-complaint.ts, and
+submit-document-request.ts each handled a claimed
+fastify-type-provider-zod response-serialization risk differently — one
+comment (submit-document-request.ts) claimed the risk already existed
+unaddressed in list-documents.ts, which was not accurate as written.
+
+**What was implemented:** Wrote an integration test directly triggering
+Fastify's native 400 validation-error path against a route declaring
+400: ValidationErrorResponseSchema, to observe actual behavior rather than
+reason about it. Result: the request returned HTTP 400 with Fastify's native
+validation-error body (`{ statusCode, error, message }`), and that body
+successfully parsed against the permissive ValidationErrorResponseSchema.
+All three files were then made consistent, using
+ValidationErrorResponseSchema for 400 responses on both POST routes, matching
+list-documents.ts's unchanged value. The stale comment in
+submit-document-request.ts was removed.
+
+[Inference]: none — this was resolved empirically, not by inference.
+
+---
+
+### [LOG-0321] LOG-0313's CORS credentials:true fix was not actually present in the tree; regression re-confirmed and re-scoped with an additional undocumented partial fix found
+
+- date: 2026-08-10
+- task_id: TASK-INFRA-013 (planning-layer investigation; execution pending)
+- status: proposed
+- affects: apps/server/src/plugins/cors.ts, apps/server/src/app.ts (lines 261-274), LOG-0313 (refines, does not supersede)
+
+**What was found.** LOG-0313 (this same file, lines 10212-10257) documented
+this exact CORS credentials:false regression and claimed a fix was
+implemented (`credentials` restored to `true` in
+apps/server/src/plugins/cors.ts). Direct inspection of the current snapshot
+shows `credentials: false` still present at cors.ts:8 — the claimed fix is
+not in the live code. A previously-generated patch file
+(0001-fix-server-restore-CORS-credentials-so-cookie-authen.patch) intended
+to apply this same fix does not apply cleanly against the current tree
+(confirmed via `patch --dry-run -p1`: "Hunk #1 FAILED at 5") because an
+intervening refactor moved CORS_ALLOWED_ORIGINS parsing from inline
+process.env access to a centralized Zod-validated env singleton
+(apps/server/src/config/env.server.ts:38-43), changing the surrounding file
+context the patch's diff hunk depends on. The refactor carried
+`credentials: false` forward unchanged — it did not reintroduce the bug SO
+MUCH AS the bug's fix never survived past LOG-0313's writing into this
+refactored shape of the file, or the refactor was based on a pre-fix
+checkout. Which of these two happened could not be determined from the file
+tree alone (no .git history was available in the environment this
+investigation was performed in).
+
+**Additional finding beyond LOG-0313's original scope.** LOG-0313 describes
+the global plugin's credentials:false as breaking "cookie-authenticated
+cross-origin requests from the internal web app" without qualification. This
+is no longer fully accurate: apps/server/src/app.ts:261-274 contains an
+undocumented per-route CORS override (via an `onRoute` hook writing
+`routeOptions.config.cors`) that already sets credentials:true specifically
+for /api/trpc/* routes, independent of the global plugin. This override has
+no corresponding findings-log entry and post-dates LOG-0313's narrative (which
+does not mention it existing). Full current blast radius, confirmed by
+grepping every `credentials: 'include'` call site in apps/web/src and
+checking each target route's CORS handling:
+- BROKEN (governed only by the global plugin, no override exists):
+  useAuthActions.ts:41,74,84,98 (/api/auth/login, /logout, /lock, /unlock)
+  and SessionHydrator.tsx:39-41 (/api/auth/refresh).
+- NOT broken (has its own credentials:true override): trpc.ts:33,51
+  (/api/trpc/*).
+Confirmed via grep that apps/server/src/modules/iam/iam.routes.ts and
+iam.plugin.ts contain zero CORS-related code, ruling out any hidden
+override for the /api/auth/* routes.
+
+**Secondary, unrelated finding.** The LOG-0313 entry ID is duplicated later
+in this file for an unrelated accessMode-translation entry. Not resolved
+here — flagged for human attention since it makes LOG-0313 ambiguous to
+reference by ID going forward.
+
+**What was implemented.** [PENDING — this entry was drafted at the planning
+layer alongside the standalone executor prompt for TASK-INFRA-013, before
+the local agent executed it. Update this section with the actual verified
+outcome once TASK-INFRA-013 has been run and reported back, per this
+project's convention of describing what was implemented and verified, not
+what was planned.]
+
+**Note on E2 conflict (re-affirming LOG-0313's own note, not yet resolved).**
+E2's CORS Configuration section specifies credentials:false for Phase 1
+public endpoints; the global plugin cannot structurally distinguish
+public/portal routes from internal-app routes. TASK-INFRA-013 restores the
+global default to credentials:true (matching the pre-existing working state
+and the already-precedented /api/trpc/* override), rather than extending the
+per-route override pattern to /api/auth/* as an alternative that would have
+left the global default at credentials:false. This was a deliberate,
+human-confirmed choice for this task (Option A over Option B, presented
+during planning) — not a default assumed silently. The underlying E2-vs-
+implementation tension remains open and unresolved by a human, exactly as
+LOG-0313 already noted.
+
+---
+
+### [LOG-0322] TASK-WF-063: logSecretariatDecision's remarks truthy-check bug identified as the actual root cause for "Second Reading" steps' empty-remark display — corrects the routing assumption in LOG-0262's sibling investigation
+
+- date: 2026-08-10
+- task_id: TASK-WF-063
+- status: proposed
+- affects: workflow.router.ts (logSecretariatDecision, approveStep, submitApprovalOutcome, completeActionStep), action.handler.ts, WorkflowStepActionPage.tsx
+- supersedes: none (extends LOG-0262, does not contradict it)
+
+**What was found:** For a Secretary-role user, `second_reading_vote` and
+`second_reading_amended_vote` (both `step_type: 'approval'`, assigned via
+`ROLE.SP_SECRETARY`) route through `computePanelHint`'s office-ID-comparison
+branch (`workflow.router.ts:592-597`) to `panelHint: 'secretariat_decision'`
+→ `SecretariatDecisionPanel.tsx`, not `GenericApprovalPanel.tsx`. Confirmed:
+every seeded `sp_secretary` demo user (`apps/server/src/database/seeds/
+demo-credentials.seed.ts:105-198`) has `officeCode: 'SPS'`, matching
+`SP_SECRETARIAT_OFFICE_CODE`; `assignee-resolution.ts:4-8,55-68` populates
+`office_id` on every resolved assignee (this is current — the gap LOG-0252
+described, dated one day earlier, was evidently fixed in the interim and is
+stale; LOG-0189/LOG-0191, dated the following day, already documented the
+fix landing, though neither entry explicitly marked LOG-0252 as superseded).
+
+`SecretariatDecisionPanel.tsx:48` (`remarks: remarks || undefined`) has the
+same truthy-check bug pattern LOG-0259-0262's investigation covered for
+`approveStep`/`submitApprovalOutcome`/`completeActionStep`, via the
+`remarks` field at `workflow.router.ts:2528` instead of `comment`. This is
+a fifth occurrence of the pattern, not previously logged. This is the
+actual fix target for the user-reported empty-remark bug on "Second
+Reading — Final Vote on Amended Version," not `approveStep`/
+`submitApprovalOutcome` as an earlier planning-layer session initially
+concluded before checking panel-routing.
+
+**What was implemented:** TASK-WF-063 fixes all four truthy-check sites
+(`completeActionStep`, `approveStep`, `submitApprovalOutcome`,
+`logSecretariatDecision`) uniformly with `isRichTextEmpty`, plus
+`action.handler.ts`'s separate write-path omission (LOG-0262), plus a
+`StepHistoryComment` UI redesign (indicator-only, reveal-on-click).
+
+Note: [Confirmed] — computePanelHint, assignee-resolution.ts,
+demo-credentials.seed.ts, SecretariatDecisionPanel.tsx, and
+action.handler.ts all read in full directly against this session's
+upload (checksum e82ba681480856ff929863fdff84f875).
+
+---
+
+### [LOG-0323] TASK-WF-063 dispatched — closes LOG-0262's action.handler.ts write-path gap
+
+- date: 2026-08-10
+- task_id: TASK-WF-063
+- status: proposed
+- affects: action.handler.ts
+- supersedes: none (closes LOG-0262's open item)
+
+**What was found:** Re-confirms LOG-0262 exactly, no new information —
+`action.handler.ts:49-53`'s `updateStepInstance` call omitted
+`outcomeComment` despite `comment` being in scope. Independently
+re-verified against this session's upload before TASK-WF-063 was written.
+
+**What was implemented:** TASK-WF-063 adds `outcomeComment: comment` to
+the `updateStepInstance` call in `submitStepAction` only (not
+`autoCompleteActionStep`, which never carries a user comment).
+
+Note: [Confirmed] — action.handler.ts full file read directly against
+this session's upload.
+
+---
+
+### [LOG-0324] documents_it_admin_* RLS policies and batac_it_admin grants are permanently inert; Invariant #10 is enforced solely by documents.policy.ts's role-set omission
+
+- date: 2026-08-10
+- task_id: none (found during IT Admin gap-audit continuation)
+- status: proposed
+- affects: C1 (Part 12, documents.documents RLS), I1 §4.1 canReadContent, I2 §5, Architectural Invariant #10
+
+`packages/database/migrations/0004_documents_create_documents_schema.sql:448-457`
+defines `documents_it_admin_no_confidential` and `documents_it_admin_metadata_only_update`,
+both `TO batac_it_admin`. `batac_it_admin` is a `NOLOGIN` Postgres role
+(LOG-0132/LOG-0134) with zero `SET ROLE batac_it_admin` call sites anywhere in
+apps/server/src (confirmed via repo-wide grep). These two policies, and the
+GRANT/REVOKE statements at lines 423-430 scoped to the same role, are
+permanently unreachable by any live session.
+
+Additionally, `documents.versions` and `documents.attachments` never receive
+`ENABLE ROW LEVEL SECURITY` in any migration through 0024 (confirmed via
+`grep -rln "ENABLE ROW LEVEL SECURITY" packages/database/migrations/*.sql`) —
+the two tables holding actual file content have zero DB-layer row-level
+defense of any kind.
+
+Invariant #10 currently holds only because
+`apps/server/src/modules/documents/documents.policy.ts`'s `OWN_OFFICE_READ_ROLES`
+(lines 64-75) and `CROSS_OFFICE_READ_ROLES` (lines 78-84) both correctly omit
+`sys_admin`, so `canReadContent` (lines 730-753) can never return true for a
+sys_admin subject, and this is the sole gate on
+`documents.downloadVersion` (documents.router.ts:1130-1178), the only live
+route to version/attachment file content. This is single-layer enforcement
+for an invariant documented elsewhere (d1-use-case-diagrams.md:391) as
+"enforced at the PostgreSQL permission level" — that DB-level enforcement
+does not currently exist for the live code path. No test currently asserts
+sys_admin's absence from these role sets or from bypassOfficeIsolation
+(iam.middleware.ts:346-352) as an invariant to be protected going forward.
+
+[Inference] Two remediation paths exist: (a) build a SET ROLE batac_it_admin
+pivot so the existing RLS policies become live, restoring DB-layer
+defense-in-depth, or (b) formally retire the dead policies/grants and add a
+regression test asserting sys_admin's absence from the relevant role sets as
+the documented, sole enforcement mechanism. This is a human design decision,
+not resolved here.
+
+---
+
+### [LOG-0325] documentsService.getAttachmentRefs has no authorization check and is currently dead code — landmine for future Phase 2 wiring
+
+- date: 2026-08-10
+- task_id: none (found during IT Admin gap-audit continuation)
+- status: proposed
+- affects: I1 §4.1, documents.service.ts
+
+`apps/server/src/modules/documents/documents.service.ts:268-311`
+(`getAttachmentRefs`) generates signed S3 download URLs for every version and
+attachment on a given documentId with no role, office, or classification
+check of any kind — no canReadContent call, nothing. Confirmed via repo-wide
+grep (including compiled dist output) that this method has zero callers
+outside its own type declaration and a scaffold test that only asserts it
+exists as a function (`__tests__/documents.scaffold.test.ts:34`). The
+method's own doc comment ("B2 Module 3 -- called by Records for archiving;
+Search Meta for OCR (Phase 2)") indicates this is planned-but-unbuilt
+functionality.
+
+Not currently exploitable — the method is unreachable from any tRPC
+procedure, REST route, or frontend call site today. Flagging so that when
+this is wired up for its intended Phase 2 use, a canReadContent-equivalent
+gate is added at that time rather than assumed to already exist.
+
+---
+
+### [LOG-0326] — `app.current_role_tier` GUC is set every request but never consumed
+**Status:** proposed
+**Module:** IAM / Documents (RLS infrastructure)
+**Found during:** IT Admin Invariant #10 verification, session 3 (continuation of prior handoff)
+
+`apps/server/src/modules/iam/iam.middleware.ts:340-344,394` computes and sets
+`app.current_role_tier` (values: `IT_ADMIN` / `SECURITY_ADMIN` / `STANDARD`) via
+`set_config(...)` on every authenticated request, inside the same GUC-setting block
+that also sets `app.is_ita`, `app.bypass_office_isolation`, etc. A repo-wide search
+(`grep -rln "current_role_tier" packages/database/migrations/*.sql apps/server/src`)
+found exactly one file: the setter itself. No RLS `CREATE POLICY` predicate, no
+application-layer check, and no other server code reads this GUC anywhere in the
+current snapshot.
+
+This is the same "dead mechanism" pattern already logged for `batac_it_admin`
+(LOG-0132/LOG-0134) — infrastructure that looks like active defense-in-depth
+(three-tier role classification computed and persisted every request) but currently
+does nothing, because nothing consumes it. Unlike `batac_it_admin`, this one has no
+comment anywhere claiming it enforces a specific invariant, so it's lower urgency —
+but a future engineer skimming `iam.middleware.ts` could reasonably assume
+`current_role_tier` is load-bearing for some RLS policy, when it isn't. Flagging so
+it either gets wired to something (e.g. as part of any future Invariant #10
+DB-layer work) or gets documented as intentionally reserved/forward-looking, rather
+than left silently ambiguous.
+
+No code change proposed here — pure discovery, needs a human call on whether this
+is "build the RLS policies that should consume it" (bundled with the Option A
+decision below) or "leave it, it's forward-looking infra, comment it as such."
+
+---
+
+### [LOG-0327] — Hook 3 (`setDatabaseSessionVars`) test coverage asserts reachability, not GUC values
+**Status:** proposed
+**Module:** IAM (test infrastructure)
+**Found during:** IT Admin Invariant #10 verification, session 3
+
+`apps/server/src/modules/iam/__tests__/iam.middleware.test.ts:525-581` — the four
+existing Hook 3 tests (`describe('setDatabaseSessionVars (Hook 3)')`) each end with
+only `expect(db.execute).toHaveBeenCalledOnce()`, with explicit comments
+acknowledging the SQL object's bound parameters aren't inspected (lines 537-538,
+552-553: "the actual SQL object is opaque," "we verify the call succeeded without
+throwing"). The file's own header test-matrix (lines 27-31) lists these as
+behavioral checkmarks ("✓ IT Admin → roleTier = 'IT_ADMIN'"), which overstates what
+the test bodies actually assert — they verify the code path runs without throwing,
+not that the correct value was bound into the GUC.
+
+Practical consequence: none of these four tests would fail if a future change
+altered what value gets computed for `roleTier` or `bypassOfficeIsolation` while
+leaving the `db.execute` call itself intact (e.g., an off-by-one in the ternary at
+line 340-344, or an accidental role addition to the `bypassOfficeIsolation` OR-chain
+at line 346-352) — this describe block's tests would keep passing throughout.
+
+The TASK-IAM-DOCS-0XX prompt below adds one new test to this describe block that
+deliberately breaks from this file's existing idiom by asserting the actual bound
+value (see prompt's `[Deviation from file's existing idiom]` note for why). Flagging
+that the other four pre-existing tests in this block have the same limitation and
+were left as-is — fixing them is out of scope for this session's task (Invariant #10
+regression coverage specifically) and would be a separate, broader test-hardening
+task requiring its own scope decision, not a silent fold-in.
 
 ---
 

@@ -6,6 +6,8 @@ export interface TextRun {
   italic: boolean;
   strike: boolean;
   code: boolean;
+  underline: boolean;
+  href: string | null;
 }
 
 export const PDF_REPORT_STYLE = {
@@ -47,7 +49,7 @@ export function parseRichTextForPdf(html: string): PdfBlock[] {
     if (textContent) {
       blocks.push({
         type: 'paragraph',
-        runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }],
+        runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
       });
     }
     return blocks;
@@ -69,14 +71,14 @@ function parseBlock(element: Element): PdfBlock | null {
 
   if (tagName === 'p') {
     const runs: TextRun[] = [];
-    walkNode(element, runs, { bold: false, italic: false, strike: false, code: false });
+    walkNode(element, runs, { bold: false, italic: false, strike: false, code: false, underline: false }, null);
     return { type: 'paragraph', runs };
   }
 
   if (tagName.match(/^h[1-6]$/)) {
     const level = parseInt(tagName.charAt(1), 10) as 1 | 2 | 3 | 4 | 5 | 6;
     const runs: TextRun[] = [];
-    walkNode(element, runs, { bold: false, italic: false, strike: false, code: false });
+    walkNode(element, runs, { bold: false, italic: false, strike: false, code: false, underline: false }, null);
     return { type: 'heading', level, runs };
   }
 
@@ -110,7 +112,7 @@ function parseBlock(element: Element): PdfBlock | null {
           if (textContent) {
             itemBlocks.push({
               type: 'paragraph',
-              runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }],
+              runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
             });
           }
         }
@@ -129,7 +131,7 @@ function parseBlock(element: Element): PdfBlock | null {
   if (textContent) {
     return {
       type: 'paragraph',
-      runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false }],
+      runs: [{ text: textContent, bold: false, italic: false, strike: false, code: false, underline: false, href: null }],
     };
   }
 
@@ -141,9 +143,10 @@ interface FormatState {
   italic: boolean;
   strike: boolean;
   code: boolean;
+  underline: boolean;
 }
 
-function walkNode(node: Node, runs: TextRun[], state: FormatState) {
+function walkNode(node: Node, runs: TextRun[], state: FormatState, href: string | null) {
   if (node.nodeType === 3) {
     // Node.TEXT_NODE
     const text = node.textContent;
@@ -154,6 +157,8 @@ function walkNode(node: Node, runs: TextRun[], state: FormatState) {
         italic: state.italic,
         strike: state.strike,
         code: state.code,
+        underline: state.underline,
+        href,
       });
     }
     return;
@@ -171,6 +176,8 @@ function walkNode(node: Node, runs: TextRun[], state: FormatState) {
         italic: state.italic,
         strike: state.strike,
         code: state.code,
+        underline: state.underline,
+        href,
       });
       return;
     }
@@ -179,10 +186,16 @@ function walkNode(node: Node, runs: TextRun[], state: FormatState) {
     if (tagName === 'strong' || tagName === 'b') newState.bold = true;
     if (tagName === 'em' || tagName === 'i') newState.italic = true;
     if (tagName === 's' || tagName === 'strike' || tagName === 'del') newState.strike = true;
+    if (tagName === 'u') newState.underline = true;
     if (tagName === 'code') newState.code = true;
 
+    let childHref = href;
+    if (tagName === 'a') {
+      childHref = element.getAttribute('href') ?? href;
+    }
+
     for (let i = 0; i < node.childNodes.length; i++) {
-      walkNode(node.childNodes[i] as Node, runs, newState);
+      walkNode(node.childNodes[i] as Node, runs, newState, childHref);
     }
   }
 }

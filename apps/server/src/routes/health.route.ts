@@ -10,11 +10,30 @@ import { env } from '../config/env.js';
 const startedAt = Date.now();
 
 export async function registerHealthRoute(app: FastifyInstance): Promise<void> {
-  app.get(env.HEALTH_CHECK_PATH, async (_request, reply) => {
-    reply.send({
-      status: 'ok',
-      version: env.APP_VERSION,
-      uptime: Math.floor((Date.now() - startedAt) / 1000),
-    });
-  });
+  app.get(
+    env.HEALTH_CHECK_PATH,
+    {
+      schema: {
+        tags: ['health'],
+        summary: 'Liveness probe',
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              status: { type: 'string' },
+              version: { type: 'string' },
+              uptime: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+    async (_request, reply) => {
+      reply.send({
+        status: 'ok',
+        version: env.APP_VERSION,
+        uptime: Math.floor((Date.now() - startedAt) / 1000),
+      });
+    },
+  );
 }
