@@ -2497,13 +2497,29 @@ export function createWorkflowRouter() {
 
         await ctx.db.transaction(async (tx) => {
           try {
-            await deps.documentsService.transitionState(
-              doc.id,
-              'released',
-              ctx.auth!.userId,
-              'Published to public portal',
-              tx,
-            );
+            if (
+              doc.lifecycleState === 'in_workflow' ||
+              doc.lifecycleState === 'pending_mayor_action' ||
+              doc.lifecycleState === 'pending_panlalawigan_review'
+            ) {
+              await deps.documentsService.transitionState(
+                doc.id,
+                'completed',
+                ctx.auth!.userId,
+                'Workflow progression completed prior to release',
+                tx,
+              );
+            }
+
+            if (doc.lifecycleState !== 'released') {
+              await deps.documentsService.transitionState(
+                doc.id,
+                'released',
+                ctx.auth!.userId,
+                'Published to public portal',
+                tx,
+              );
+            }
           } catch (error) {
             if (error instanceof TRPCError) throw error;
             throw new TRPCError({
