@@ -415,6 +415,34 @@ describe('IamService.login()', () => {
     expect(err.code).toBe('INVALID_CREDENTIALS');
   });
 
+  it('falls back to findUserByEmail when username is an email address and username lookup returns null', async () => {
+    const user = makeUser({ email: 'mayor.chua@batac.gov.ph' });
+    const findUserByUsername = vi.fn().mockResolvedValue(null);
+    const findUserByEmail = vi.fn().mockResolvedValue(user);
+    const { deps } = makeDeps({
+      findUserByUsername,
+      findUserByEmail,
+      findCredentialByUserId: vi.fn().mockResolvedValue({
+        id: 'cred-id',
+        cityId: 'city-id',
+        userId: user.id,
+        passwordHash: '$argon2id$v=19$m=65536,t=2,p=1$c2FsdHNhbHQ$hashhashhash',
+        lastChangedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+        deletedBy: null,
+      }),
+    });
+    const service = createIamService(deps);
+
+    const input = makeLoginInput({ username: 'mayor.chua@batac.gov.ph' });
+    await service.login(input);
+
+    expect(findUserByUsername).toHaveBeenCalledWith(expect.any(String), 'mayor.chua@batac.gov.ph');
+    expect(findUserByEmail).toHaveBeenCalledWith(expect.any(String), 'mayor.chua@batac.gov.ph');
+  });
+
   // ── Inactive user ──────────────────────────────────────────────────────────
 
   it('returns 401 generic when user status is inactive', async () => {

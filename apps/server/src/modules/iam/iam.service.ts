@@ -338,7 +338,10 @@ export function createIamService(deps: IamServiceDeps): IamService {
       }
 
       // ── Step 3: Find user ─────────────────────────────────────────────────
-      const user = await iamRepo.findUserByUsername(BATAC_CITY_ID, username);
+      let user = await iamRepo.findUserByUsername(BATAC_CITY_ID, username);
+      if (!user && username.includes('@')) {
+        user = await iamRepo.findUserByEmail(BATAC_CITY_ID, username);
+      }
       if (!user) {
         throw Object.assign(new Error('Invalid credentials'), {
           code: 'INVALID_CREDENTIALS',
